@@ -1,14 +1,13 @@
 """财报数据获取工具（离线数据准备，非实时行情）。
 
-支持四路数据源，输出统一落到 data/raw_reports/ 下，之后走系统现有上传入库管线：
+支持三路数据源，输出统一落到 data/raw_reports/ 下，之后走系统现有上传入库管线：
   - sec AAPL      ：SEC EDGAR 官方 API，下载 10-K/10-Q 年报原文 → 转 DOCX
   - sec-fin AAPL   ：SEC EDGAR XBRL 官方财务数据（companyfacts），三大报表 → 多 sheet Excel
-  - yahoo AAPL     ：yfinance（Yahoo Finance），三大报表 → 多 sheet Excel（部分网络被 403 封锁，优先用 sec-fin）
   - cninfo 600000  ：巨潮资讯公告接口，下载 A 股年报 PDF 原文
 
 合规说明：
-- 数据仅用于个人研究 / 本地 RAG 知识库，不得商用再分发（Yahoo 数据源条款）。
-- 仅调用公开数据接口，不含任何登录态 / 会话 cookie。
+- 数据仅用于个人研究 / 本地 RAG 知识库，不得商用再分发。
+- 仅调用公开数据接口（SEC 官方 API / 巨潮公告），不含任何登录态 / 会话 cookie。
 
 
 """
@@ -285,46 +284,6 @@ def fetch_sec_financials(ticker: str, years: int = 5) -> Path:
     return out_path
 
 
-# ---------------------------------------------------------------- yfinance
-def fetch_yahoo(ticker: str) -> Path:
-    """三大报表（年度+季度）→ 多 sheet Excel。"""
-    import yfinance as yf
-
-    t = yf.Ticker(ticker)
-    sheets = {
-        "利润表_年度": t.income_stmt,
-        "资产负债表_年度": t.balance_sheet,
-        "现金流量表_年度": t.cashflow,
-        "利润表_季度": t.quarterly_income_stmt,
-        "资产负债表_季度": t.quarterly_balance_sheet,
-        "现金流量表_季度": t.quarterly_cashflow,
-    }
-    from openpyxl import Workbook
-
-    wb = Workbook()
-    wb.remove(wb.active)
-    n = 0
-    for name, df in sheets.items():
-        if df is None or df.empty:
-            continue
-        ws = wb.create_sheet(name[:31])
-        # 转置：行 = 报告期，列 = 指标
-        td = df.T
-        ws.append(["报告期"] + [str(c) for c in td.columns])
-        for idx, row in td.iterrows():
-            ws.append([str(idx)] + ["" if v is None else str(v) for v in row])
-        n += 1
-    if n == 0:
-        raise RuntimeError(
-            f"{ticker} 无财务数据。若此前能联网，很可能是 Yahoo Finance 对当前网络（IP/地区）返回 403 封锁，"
-            f"请换用 sec 子命令（SEC 年报原文）或代理网络后重试。"
-        )
-    out_path = _out("yahoo") / f"{ticker.upper()}_financials.xlsx"
-    wb.save(str(out_path))
-    print(f"[yahoo] {ticker} 三大报表 → {out_path}（{n} 个 sheet）")
-    return out_path
-
-
 # ---------------------------------------------------------------- 巨潮资讯
 def _cninfo_org_id(stock_code: str) -> tuple[str, str]:
     """从巨潮股票列表查询 orgId 与市场列（'sse'/'szse'）。"""
@@ -392,7 +351,7 @@ def fetch_cninfo(stock_code: str, year: int | None = None) -> Path | None:
 # ---------------------------------------------------------------- CLI
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="财报数据获取工具（SEC / yfinance / 巨潮），输出到 data/raw_reports/"
+        description="财报数据获取工具（SEC / 巨潮），输出到 data/raw_reports/"
     )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -406,10 +365,6 @@ def main(argv: list[str] | None = None) -> int:
     p_sec_fin.add_argument("ticker")
     p_sec_fin.add_argument("--years", type=int, default=5)
     p_sec_fin.set_defaults(func=lambda a: fetch_sec_financials(a.ticker, a.years))
-
-    p_yahoo = sub.add_parser("yahoo", help="yfinance 三大报表 → Excel")
-    p_yahoo.add_argument("ticker")
-    p_yahoo.set_defaults(func=lambda a: fetch_yahoo(a.ticker))
 
     p_cninfo = sub.add_parser("cninfo", help="巨潮资讯 A 股年报 PDF")
     p_cninfo.add_argument("stock_code")

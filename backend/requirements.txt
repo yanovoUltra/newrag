@@ -27,7 +27,6 @@ openai>=1.40
 tiktoken>=0.7
 httpx>=0.27
 beautifulsoup4>=4.12  # 财报抓取工具（SEC HTML 清洗）
-yfinance>=1.5  # 财报抓取工具（Yahoo Finance 三大报表；部分网络会被 403 封锁）
 
 # ===== 测试 =====
 pytest>=8.0
