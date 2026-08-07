@@ -48,11 +48,8 @@ class Settings(BaseSettings):
     llm_light_api_key: str = ""
     llm_light_model: str = "qwen3.5-flash"
 
-    # OCR（百度智能云 / PaddleOCR AI Studio）
+    # OCR（PaddleOCR AI Studio 在线 API）
     ocr_enabled: bool = False
-    ocr_provider: str = "baidu"  # baidu | ppocr
-    ocr_api_key: str = ""
-    ocr_secret_key: str = ""
     # PaddleOCR AI Studio 在线 API（PP-StructureV3，异步任务：提交 → 轮询 → 下载 JSONL）
     ppocr_token: str = ""
     ppocr_job_url: str = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"

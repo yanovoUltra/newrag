@@ -1,9 +1,10 @@
 """财报数据获取工具（离线数据准备，非实时行情）。
 
-支持三路数据源，输出统一落到 data/raw_reports/ 下，之后走系统现有上传入库管线：
-  - sec AAPL    ：SEC EDGAR 官方 API，下载 10-K/10-Q 年报原文 → 转 DOCX
-  - yahoo AAPL   ：yfinance（Yahoo Finance），三大报表 → 多 sheet Excel
-  - cninfo 600000：巨潮资讯公告接口，下载 A 股年报 PDF 原文
+支持四路数据源，输出统一落到 data/raw_reports/ 下，之后走系统现有上传入库管线：
+  - sec AAPL      ：SEC EDGAR 官方 API，下载 10-K/10-Q 年报原文 → 转 DOCX
+  - sec-fin AAPL   ：SEC EDGAR XBRL 官方财务数据（companyfacts），三大报表 → 多 sheet Excel
+  - yahoo AAPL     ：yfinance（Yahoo Finance），三大报表 → 多 sheet Excel（部分网络被 403 封锁，优先用 sec-fin）
+  - cninfo 600000  ：巨潮资讯公告接口，下载 A 股年报 PDF 原文
 
 合规说明：
 - 数据仅用于个人研究 / 本地 RAG 知识库，不得商用再分发（Yahoo 数据源条款）。
@@ -31,6 +32,7 @@ SEC_UA = {
 SEC_SUBMISSIONS = "https://data.sec.gov/submissions/CIK{padded:010d}.json"
 SEC_BROWSE = "https://www.sec.gov/cgi-bin/browse-edgar"
 SEC_ARCHIVES = "https://www.sec.gov/Archives/edgar/data/{cik}/"
+SEC_FACTS = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 
 CNINFO_QUERY = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
 CNINFO_STATIC = "http://static.cninfo.com.cn/{path}"
@@ -177,6 +179,112 @@ def fetch_sec(ticker: str, form: str = "10-K", year: int | None = None) -> list[
     return found
 
 
+# ---------------------------------------------------------------- SEC XBRL 财务数据
+# 三大报表常用 us-gaap 概念（缺失的概念自动跳过）。
+# 部分公司（如 AAPL）主表用 ASC 606 概念而非标准名，故按"别名优先级"取含最新财年记录者。
+_SEC_STATEMENTS: dict[str, list[list[str]]] = {
+    "利润表_年度": [
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues"],
+        ["CostOfGoodsAndServicesSold", "CostOfRevenue"],
+        ["GrossProfit"],
+        ["ResearchAndDevelopmentExpense", "ResearchAndDevelopmentExpenses"],
+        ["SellingGeneralAndAdministrativeExpense"],
+        ["OperatingIncomeLoss"],
+        ["InterestExpense"],
+        ["IncomeTaxExpenseBenefit"],
+        ["NetIncomeLoss"],
+        ["EarningsPerShareBasic"],
+        ["EarningsPerShareDiluted"],
+    ],
+    "资产负债表_年度": [
+        ["Assets"],
+        ["AssetsCurrent"],
+        ["CashAndCashEquivalentsAtCarryingValue"],
+        ["MarketableSecuritiesCurrent"],
+        ["AccountsReceivableNetCurrent"],
+        ["InventoryNet"],
+        ["PropertyPlantAndEquipmentNet"],
+        ["Liabilities"],
+        ["LiabilitiesCurrent"],
+        ["AccountsPayableCurrent"],
+        ["LongTermDebtNoncurrent"],
+        ["StockholdersEquity"],
+        ["RetainedEarningsAccumulatedDeficit"],
+        ["CommonStockValue"],
+    ],
+    "现金流量表_年度": [
+        ["NetCashProvidedByUsedInOperatingActivities"],
+        ["NetCashProvidedByUsedInInvestingActivities"],
+        ["NetCashProvidedByUsedInFinancingActivities"],
+        ["PaymentsToAcquirePropertyPlantAndEquipment"],
+        ["DepreciationDepletionAndAmortization"],
+        ["CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect"],
+    ],
+}
+
+
+def _facts_annual(facts: dict, concept: str) -> dict[int, float]:
+    """从 companyfacts 提取某概念的年度（10-K）序列 {财政年度: 值}，后披露覆盖先披露。"""
+    usgaap = facts.get("us-gaap", {})
+    if concept not in usgaap:
+        return {}
+    out: dict[int, float] = {}
+    for item in usgaap[concept].get("units", {}).get("USD", []):
+        if item.get("form") != "10-K" or item.get("fy") is None:
+            continue
+        out[int(item["fy"])] = item.get("val")
+    return out
+
+
+def _facts_series(facts: dict, aliases: list[str]) -> dict[int, float]:
+    """按别名优先级取概念序列：优先选含最新财年记录的概念（主表概念必含最新 fy）。"""
+    series = {c: _facts_annual(facts, c) for c in aliases}
+    max_fy = max((fy for s in series.values() for fy in s), default=0)
+    for c in aliases:
+        s = series[c]
+        if s and (max_fy in s):
+            return s
+    for c in aliases:  # 兜底：取覆盖年度最多者
+        s = series[c]
+        if s and len(s) == max((len(x) for x in series.values()), default=0):
+            return s
+    return {}
+
+
+def fetch_sec_financials(ticker: str, years: int = 5) -> Path:
+    """SEC EDGAR XBRL 官方财务数据（companyfacts）→ 三大报表 Excel。
+
+    yfinance 在本网络被 Yahoo 403 封锁时的替代；官方数据、无需 key、结构化 JSON。
+    """
+    cik = _lookup_cik(ticker)
+    resp = httpx.get(SEC_FACTS.format(cik=int(cik)), headers=SEC_UA, timeout=120)
+    resp.raise_for_status()
+    facts = resp.json().get("facts", {})
+
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    n = 0
+    for sheet_name, concepts in _SEC_STATEMENTS.items():
+        series = {tuple(c): _facts_series(facts, c) for c in concepts}
+        years_set = sorted({y for s in series.values() for y in s})[-years:]
+        if not years_set:
+            continue
+        ws = wb.create_sheet(sheet_name)
+        ws.append(["指标"] + [f"FY{y}" for y in years_set])
+        for aliases, by_year in series.items():
+            label = aliases[0] if len(aliases) == 1 else "/".join(aliases)
+            ws.append([label] + [by_year.get(y, "") for y in years_set])
+        n += 1
+    if n == 0:
+        raise RuntimeError(f"{ticker} 未找到 SEC XBRL 财务数据（us-gaap）")
+    out_path = _out("sec") / f"{ticker.upper()}_financials.xlsx"
+    wb.save(str(out_path))
+    print(f"[sec-fin] {ticker} 三大报表（XBRL 官方数据）→ {out_path}（{n} 个 sheet，覆盖 FY{years_set[0]}~FY{years_set[-1]}）")
+    return out_path
+
+
 # ---------------------------------------------------------------- yfinance
 def fetch_yahoo(ticker: str) -> Path:
     """三大报表（年度+季度）→ 多 sheet Excel。"""
@@ -293,6 +401,11 @@ def main(argv: list[str] | None = None) -> int:
     p_sec.add_argument("--form", choices=["10-K", "10-Q"], default="10-K")
     p_sec.add_argument("--year", type=int, default=None)
     p_sec.set_defaults(func=lambda a: fetch_sec(a.ticker, a.form, a.year))
+
+    p_sec_fin = sub.add_parser("sec-fin", help="SEC XBRL 官方财务数据（三大报表）→ Excel")
+    p_sec_fin.add_argument("ticker")
+    p_sec_fin.add_argument("--years", type=int, default=5)
+    p_sec_fin.set_defaults(func=lambda a: fetch_sec_financials(a.ticker, a.years))
 
     p_yahoo = sub.add_parser("yahoo", help="yfinance 三大报表 → Excel")
     p_yahoo.add_argument("ticker")
