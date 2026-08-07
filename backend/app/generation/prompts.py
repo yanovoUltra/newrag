@@ -43,11 +43,21 @@ HYDE_PROMPT = """请根据问题写一段约 80~150 字的"假设文档"，内�
 
 
 def build_answer_messages(question: str, context_blocks: list[dict]) -> list[dict[str, str]]:
-    """构建问答消息：系统角色 + 知识块 + 用户问题。"""
+    """构建问答消息：系统角色 + 知识块 + 用户问题。
+
+    context_blocks 可含 parent_content（所属章节父块），作为该块的章节上下文附加。
+    """
     blocks: list[str] = []
     for i, b in enumerate(context_blocks, start=1):
         source = f"{b['doc_name']}-{b['section_path']}-第{b['page']}页"
-        blocks.append(f"【知识块 {i}】[{source}]\n{b['content']}")
+        content = b["content"]
+        parent = b.get("parent_content") or ""
+        if parent and b.get("chunk_type") != "section":
+            blocks.append(
+                f"【知识块 {i}】[{source}]\n{content}\n\n【该块所属章节上下文】\n{parent}"
+            )
+        else:
+            blocks.append(f"【知识块 {i}】[{source}]\n{content}")
     knowledge = "\n\n".join(blocks) if blocks else "（无可用知识块）"
     user = f"【知识】\n{knowledge}\n\n【问题】\n{question}"
     return [

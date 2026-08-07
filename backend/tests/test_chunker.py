@@ -103,3 +103,53 @@ def test_split_text_by_tokens_single_line_overflow():
     assert len(parts) > 1
     for p in parts:
         assert count_tokens(p) <= 50
+
+
+def test_section_parent_blocks_created():
+    para = "公司主营业务保持稳健发展，收入结构与去年基本一致，毛利率同比小幅提升。"
+    text = "\n".join(["一、概览"] + [para] * 60)  # ≈ 1300 token → 多个叶子 + 1 个章节父块
+    layout = LayoutResult(pages=[ParsedPage(page_no=1, text=text)])
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    parents = [c for c in chunks if c.chunk_type == "section"]
+    assert parents  # 章节级父块存在
+    assert chunks[0].chunk_type == "section"  # 父块顺序在前
+    # 父块聚合了叶子内容（token 量级显著大于单叶子）
+    assert parents[0].token_count >= 500
+    # 每个叶子 parent_id 都指向存在的父块
+    parent_ids = {p.id for p in parents}
+    for leaf in [c for c in chunks if c.chunk_type != "section"]:
+        assert leaf.parent_id in parent_ids
+
+
+def test_body_adjacent_chunks_10pct_overlap():
+    para = "报告期内公司实现营业收入86.5亿元，同比增长18.2%，毛利率29.6%，净利率14.3%，资产负债率58.9%。"
+    text = "\n".join(["二、经营分析"] + [para] * 30)  # ≈ 1900 token → 多个相邻叶子
+    layout = LayoutResult(pages=[ParsedPage(page_no=1, text=text)])
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    text_chunks = [c for c in chunks if c.chunk_type == "text"]
+    assert len(text_chunks) >= 3
+    # 相邻块保留重叠：下一块以本块尾部字符开头
+    assert text_chunks[0].content[-10:] in text_chunks[1].content
+    assert text_chunks[1].content[-10:] in text_chunks[2].content
+
+
+def test_oversized_table_summary_and_pagination():
+    headers = ["科目"] + [f"Q{i}" for i in range(10)]
+    rows = [[f"科目{i}"] + [str(i * 10 + j) for j in range(10)] for i in range(300)]
+    layout = LayoutResult(
+        pages=[
+            ParsedPage(
+                page_no=1,
+                text="财务明细",
+                tables=[ParsedTable(page=1, headers=headers, rows=rows)],
+            )
+        ]
+    )
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    tables = [c for c in chunks if c.chunk_type == "table"]
+    assert len(tables) >= 2  # 摘要 + 分页
+    # 摘要块含表头 + 规模统计
+    assert any("本表共 300 行" in c.content for c in tables)
+    # 分页明细完整（末行数据保留）
+    joined = "\n".join(c.content for c in tables)
+    assert "科目299" in joined

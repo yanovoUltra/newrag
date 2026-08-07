@@ -1,4 +1,4 @@
-"""Small-to-Big 切分：正文按行聚合到目标 token 数成块（过滤目录/页眉等噪声行），表格不可分割。"""
+"""Small-to-Big 切分：叶子按目标 token 聚合（含噪声过滤/重叠），表格不可分割（超长摘要+分页），章节级父块。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from app.core.config import get_settings
-from app.parsers.base import LayoutResult
+from app.parsers.base import LayoutResult, ParsedTable
 from app.parsers.structure import Section, section_path_for_page
 from app.splitter.tokens import count_tokens, split_text_by_tokens
 
@@ -90,52 +90,67 @@ def _overlap_tokens(chunk_size: int) -> int:
     return max(1, int(chunk_size * 0.1))
 
 
+def _table_summary(t: ParsedTable) -> str:
+    """超长表格轻量摘要：表头 + 前 2 行 + 规模统计（不调 LLM）。"""
+    lines: list[str] = []
+    if t.headers:
+        lines.append(" | ".join(str(h) for h in t.headers))
+    for r in t.rows[:2]:
+        lines.append(" | ".join("" if c is None else str(c) for c in r))
+    n_cols = len(t.headers) if t.headers else (len(t.rows[0]) if t.rows else 0)
+    lines.append(f"[本表共 {len(t.rows)} 行 × {n_cols} 列，以下为分页明细]")
+    return "\n".join(lines)
+
+
 def build_chunks(
     doc_id: str,
     layout: LayoutResult,
     sections: list[Section],
     doc_title: str = "",
 ) -> list[Chunk]:
-    """多粒度分块：正文连续行聚合到目标 token 数成块（过滤噪声行），表格不可分割。"""
+    """多粒度分块：叶子（正文聚合+重叠 / 表格摘要+分页）+ 章节级父块（2~4K token）。
+
+    返回顺序：父块在前、叶子在后；叶子的 parent_id 指向其所属章节父块。
+    """
     settings = get_settings()
-    chunks: list[Chunk] = []
+    leaves: list[Chunk] = []
+    parent_blocks: list[Chunk] = []
     seq = 0
 
-    def add_chunk(
+    def make(
         chunk_type: str,
         content: str,
         page_no: int,
         section_path: str,
         parent_id: str | None = None,
-    ) -> None:
+    ) -> Chunk:
         nonlocal seq
         seq += 1
-        chunks.append(
-            Chunk(
-                id=_new_id(), doc_id=doc_id, page=page_no,
-                section_path=section_path, chunk_type=chunk_type,
-                content=content, token_count=count_tokens(content), seq=seq,
-                parent_id=parent_id,
-            )
+        return Chunk(
+            id=_new_id(), doc_id=doc_id, page=page_no,
+            section_path=section_path, chunk_type=chunk_type,
+            content=content, token_count=count_tokens(content), seq=seq,
+            parent_id=parent_id,
         )
 
+    # ---- 1) 收集叶子 ----
     for page in layout.pages:
         section_path = section_path_for_page(sections, page.page_no) or doc_title or "文档正文"
 
-        # 1) 表格：不可分割单元
+        # 1a) 表格：不可分割单元；超长表格 → 摘要 + 分页
         for t in page.tables:
             text = t.to_text()
             if not text.strip():
                 continue
             token_count = count_tokens(text)
             if token_count <= settings.table_max_tokens:
-                add_chunk("table", text, page.page_no, section_path)
+                leaves.append(make("table", text, page.page_no, section_path))
             else:
-                # 超长表格：摘要+分页（阶段一简化为按行分页）
+                leaves.append(make("table", _table_summary(t), page.page_no, section_path))
                 for part in split_text_by_tokens(text, settings.table_max_tokens):
-                    add_chunk("table", part, page.page_no, section_path)
+                    leaves.append(make("table", part, page.page_no, section_path))
 
-        # 2) 正文：连续行累积到目标 token 数成块，过滤目录/页眉/页脚等噪声行
+        # 1b) 正文：连续行累积到目标 token 数成块，相邻块保留尾部 10% 重叠
         text_lines = [
             line.strip()
             for line in page.text.split("\n")
@@ -143,28 +158,74 @@ def build_chunks(
         ]
         if not text_lines:
             continue
-        # 页级聚合父块：同页所有叶子共享 parent_id，检索时按组扩展上下文（阶段二）
-        parent_id = _new_id()
+        overlap = _overlap_tokens(settings.chunk_target_tokens)
         buffer = ""
         for line in text_lines:
             line_tokens = count_tokens(line)
             if line_tokens > settings.chunk_max_tokens:
                 # 超长行（无换行的巨段）：独立按句子切分
                 if buffer:
-                    add_chunk("text", buffer, page.page_no, section_path, parent_id)
+                    leaves.append(make("text", buffer, page.page_no, section_path))
                     buffer = ""
                 for seg in _split_paragraph(line, settings):
-                    add_chunk("text", seg, page.page_no, section_path, parent_id)
+                    leaves.append(make("text", seg, page.page_no, section_path))
                 continue
             if buffer and count_tokens(f"{buffer}\n{line}") > settings.chunk_target_tokens:
-                add_chunk("text", buffer, page.page_no, section_path, parent_id)
-                buffer = line
+                leaves.append(make("text", buffer, page.page_no, section_path))
+                # 下一块以本块尾部 overlap 字符开头，消解块边界截断
+                keep = _chars_for_tokens(buffer, overlap)
+                buffer = f"{keep}\n{line}" if keep else line
             else:
                 buffer = f"{buffer}\n{line}" if buffer else line
         if buffer:
-            add_chunk("text", buffer, page.page_no, section_path, parent_id)
+            leaves.append(make("text", buffer, page.page_no, section_path))
 
-    return chunks
+    # ---- 2) 章节级父块：按 section_path 连续段分组，累积到 parent_target 封块 ----
+    def flush_segment(segment: list[Chunk]) -> None:
+        if not segment:
+            return
+        path = segment[0].section_path
+        page0 = segment[0].page
+        parent_id = _new_id()
+        buf: list[str] = []
+        buf_tokens = 0
+
+        def emit() -> None:
+            # 父块 id 必须与叶子分配的 parent_id 一致，检索侧才能按 id 回查
+            nonlocal parent_id, buf, buf_tokens
+            if not buf:
+                return
+            content = "\n\n".join(buf)
+            parent_blocks.append(
+                Chunk(
+                    id=parent_id, doc_id=doc_id, page=page0,
+                    section_path=path, chunk_type="section",
+                    content=content, token_count=count_tokens(content),
+                )
+            )
+            parent_id = _new_id()
+            buf = []
+            buf_tokens = 0
+
+        for leaf in segment:
+            if buf and buf_tokens + leaf.token_count > settings.chunk_parent_target_tokens:
+                emit()
+            buf.append(leaf.content)
+            buf_tokens += leaf.token_count
+            leaf.parent_id = parent_id
+        emit()
+
+    segment: list[Chunk] = []
+    last_path: str | None = None
+    for leaf in leaves:
+        if last_path is not None and leaf.section_path != last_path:
+            flush_segment(segment)
+            segment = []
+        last_path = leaf.section_path
+        segment.append(leaf)
+    flush_segment(segment)
+
+    return parent_blocks + leaves
 
 
 def _split_paragraph(para: str, settings) -> list[str]:

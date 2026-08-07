@@ -143,6 +143,7 @@ def search_dense(
     user_visibility: str,
     top_k: int,
     chunk_type: str | None = None,
+    exclude_chunk_types: list[str] | None = None,
 ) -> list[dict]:
     """单路稠密检索，强制注入权限 payload 过滤。"""
     client = get_client()
@@ -155,11 +156,16 @@ def search_dense(
     ]
     if chunk_type:
         must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
+    must_not = None
+    if exclude_chunk_types:
+        must_not = [
+            models.FieldCondition(key="chunk_type", match=models.MatchAny(any=exclude_chunk_types))
+        ]
     hits = client.query_points(
         collection_name=get_settings().qdrant_collection,
         query=query_vector,
         using="dense",
-        query_filter=models.Filter(must=must),
+        query_filter=models.Filter(must=must, must_not=must_not),
         limit=top_k,
         with_payload=True,
     ).points
@@ -175,6 +181,7 @@ def search_dense(
                 "section_path": p.get("section_path", ""),
                 "chunk_type": p.get("chunk_type", "text"),
                 "content": p.get("content", ""),
+                "parent_id": p.get("parent_id"),
                 "score": h.score,
                 # 检索后二次校验（权限）
                 "org_id": p.get("org_id"),
@@ -190,6 +197,7 @@ def search_sparse(
     user_visibility: str,
     top_k: int,
     chunk_type: str | None = None,
+    exclude_chunk_types: list[str] | None = None,
 ) -> list[dict]:
     """稀疏路召回（Qdrant IDF modifier 全局加权 = BM25 风格），强制权限过滤。"""
     client = get_client()
@@ -202,11 +210,16 @@ def search_sparse(
     ]
     if chunk_type:
         must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
+    must_not = None
+    if exclude_chunk_types:
+        must_not = [
+            models.FieldCondition(key="chunk_type", match=models.MatchAny(any=exclude_chunk_types))
+        ]
     hits = client.query_points(
         collection_name=get_settings().qdrant_collection,
         query=models.SparseVector(indices=query_sparse["indices"], values=query_sparse["values"]),
         using="sparse",
-        query_filter=models.Filter(must=must),
+        query_filter=models.Filter(must=must, must_not=must_not),
         limit=top_k,
         with_payload=True,
     ).points
@@ -222,12 +235,27 @@ def search_sparse(
                 "section_path": p.get("section_path", ""),
                 "chunk_type": p.get("chunk_type", "text"),
                 "content": p.get("content", ""),
+                "parent_id": p.get("parent_id"),
                 "score": h.score,
                 "org_id": p.get("org_id"),
                 "visibility": p.get("visibility"),
             }
         )
     return results
+
+
+def fetch_payloads(doc_id: str, chunk_ids: list[str]) -> dict[str, dict]:
+    """按 chunk_id 取 payload（点 id 幂等 = uuid5(doc_id:chunk_id)），用于父块上下文扩展。"""
+    if not chunk_ids:
+        return {}
+    client = get_client()
+    ids = [uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}:{cid}").hex for cid in chunk_ids]
+    pts = client.retrieve(
+        collection_name=get_settings().qdrant_collection,
+        ids=ids,
+        with_payload=True,
+    )
+    return {p.payload.get("chunk_id"): p.payload for p in pts if p.payload}
 
 
 def count_docs() -> int:

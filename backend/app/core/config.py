@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     chunk_min_tokens: int = 128
     chunk_target_tokens: int = 200
     chunk_max_tokens: int = 256
-    overlap_tokens: int = 20
+    chunk_parent_target_tokens: int = 3072  # 章节级父块目标（2~4K 区间中值）
     table_max_tokens: int = 2048  # 超过则表格"摘要+分页"
 
     # 上传
