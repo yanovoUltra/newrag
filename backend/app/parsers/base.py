@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.core.config import get_settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -97,5 +98,9 @@ def parse_layout(path: Path) -> LayoutResult:
 
         return parse_xlsx(path)
     if ext in (".png", ".jpg", ".jpeg"):
-        raise ValueError(f"图片类型 {ext} 需 OCR 解析，当前 OCR 未接入（等接入 ppocr 后开放）")
+        if not get_settings().ocr_enabled:
+            raise ValueError("图片类型需 OCR 解析，请先启用 OCR（OCR_ENABLED=true 并配置 OCR 密钥）")
+        from app.parsers.layout import parse_image
+
+        return parse_image(path)
     raise ValueError(f"不支持的文件类型: {ext}（支持 {sorted(SUPPORTED_EXTENSIONS)}）")

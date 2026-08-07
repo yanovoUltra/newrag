@@ -117,6 +117,16 @@ def parse_xlsx(path: Path) -> LayoutResult:
     return LayoutResult(pages=pages, text_extraction_rate=1.0)
 
 
+def parse_image(path: Path) -> LayoutResult:
+    """图片（截图/扫描件）经 OCR 转文本（需 OCR_ENABLED=true）。"""
+    from app.parsers.ocr import ocr_image_file
+
+    text = ocr_image_file(path)
+    page = ParsedPage(page_no=1, text=text)
+    scanned = not bool(text.strip())
+    return LayoutResult(pages=[page], text_extraction_rate=0.0 if scanned else 1.0)
+
+
 def _extraction_rate(pages: list[ParsedPage]) -> float:
     if not pages:
         return 1.0
