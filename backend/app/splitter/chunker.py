@@ -1,7 +1,8 @@
-"""Small-to-Big 切分：叶子 chunk 128~256 token（相邻重叠 10%），表格不可分割。"""
+"""Small-to-Big 切分：正文按行聚合到目标 token 数成块（过滤目录/页眉等噪声行），表格不可分割。"""
 
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass, field
 
@@ -9,6 +10,35 @@ from app.core.config import get_settings
 from app.parsers.base import LayoutResult
 from app.parsers.structure import Section, section_path_for_page
 from app.splitter.tokens import count_tokens, split_text_by_tokens
+
+# 目录/页眉/页脚等单独一行出现时的常见噪声（精确匹配，保守过滤）
+_NOISE_EXACT = {
+    "目录", "目 录", "contents", "table of contents", "toc",
+    "页码", "page", "本页无正文", "（本页无正文）", "(this page intentionally left blank)",
+}
+
+
+def _is_noise_line(line: str) -> bool:
+    """判定是否为碎片噪声行（纯数字页码、单汉字、装饰线、目录占位等）。"""
+    s = line.strip()
+    if not s:
+        return True
+    if s.lower() in _NOISE_EXACT:
+        return True
+    # 纯数字 / 数字+分隔符 / 百分号（如 "1"、"23"、"1/2"、"10.5%"、"第 3 页"）
+    if re.fullmatch(r"[\d\s\.,\-—–/\\%:：()（）]+", s):
+        return True
+    if re.fullmatch(r"第\s*\d+\s*页", s, re.IGNORECASE):
+        return True
+    if re.fullmatch(r"page\s*\d+\s*(of\s*\d+)?", s, re.IGNORECASE):
+        return True
+    # 单个汉字（多为目录行，如 "目"、"录"）
+    if len(s) == 1 and re.fullmatch(r"[\u4e00-\u9fff]", s):
+        return True
+    # 装饰线 / 连续符号
+    if re.fullmatch(r"[\-—–_=*·~.\s]{2,}", s):
+        return True
+    return False
 
 
 @dataclass
@@ -66,10 +96,28 @@ def build_chunks(
     sections: list[Section],
     doc_title: str = "",
 ) -> list[Chunk]:
-    """多粒度分块：正文按段落/语句切叶子块，表格独立成块。"""
+    """多粒度分块：正文连续行聚合到目标 token 数成块（过滤噪声行），表格不可分割。"""
     settings = get_settings()
     chunks: list[Chunk] = []
     seq = 0
+
+    def add_chunk(
+        chunk_type: str,
+        content: str,
+        page_no: int,
+        section_path: str,
+        parent_id: str | None = None,
+    ) -> None:
+        nonlocal seq
+        seq += 1
+        chunks.append(
+            Chunk(
+                id=_new_id(), doc_id=doc_id, page=page_no,
+                section_path=section_path, chunk_type=chunk_type,
+                content=content, token_count=count_tokens(content), seq=seq,
+                parent_id=parent_id,
+            )
+        )
 
     for page in layout.pages:
         section_path = section_path_for_page(sections, page.page_no) or doc_title or "文档正文"
@@ -81,64 +129,47 @@ def build_chunks(
                 continue
             token_count = count_tokens(text)
             if token_count <= settings.table_max_tokens:
-                seq += 1
-                chunks.append(
-                    Chunk(
-                        id=_new_id(), doc_id=doc_id, page=page.page_no,
-                        section_path=section_path, chunk_type="table",
-                        content=text, token_count=token_count, seq=seq,
-                    )
-                )
+                add_chunk("table", text, page.page_no, section_path)
             else:
-                # 超长表格：摘要+分页（阶段一简化为按行分页，共享父块语义）
-                pages = split_text_by_tokens(text, settings.table_max_tokens)
-                for part in pages:
-                    seq += 1
-                    chunks.append(
-                        Chunk(
-                            id=_new_id(), doc_id=doc_id, page=page.page_no,
-                            section_path=section_path, chunk_type="table",
-                            content=part, token_count=count_tokens(part), seq=seq,
-                        )
-                    )
+                # 超长表格：摘要+分页（阶段一简化为按行分页）
+                for part in split_text_by_tokens(text, settings.table_max_tokens):
+                    add_chunk("table", part, page.page_no, section_path)
 
-        # 2) 正文：按段落累积到目标 token 数
-        for para in page.text.split("\n"):
-            para = para.strip()
-            if not para:
+        # 2) 正文：连续行累积到目标 token 数成块，过滤目录/页眉/页脚等噪声行
+        text_lines = [
+            line.strip()
+            for line in page.text.split("\n")
+            if line.strip() and not _is_noise_line(line)
+        ]
+        if not text_lines:
+            continue
+        # 页级聚合父块：同页所有叶子共享 parent_id，检索时按组扩展上下文（阶段二）
+        parent_id = _new_id()
+        buffer = ""
+        for line in text_lines:
+            line_tokens = count_tokens(line)
+            if line_tokens > settings.chunk_max_tokens:
+                # 超长行（无换行的巨段）：独立按句子切分
+                if buffer:
+                    add_chunk("text", buffer, page.page_no, section_path, parent_id)
+                    buffer = ""
+                for seg in _split_paragraph(line, settings):
+                    add_chunk("text", seg, page.page_no, section_path, parent_id)
                 continue
-            para_tokens = count_tokens(para)
-            if para_tokens <= settings.chunk_max_tokens:
-                seq += 1
-                chunks.append(
-                    Chunk(
-                        id=_new_id(), doc_id=doc_id, page=page.page_no,
-                        section_path=section_path, chunk_type="text",
-                        content=para, token_count=para_tokens, seq=seq,
-                    )
-                )
+            if buffer and count_tokens(f"{buffer}\n{line}") > settings.chunk_target_tokens:
+                add_chunk("text", buffer, page.page_no, section_path, parent_id)
+                buffer = line
             else:
-                # 超长段落：按句子切分为多块，块间 10% 重叠
-                seq += 1
-                for i, seg in enumerate(_split_paragraph(para, settings)):
-                    chunk = Chunk(
-                        id=_new_id(), doc_id=doc_id, page=page.page_no,
-                        section_path=section_path, chunk_type="text",
-                        content=seg, token_count=count_tokens(seg), seq=seq,
-                    )
-                    if i > 0:
-                        chunk.parent_id = chunk.id  # 同一段落片段的父链标记（自引用简化）
-                    chunks.append(chunk)
-                    seq += 1
+                buffer = f"{buffer}\n{line}" if buffer else line
+        if buffer:
+            add_chunk("text", buffer, page.page_no, section_path, parent_id)
 
     return chunks
 
 
 def _split_paragraph(para: str, settings) -> list[str]:
-    """句子级切分：合并句子至 max，保留 overlap 重叠。"""
+    """句子级切分：合并句子至 target，保留 overlap 重叠；单句超长时硬切兜底。"""
     # 按中文句号/分号/换行切句子
-    import re
-
     sentences = re.split(r"(?<=[。；;!?！？])", para)
     sentences = [s for s in sentences if s.strip()]
     if not sentences:
@@ -149,6 +180,13 @@ def _split_paragraph(para: str, settings) -> list[str]:
     parts: list[str] = []
     current = ""
     for s in sentences:
+        if count_tokens(s) > settings.chunk_max_tokens:
+            # 单句超长（如长串数字/无标点段落）：先清空缓冲，再硬切兜底
+            if current:
+                parts.append(current)
+                current = ""
+            parts.extend(split_text_by_tokens(s, settings.chunk_max_tokens))
+            continue
         if current and count_tokens(current + s) > target:
             parts.append(current)
             # 保留尾部 overlap_tokens 的字符作为下一块开头（近似 10% 重叠）

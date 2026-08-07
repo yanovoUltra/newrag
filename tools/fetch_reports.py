@@ -51,18 +51,48 @@ def _safe_name(name: str) -> str:
     return re.sub(r"[^\w\-.（）()一-龥]", "_", name)
 
 
-def _html_to_text(html: str) -> str:
+def _extract_tables(soup) -> list[list[list[str]]]:
+    """把 HTML <table> 转为结构化行（对齐 ParsedTable.to_text 的管道格式），并移除表格节点避免文本重复。"""
+    tables: list[list[list[str]]] = []
+    for tbl in soup.find_all("table"):
+        rows: list[list[str]] = []
+        for tr in tbl.find_all("tr"):
+            cells = [" ".join(c.get_text(" ", strip=True).split()) for c in tr.find_all(["td", "th"])]
+            if any(cells):
+                rows.append(cells)
+        # 过滤布局表：不足 2 行或不足 2 列多为页面排版而非数据表
+        if len(rows) >= 2 and len(rows[0]) >= 2:
+            tables.append(rows)
+        tbl.decompose()
+    return tables
+
+
+# SEC 原始披露中的页眉/页脚/目录残留（逐行剔除）
+_SEC_NOISE_LINE = re.compile(
+    r"^table of contents$|^10-[kq]\s+[\w\-]*\.?htm$|^https?://\S+$|^page\s*\d+\s*(of\s*\d+)?$",
+    re.IGNORECASE,
+)
+
+
+def _html_to_content(html: str) -> tuple[str, list[list[list[str]]]]:
+    """HTML → (正文文本, 表格)。正文剔除表格区域，表格转结构化行。"""
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
-    text = soup.get_text("\n")
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
+    tables = _extract_tables(soup)
+    lines: list[str] = []
+    for ln in soup.get_text("\n").split("\n"):
+        s = ln.strip()
+        if not s or _SEC_NOISE_LINE.match(s):
+            continue
+        lines.append(s)
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
+    return text.strip(), tables
 
 
-def _write_docx(path: Path, title: str, body: str) -> None:
+def _write_docx(path: Path, title: str, body: str, tables: list[list[list[str]]] | None = None) -> None:
     from docx import Document
 
     doc = Document()
@@ -71,9 +101,15 @@ def _write_docx(path: Path, title: str, body: str) -> None:
         para = para.strip()
         if not para:
             continue
-        if re.match(r"^[0-9]+\.$", para):
+        if re.match(r"^[0-9]+\.$", para):  # 页码
             continue
         doc.add_paragraph(para)
+    for rows in tables or []:
+        n_cols = max(len(r) for r in rows)
+        t = doc.add_table(rows=len(rows), cols=n_cols)
+        for i, row in enumerate(rows):
+            for j, cell in enumerate(row):
+                t.cell(i, j).text = cell
     doc.save(str(path))
 
 
@@ -117,13 +153,19 @@ def fetch_sec(ticker: str, form: str = "10-K", year: int | None = None) -> list[
         doc_url = f"{SEC_ARCHIVES.format(cik=int(cik))}{acc.replace('-', '')}/{primary}"
         resp = httpx.get(doc_url, headers=SEC_UA, timeout=60)
         resp.raise_for_status()
-        body = _html_to_text(resp.text)
+        body, tables = _html_to_content(resp.text)
         if len(body) < 2000:  # 首页/封面，跳过
             continue
+        # 表格过多时（如含 XBRL 明细），超量表格转管道文本并入正文，避免 DOCX 体积失控
+        MAX_TABLES = 200
+        if len(tables) > MAX_TABLES:
+            pipe_lines = [" | ".join(r) for t in tables[MAX_TABLES:] for r in t]
+            body = f"{body}\n\n" + "\n".join(pipe_lines) if body else "\n".join(pipe_lines)
+            tables = tables[:MAX_TABLES]
         title = f"{ticker.upper()} {form} 年报（SEC 原始披露，filed {filed}）"
         out_path = _out("sec") / f"{ticker.upper()}_{form}_{filed}.docx"
-        _write_docx(out_path, title, body)
-        print(f"[sec] {ticker} {form} {filed} → {out_path}（{len(body)} 字符）")
+        _write_docx(out_path, title, body, tables)
+        print(f"[sec] {ticker} {form} {filed} → {out_path}（{len(body)} 字符，{len(tables)} 表格）")
         found.append(out_path)
         if year is not None:  # 指定年份只取最近一份
             break

@@ -58,6 +58,48 @@ def test_chunk_token_bounds():
     assert long_chunks[0].content[-10:] in long_chunks[1].content
 
 
+def test_text_lines_aggregated_and_noise_filtered():
+    lines = [
+        "报告期内公司实现营业收入，同比增长，营收结构持续优化。",
+        "公司主营业务保持稳健，毛利率同比小幅提升。",
+        "管理层对下一年度经营前景持审慎乐观态度。",
+    ]
+    text = "\n".join(["目录", "1", "第 3 页", "----------------", *lines])
+    layout = LayoutResult(pages=[ParsedPage(page_no=1, text=text)])
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    text_chunks = [c for c in chunks if c.chunk_type == "text"]
+    # 噪声行被过滤，正文行聚合进同一块（总 token 数未超 target）
+    assert len(text_chunks) == 1
+    content = text_chunks[0].content
+    assert "目录" not in content
+    assert "第 3 页" not in content
+    assert "营收结构持续优化" in content
+    assert "审慎乐观态度" in content
+
+
+def test_parent_id_grouped_per_page():
+    para = "公司主营业务保持稳健发展，收入结构与去年基本一致。"
+    text = "\n".join(["一、概览"] + [para] * 16)  # 16 行 ≈ 400 token → 多个叶子块
+    layout = LayoutResult(pages=[ParsedPage(page_no=1, text=text)])
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    text_chunks = [c for c in chunks if c.chunk_type == "text"]
+    assert len(text_chunks) >= 2
+    parents = {c.parent_id for c in text_chunks}
+    assert len(parents) == 1  # 同页叶子共享同一父块
+    assert None not in parents
+
+
 def test_count_tokens_smoke():
     assert count_tokens("中文文本测试") >= 1
     assert count_tokens("hello world") >= 1
+
+
+def test_split_text_by_tokens_single_line_overflow():
+    from app.splitter.tokens import split_text_by_tokens
+
+    # 无换行巨段：按字符硬切，任一块不超 max_tokens
+    giant = "无标点长文本内容" * 500
+    parts = split_text_by_tokens(giant, max_tokens=50)
+    assert len(parts) > 1
+    for p in parts:
+        assert count_tokens(p) <= 50

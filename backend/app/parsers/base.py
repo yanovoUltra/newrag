@@ -96,4 +96,6 @@ def parse_layout(path: Path) -> LayoutResult:
         from app.parsers.layout import parse_xlsx
 
         return parse_xlsx(path)
+    if ext in (".png", ".jpg", ".jpeg"):
+        raise ValueError(f"图片类型 {ext} 需 OCR 解析，当前 OCR 未接入（等接入 ppocr 后开放）")
     raise ValueError(f"不支持的文件类型: {ext}（支持 {sorted(SUPPORTED_EXTENSIONS)}）")

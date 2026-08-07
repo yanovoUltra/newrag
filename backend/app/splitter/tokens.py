@@ -27,12 +27,19 @@ def count_tokens(text: str) -> int:
 
 
 def split_text_by_tokens(text: str, max_tokens: int) -> list[str]:
-    """按 max_tokens 硬切（用于超长表格分页）。"""
+    """按 max_tokens 硬切（用于超长表格分页 / 无标点巨段兜底）。"""
     if count_tokens(text) <= max_tokens:
         return [text]
     parts: list[str] = []
     buffer = ""
     for line in text.splitlines(keepends=True):
+        if count_tokens(line) > max_tokens:
+            # 单行超长（无换行的巨表格行/巨段）：按估算字符硬切，防止整行进缓冲导致超限
+            if buffer:
+                parts.append(buffer)
+                buffer = ""
+            parts.extend(_hard_split_line(line, max_tokens))
+            continue
         if buffer and count_tokens(buffer + line) > max_tokens:
             parts.append(buffer)
             buffer = line
@@ -41,3 +48,9 @@ def split_text_by_tokens(text: str, max_tokens: int) -> list[str]:
     if buffer:
         parts.append(buffer)
     return parts
+
+
+def _hard_split_line(line: str, max_tokens: int) -> list[str]:
+    """无换行长行按字符硬切：按 1 字符/token 上界取块，保证任意语言不超 max_tokens。"""
+    chunk_chars = max(1, max_tokens)
+    return [line[i : i + chunk_chars] for i in range(0, len(line), chunk_chars)]

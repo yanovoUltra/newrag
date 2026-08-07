@@ -22,12 +22,13 @@ def parse_pdf(path: Path) -> LayoutResult:
     with fitz.open(path) as doc:
         with pdfplumber.open(path) as pdf:
             for page_no, (fz_page, pl_page) in enumerate(zip(doc, pdf.pages), start=1):
-                text = fz_page.get_text("text").strip()
                 tables: list[ParsedTable] = []
+                table_bboxes: list[tuple[float, float, float, float]] = []
                 try:
-                    for raw in pl_page.extract_tables() or []:
-                        if not raw:
-                            continue
+                    found = pl_page.find_tables() or []
+                    table_bboxes = [t.bbox for t in found]
+                    for table in found:
+                        raw = table.extract() or []
                         rows = [[("" if c is None else str(c)).strip() for c in r] for r in raw]
                         rows = [r for r in rows if any(r)]
                         if not rows:
@@ -37,6 +38,7 @@ def parse_pdf(path: Path) -> LayoutResult:
                         )
                 except Exception as e:  # pdfplumber 解析失败不影响文本
                     logger.warning("table extract failed page %s: %s", page_no, e)
+                text = _page_text_without_tables(fz_page, table_bboxes).strip()
                 scanned = len(text.replace(" ", "")) < SCAN_PAGE_CHARS
                 pages.append(
                     ParsedPage(page_no=page_no, text=text, tables=tables, scanned=scanned)
@@ -44,6 +46,36 @@ def parse_pdf(path: Path) -> LayoutResult:
     rate = _extraction_rate(pages)
     logger.info("pdf parsed: %s pages=%d tables=%d rate=%.2f", path.name, len(pages), sum(len(p.tables) for p in pages), rate)
     return LayoutResult(pages=pages, text_extraction_rate=rate)
+
+
+def _page_text_without_tables(
+    fz_page, table_bboxes: list[tuple[float, float, float, float]]
+) -> str:
+    """页面文本，剔除已识别表格区域内的词（避免表格内容双重入库）。失败回退全量文本。"""
+    if not table_bboxes:
+        return fz_page.get_text("text")
+    try:
+        words = fz_page.get_text("words")  # x0,y0,x1,y1,word,block,line,word_no
+        if not words:
+            return fz_page.get_text("text")
+        keep = [
+            w
+            for w in words
+            if not any(
+                bx0 <= w[0] and w[2] <= bx1 and by0 <= w[1] and w[3] <= by1
+                for (bx0, by0, bx1, by1) in table_bboxes
+            )
+        ]
+        if not keep:
+            return ""
+        # 按视觉行（block, line）重组，保持原阅读顺序
+        lines: dict[tuple[int, int], list[str]] = {}
+        for w in sorted(keep, key=lambda w: (w[5], w[6], w[0])):
+            lines.setdefault((w[5], w[6]), []).append(w[4])
+        return "\n".join(" ".join(v) for v in lines.values())
+    except Exception as e:  # 掩码失败不影响解析
+        logger.warning("table mask failed, fallback full text: %s", e)
+        return fz_page.get_text("text")
 
 
 def parse_docx(path: Path) -> LayoutResult:
