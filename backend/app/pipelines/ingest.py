@@ -7,6 +7,7 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.embed.embedder import get_embedder
+from app.embed.sparse import sparse_embed
 from app.parsers.base import LayoutResult, parse_layout
 from app.parsers.metadata import guess_fiscal_meta
 from app.parsers.ocr import ocr_page_images
@@ -79,16 +80,19 @@ def run_ingest(
         if not chunks:
             raise PipelineError("切分结果为空（文档无可检索内容）")
 
-        # ---- 阶段 4：向量化 ----
+        # ---- 阶段 4：向量化（稠密 + 稀疏）----
         if task_id:
             _update_task_progress(task_id, "embed", 65, f"正在向量化 {len(chunks)} 个分块")
         update_document(doc_id, status="embedding")
         if not stage_done(doc_id, "vectors"):
             embedder = get_embedder()
             vectors = embedder.embed_texts([c.content for c in chunks])
-            save_stage(doc_id, "vectors", {"vectors": vectors})
+            sparse_vectors = sparse_embed([c.content for c in chunks])
+            save_stage(doc_id, "vectors", {"vectors": vectors, "sparse": sparse_vectors})
         else:
-            vectors = load_stage(doc_id, "vectors")["vectors"]
+            stage = load_stage(doc_id, "vectors")
+            vectors = stage["vectors"]
+            sparse_vectors = stage.get("sparse")
 
         if len(vectors) != len(chunks):
             raise PipelineError("向量数与分块数不一致，中止入库")
@@ -107,6 +111,7 @@ def run_ingest(
             visibility=visibility,
             fiscal_year=fiscal_year,
             fiscal_quarter=fiscal_quarter,
+            sparse_vectors=sparse_vectors,
         )
         update_document(doc_id, status="indexed", chunk_count=n, error=None)
         if task_id:

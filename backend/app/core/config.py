@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = "deepseek-chat"
     llm_timeout: int = 60
+    # 多模型路由：简单问题走轻量模型（如百炼 qwen3.5-flash），未配置则全部走主模型
+    llm_light_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    llm_light_api_key: str = ""
+    llm_light_model: str = "qwen3.5-flash"
 
     # OCR（百度智能云）
     ocr_enabled: bool = False
@@ -50,9 +54,24 @@ class Settings(BaseSettings):
     ocr_api_key: str = ""
     ocr_secret_key: str = ""
 
-    # 检索
+    # 检索（阶段二：混合检索 + 重排序）
     recall_dense_top_k: int = 50
+    recall_sparse_top_k: int = 50
+    recall_table_top_k: int = 20
+    rrf_k: int = 60
     retrieval_top_k: int = 8
+    # 重排序：api（百炼原生 rerank，模型名可配） | none（RRF 直出）
+    rerank_backend: str = "none"
+    rerank_api_base: str = "https://dashscope.aliyuncs.com"
+    rerank_api_key: str = ""
+    rerank_model: str = "qwen3-vl-rerank"
+    rerank_candidates: int = 50  # RRF 融合后送入 rerank 的候选数
+
+    # 路由 / 查询重写 / HyDE
+    intent_routing_enabled: bool = True
+    query_rewrite_enabled: bool = True
+    hyde_enabled: bool = True
+    hyde_max_tokens: int = 256
 
     # 切分
     chunk_min_tokens: int = 128

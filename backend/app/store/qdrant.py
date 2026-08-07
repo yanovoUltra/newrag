@@ -77,12 +77,13 @@ def upsert_chunks(
     visibility: str,
     fiscal_year: int | None,
     fiscal_quarter: int | None,
+    sparse_vectors: list[dict] | None = None,
 ) -> int:
-    """写入向量点；权限字段进 payload。"""
+    """写入向量点；权限字段进 payload；稀疏向量（阶段二）可选。"""
     client = get_client()
     settings = get_settings()
     points = []
-    for chunk, vec in zip(chunks, dense_vectors):
+    for idx, (chunk, vec) in enumerate(zip(chunks, dense_vectors)):
         payload: dict[str, Any] = {
             "chunk_id": chunk.id,
             "doc_id": doc_id,
@@ -101,10 +102,14 @@ def upsert_chunks(
             payload["fiscal_quarter"] = fiscal_quarter
         if chunk.parent_id:
             payload["parent_id"] = chunk.parent_id
+        vector: dict[str, Any] = {"dense": vec}
+        if sparse_vectors is not None:
+            sv = sparse_vectors[idx]
+            vector["sparse"] = models.SparseVector(indices=sv["indices"], values=sv["values"])
         points.append(
             models.PointStruct(
                 id=uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}:{chunk.id}").hex,
-                vector={"dense": vec},
+                vector=vector,
                 payload=payload,
             )
         )
@@ -172,6 +177,52 @@ def search_dense(
                 "content": p.get("content", ""),
                 "score": h.score,
                 # 检索后二次校验（权限）
+                "org_id": p.get("org_id"),
+                "visibility": p.get("visibility"),
+            }
+        )
+    return results
+
+
+def search_sparse(
+    query_sparse: dict,
+    org_id: str,
+    user_visibility: str,
+    top_k: int,
+    chunk_type: str | None = None,
+) -> list[dict]:
+    """稀疏路召回（Qdrant IDF modifier 全局加权 = BM25 风格），强制权限过滤。"""
+    client = get_client()
+    must: list[models.Condition] = [
+        models.FieldCondition(key="org_id", match=models.MatchValue(value=org_id)),
+        models.FieldCondition(
+            key="visibility",
+            match=models.MatchAny(any=visible_levels(user_visibility)),
+        ),
+    ]
+    if chunk_type:
+        must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
+    hits = client.query_points(
+        collection_name=get_settings().qdrant_collection,
+        query=models.SparseVector(indices=query_sparse["indices"], values=query_sparse["values"]),
+        using="sparse",
+        query_filter=models.Filter(must=must),
+        limit=top_k,
+        with_payload=True,
+    ).points
+    results = []
+    for h in hits:
+        p = h.payload or {}
+        results.append(
+            {
+                "chunk_id": p.get("chunk_id"),
+                "doc_id": p.get("doc_id"),
+                "doc_name": p.get("doc_name"),
+                "page": p.get("page"),
+                "section_path": p.get("section_path", ""),
+                "chunk_type": p.get("chunk_type", "text"),
+                "content": p.get("content", ""),
+                "score": h.score,
                 "org_id": p.get("org_id"),
                 "visibility": p.get("visibility"),
             }

@@ -14,6 +14,12 @@ os.environ["REGISTRY_DB"] = os.path.join(_TMP, "registry.db")
 os.environ["UPLOAD_DIR"] = os.path.join(_TMP, "uploads")
 os.environ["PIPELINE_DIR"] = os.path.join(_TMP, "pipeline")
 os.environ["EMBEDDING_CACHE_DIR"] = os.path.join(_TMP, "models")
+# 阶段二：测试中禁用真实 rerank API 与轻量模型（避免网络调用）
+os.environ["RERANK_BACKEND"] = "none"
+os.environ["LLM_LIGHT_API_KEY"] = ""
+os.environ["INTENT_ROUTING_ENABLED"] = "false"
+os.environ["QUERY_REWRITE_ENABLED"] = "false"
+os.environ["HYDE_ENABLED"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

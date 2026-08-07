@@ -21,23 +21,28 @@ class LLMClient(ABC):
         ...
 
     @abstractmethod
-    async def chat(self, messages: list[dict[str, str]], model: str | None = None) -> str:
-        """一次性返回完整文本。"""
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        response_format: dict | None = None,
+    ) -> str:
+        """一次性返回完整文本。response_format 支持 {"type": "json_object"} 等。"""
         ...
 
 
 class OpenAICompatClient(LLMClient):
     name = "openai"
 
-    def __init__(self, base_url: str, api_key: str, timeout: int):
+    def __init__(self, base_url: str, api_key: str, timeout: int, model: str):
         from openai import AsyncOpenAI
 
         self._client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        self._default_model = model
 
     async def stream_chat(self, messages: list[dict[str, str]], model: str | None = None) -> AsyncIterator[str]:
-        settings = get_settings()
         stream = await self._client.chat.completions.create(
-            model=model or settings.llm_model,
+            model=model or self._default_model,
             messages=messages,
             stream=True,
         )
@@ -46,12 +51,20 @@ class OpenAICompatClient(LLMClient):
             if delta:
                 yield delta
 
-    async def chat(self, messages: list[dict[str, str]], model: str | None = None) -> str:
-        settings = get_settings()
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        response_format: dict | None = None,
+    ) -> str:
+        kwargs = {}
+        if response_format:
+            kwargs["response_format"] = response_format
         resp = await self._client.chat.completions.create(
-            model=model or settings.llm_model,
+            model=model or self._default_model,
             messages=messages,
             stream=False,
+            **kwargs,
         )
         return resp.choices[0].message.content or ""
 
@@ -66,7 +79,12 @@ class MockLLMClient(LLMClient):
         for token in answer:
             yield token
 
-    async def chat(self, messages: list[dict[str, str]], model: str | None = None) -> str:
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        response_format: dict | None = None,
+    ) -> str:
         return self._compose(messages)
 
     def _compose(self, messages: list[dict[str, str]]) -> str:
@@ -86,6 +104,7 @@ class MockLLMClient(LLMClient):
 
 
 _instance: LLMClient | None = None
+_light_instance: LLMClient | None = None
 
 
 def get_llm() -> LLMClient:
@@ -94,9 +113,24 @@ def get_llm() -> LLMClient:
         return _instance
     settings = get_settings()
     if settings.llm_provider.lower() == "openai" and settings.llm_api_key:
-        _instance = OpenAICompatClient(settings.llm_base_url, settings.llm_api_key, settings.llm_timeout)
+        _instance = OpenAICompatClient(settings.llm_base_url, settings.llm_api_key, settings.llm_timeout, settings.llm_model)
         logger.info("LLM client: openai (%s)", settings.llm_model)
     else:
         logger.warning("LLM_API_KEY 未配置，使用 MockLLMClient（仅开发验证）")
         _instance = MockLLMClient()
     return _instance
+
+
+def get_llm_light() -> LLMClient | None:
+    """轻量模型客户端（多模型路由）：未配置 LLM_LIGHT_API_KEY 时返回 None（全部走主模型）。"""
+    global _light_instance
+    if _light_instance is not None:
+        return _light_instance
+    settings = get_settings()
+    if not settings.llm_light_api_key:
+        return None
+    _light_instance = OpenAICompatClient(
+        settings.llm_light_base_url, settings.llm_light_api_key, settings.llm_timeout, settings.llm_light_model
+    )
+    logger.info("LLM light client: openai (%s)", settings.llm_light_model)
+    return _light_instance
