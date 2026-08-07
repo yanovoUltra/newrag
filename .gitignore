@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+dist/
+.env
+data/
+*.db
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+htmlcov/
+# 不上传仓库的文档（用户要求）
+/DESIGN.md
+/INSTALL_RECORD.md
+/PROMPT.md
+/README.md

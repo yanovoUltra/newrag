@@ -1,0 +1,101 @@
+"""应用配置：全部通过 .env / 环境变量管理。"""
+
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/app/core/config.py -> backend/ -> 项目根目录
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = BACKEND_DIR.parent
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=ROOT_DIR / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # 服务
+    app_env: str = "development"
+    app_port: int = 8000
+    cors_origins: str = "http://localhost:5173"
+
+    # 存储
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection: str = "chunks"
+    redis_url: str = "redis://localhost:6379"
+
+    # 嵌入（百炼 API 默认 / bge-m3 本地）
+    embedding_model: str = "qwen3.7-text-embedding"
+    embedding_backend: str = "api"  # api | flagembedding | mock
+    embedding_device: str = "cpu"
+    embedding_cache_dir: str = "./data/models"
+    # API 后端（OpenAI 兼容，如百炼 /compatible-mode/v1）
+    embedding_api_base: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    embedding_api_key: str = ""
+    embedding_batch_size: int = 16
+
+    # LLM
+    llm_provider: str = "openai"  # openai | mock
+    llm_base_url: str = "https://api.deepseek.com"
+    llm_api_key: str = ""
+    llm_model: str = "deepseek-chat"
+    llm_timeout: int = 60
+
+    # OCR（百度智能云）
+    ocr_enabled: bool = False
+    ocr_provider: str = "baidu"
+    ocr_api_key: str = ""
+    ocr_secret_key: str = ""
+
+    # 检索
+    recall_dense_top_k: int = 50
+    retrieval_top_k: int = 8
+
+    # 切分
+    chunk_min_tokens: int = 128
+    chunk_target_tokens: int = 200
+    chunk_max_tokens: int = 256
+    overlap_tokens: int = 20
+    table_max_tokens: int = 2048  # 超过则表格"摘要+分页"
+
+    # 上传
+    max_upload_mb: int = 50
+    upload_dir: str = "./data/uploads"
+    pipeline_dir: str = "./data/pipeline"
+    registry_db: str = "./data/registry.db"
+
+    # 会话（阶段二启用）
+    session_window: int = 10
+    semantic_cache_threshold: float = 0.95
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def resolved_upload_dir(self) -> Path:
+        p = Path(self.upload_dir)
+        return p if p.is_absolute() else ROOT_DIR / p
+
+    @property
+    def resolved_pipeline_dir(self) -> Path:
+        p = Path(self.pipeline_dir)
+        return p if p.is_absolute() else ROOT_DIR / p
+
+    @property
+    def resolved_registry_db(self) -> Path:
+        p = Path(self.registry_db)
+        return p if p.is_absolute() else ROOT_DIR / p
+
+    @property
+    def resolved_embedding_cache_dir(self) -> Path:
+        p = Path(self.embedding_cache_dir)
+        return p if p.is_absolute() else ROOT_DIR / p
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
