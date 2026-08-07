@@ -20,17 +20,17 @@ class Reranker(Protocol):
 
 
 class ApiReranker:
-    """百炼原生 rerank：POST /api/v1/services/rerank/text-rerank/generation。"""
+    """百炼 workspace 网关 rerank：POST {base}{path}（如 /api/v1/services/rerank/text-rerank/text-rerank）。"""
 
     name = "api"
 
-    def __init__(self, base_url: str, api_key: str, model: str):
+    def __init__(self, base_url: str, api_key: str, model: str, path: str):
         if not api_key:
             raise RuntimeError("RERANK_API_KEY 未配置，无法使用 api 重排序后端")
         import httpx
 
         self._httpx = httpx
-        self._base_url = base_url
+        self._url = f"{base_url}{path}"
         self._api_key = api_key
         self._model = model
 
@@ -39,7 +39,7 @@ class ApiReranker:
             return []
         try:
             resp = self._httpx.post(
-                f"{self._base_url}/api/v1/services/rerank/text-rerank/generation",
+                self._url,
                 headers={"Authorization": f"Bearer {self._api_key}"},
                 json={
                     "model": self._model,
@@ -88,6 +88,7 @@ def get_reranker() -> Reranker:
                         settings.rerank_api_base,
                         settings.rerank_api_key,
                         settings.rerank_model,
+                        settings.rerank_api_path,
                     )
                 elif backend == "none":
                     _instance = NoneReranker()

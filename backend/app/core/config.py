@@ -60,11 +60,12 @@ class Settings(BaseSettings):
     recall_table_top_k: int = 20
     rrf_k: int = 60
     retrieval_top_k: int = 8
-    # 重排序：api（百炼原生 rerank，模型名可配） | none（RRF 直出）
+    # 重排序：api（百炼 rerank，模型名可配） | none（RRF 直出）
     rerank_backend: str = "none"
     rerank_api_base: str = "https://dashscope.aliyuncs.com"
     rerank_api_key: str = ""
-    rerank_model: str = "qwen3-vl-rerank"
+    rerank_model: str = "qwen3-rerank"
+    rerank_api_path: str = "/api/v1/services/rerank/text-rerank/text-rerank"
     rerank_candidates: int = 50  # RRF 融合后送入 rerank 的候选数
 
     # 路由 / 查询重写 / HyDE
