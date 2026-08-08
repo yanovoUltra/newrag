@@ -20,3 +20,5 @@ htmlcov/
 /INSTALL_RECORD.md
 /PROMPT.md
 /README.md
+# 本机 MCP 配置（含绝对路径，开发机个人配置）
+.mcp.json
