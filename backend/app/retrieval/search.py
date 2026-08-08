@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from app.core.config import get_settings
-from app.embed.sparse import sparse_embed_one
 from app.retrieval.reranker import get_reranker
 from app.retrieval.rrf import rrf_fuse
 from app.store import qdrant as qdrant_store
@@ -18,11 +17,12 @@ def hybrid_search(
     user_visibility: str,
     query_text: str | None = None,
     top_k: int | None = None,
+    query_sparse: dict | None = None,
 ) -> list[dict]:
     """混合检索主入口。
 
     - 稠密路：dense top-50
-    - 稀疏路：jieba 分词 → BM25 风格（Qdrant IDF modifier）top-50
+    - 稀疏路：模型原生稀疏（text_type=query，由调用方传入 query_sparse）top-50
     - 表格路：chunk_type=table 稠密召回 top-20
     多路 RRF 融合 →（可选）rerank 精排 → 取 top_k。
     """
@@ -46,10 +46,10 @@ def hybrid_search(
             exclude_chunk_types=list(_EXCLUDE_PARENT),
         ),
     ]
-    if query_text:
+    if query_text and query_sparse:
         routes.append(
             qdrant_store.search_sparse(
-                query_sparse=sparse_embed_one(query_text),
+                query_sparse=query_sparse,
                 org_id=org_id,
                 user_visibility=user_visibility,
                 top_k=settings.recall_sparse_top_k,
@@ -95,19 +95,3 @@ def _attach_parent_context(hits: list[dict]) -> None:
         pid = r.get("parent_id")
         p = payloads.get(pid) if pid else None
         r["parent_content"] = p.get("content", "") if p else ""
-
-
-def retrieve(
-    query_vector: list[float],
-    org_id: str,
-    user_visibility: str,
-    top_k: int | None = None,
-) -> list[dict]:
-    """兼容入口：无查询文本时退化为单路稠密（阶段一行为）。"""
-    return hybrid_search(
-        query_vector=query_vector,
-        org_id=org_id,
-        user_visibility=user_visibility,
-        query_text=None,
-        top_k=top_k,
-    )

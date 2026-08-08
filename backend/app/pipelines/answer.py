@@ -47,13 +47,15 @@ async def _search_plan(
     for q in queries:
         if plan.needs_hyde and hyde_doc is None:
             hyde_doc = await generate_hypothetical_document(question)
-        dense_vec = embedder.embed_texts([hyde_doc or q])[0]
+        # 查询侧一次取稠密+模型原生稀疏（text_type=query）
+        dense_list, sparse_list = embedder.embed_texts_with_sparse([hyde_doc or q], text_type="query")
         hits = hybrid_search(
-            query_vector=dense_vec,
+            query_vector=dense_list[0],
             org_id=org_id,
             user_visibility=user_visibility,
             query_text=q,
             top_k=top_k,
+            query_sparse=sparse_list[0] if sparse_list else None,
         )
         all_hits.extend(hits)
     return _merge_blocks(all_hits, top_k)

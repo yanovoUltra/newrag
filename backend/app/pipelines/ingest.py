@@ -7,7 +7,6 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.embed.embedder import get_embedder
-from app.embed.sparse import sparse_embed
 from app.parsers.base import LayoutResult, parse_layout
 from app.parsers.metadata import guess_fiscal_meta
 from app.parsers.ocr import ocr_page_images
@@ -47,7 +46,7 @@ def run_ingest(
             layout = parse_layout(file_path)
             save_stage(doc_id, "layout", layout.to_dict())
         else:
-            layout = LayoutResult.from_dict(stage := load_layout(doc_id))
+            layout = load_layout(doc_id)  # 已反序列化为 LayoutResult
 
         # ---- 阶段 1.5：OCR 按需触发（提取率 < 80% 且启用）----
         if layout.text_extraction_rate < 0.8 and settings.ocr_enabled and file_path.suffix.lower() == ".pdf":
@@ -86,8 +85,10 @@ def run_ingest(
         update_document(doc_id, status="embedding")
         if not stage_done(doc_id, "vectors"):
             embedder = get_embedder()
-            vectors = embedder.embed_texts([c.content for c in chunks])
-            sparse_vectors = sparse_embed([c.content for c in chunks])
+            # 模型原生稠密 + 稀疏（text_type=document）
+            vectors, sparse_vectors = embedder.embed_texts_with_sparse(
+                [c.content for c in chunks], text_type="document"
+            )
             save_stage(doc_id, "vectors", {"vectors": vectors, "sparse": sparse_vectors})
         else:
             stage = load_stage(doc_id, "vectors")

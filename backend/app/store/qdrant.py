@@ -34,17 +34,30 @@ def get_client() -> QdrantClient:
 
 
 def ensure_collection() -> None:
-    """创建 chunks collection：dense(1024, cosine) + 稀疏向量槽（阶段二启用）。"""
+    """创建 chunks collection：dense(1024, cosine) + 稀疏向量槽（模型原生稀疏，无 IDF modifier）。
+
+    稀疏向量为嵌入模型原生输出（词表 index + 语义权重），不叠加 IDF；
+    检测到 collection 配置不匹配（缺 dense / 稀疏带 IDF）时删除重建。
+    """
     client = get_client()
     settings = get_settings()
     if client.collection_exists(settings.qdrant_collection):
+        needs_recreate = False
         try:
-            vectors = client.get_collection(settings.qdrant_collection).config.params.vectors
+            params = client.get_collection(settings.qdrant_collection).config.params
+            vectors = params.vectors
             has_dense = isinstance(vectors, dict) and "dense" in vectors
+            sv = params.sparse_vectors
+            if isinstance(sv, dict):
+                sp = sv.get("sparse")
+                has_sparse_ok = sp is not None and getattr(sp, "modifier", None) is None
+            else:
+                has_sparse_ok = sv is not None and getattr(sv, "modifier", None) is None
+            needs_recreate = not has_dense or not has_sparse_ok
         except Exception:
-            has_dense = False
-        if not has_dense:
-            logger.warning("collection %s 向量配置不匹配，删除重建", settings.qdrant_collection)
+            needs_recreate = False
+        if needs_recreate:
+            logger.warning("collection %s 向量配置不匹配（期望 dense + 稀疏无 IDF），删除重建", settings.qdrant_collection)
             client.delete_collection(settings.qdrant_collection)
         else:
             return
@@ -54,9 +67,7 @@ def ensure_collection() -> None:
             "dense": models.VectorParams(size=EMBED_DIM, distance=models.Distance.COSINE),
         },
         sparse_vectors_config={
-            "sparse": models.SparseVectorParams(
-                modifier=models.Modifier.IDF,
-            )
+            "sparse": models.SparseVectorParams(),
         },
     )
     for field in ("org_id", "visibility", "chunk_type", "doc_id"):
@@ -199,7 +210,7 @@ def search_sparse(
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
 ) -> list[dict]:
-    """稀疏路召回（Qdrant IDF modifier 全局加权 = BM25 风格），强制权限过滤。"""
+    """稀疏路召回（模型原生稀疏：词表 index + 语义权重），强制权限过滤。"""
     client = get_client()
     must: list[models.Condition] = [
         models.FieldCondition(key="org_id", match=models.MatchValue(value=org_id)),

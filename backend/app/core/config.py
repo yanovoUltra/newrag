@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     embedding_backend: str = "api"  # api | flagembedding | mock
     embedding_device: str = "cpu"
     embedding_cache_dir: str = "./data/models"
-    # API 后端（OpenAI 兼容，如百炼 /compatible-mode/v1）
+    # API 后端（DashScope 原生 /api/v1，支持稠密+稀疏；OpenAI 兼容端点不返回稀疏向量）
     embedding_api_base: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     embedding_api_key: str = ""
     embedding_batch_size: int = 16
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = "deepseek-chat"
     llm_timeout: int = 60
-    # 多模型路由：简单问题走轻量模型（如百炼 qwen3.5-flash），未配置则全部走主模型
+    # 多模型路由：简单问题走轻量模型（如阿里云套餐 qwen3.7-plus），未配置则全部走主模型
     llm_light_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     llm_light_api_key: str = ""
     llm_light_model: str = "qwen3.5-flash"
