@@ -42,11 +42,20 @@ HYDE_PROMPT = """请根据问题写一段约 80~150 字的"假设文档"，内�
 问题：{question}"""
 
 
-def build_answer_messages(question: str, context_blocks: list[dict]) -> list[dict[str, str]]:
-    """构建问答消息：系统角色 + 知识块 + 用户问题。
+def build_answer_messages(
+    question: str,
+    context_blocks: list[dict],
+    history: list[dict] | None = None,
+) -> list[dict[str, str]]:
+    """构建问答消息：系统角色 + 历史对话（可选） + 知识块 + 当前问题。
 
     context_blocks 可含 parent_content（所属章节父块），作为该块的章节上下文附加。
+    history 为 [{role: user|assistant, content}]，按顺序插入系统消息之后、当前问题之前。
     """
+    messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for h in history or []:
+        if h.get("role") in ("user", "assistant"):
+            messages.append({"role": h["role"], "content": h["content"]})
     blocks: list[str] = []
     for i, b in enumerate(context_blocks, start=1):
         source = f"{b['doc_name']}-{b['section_path']}-第{b['page']}页"
@@ -60,7 +69,5 @@ def build_answer_messages(question: str, context_blocks: list[dict]) -> list[dic
             blocks.append(f"【知识块 {i}】[{source}]\n{content}")
     knowledge = "\n\n".join(blocks) if blocks else "（无可用知识块）"
     user = f"【知识】\n{knowledge}\n\n【问题】\n{question}"
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user},
-    ]
+    messages.append({"role": "user", "content": user})
+    return messages

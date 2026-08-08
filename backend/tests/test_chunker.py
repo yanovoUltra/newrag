@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.parsers.base import LayoutResult, ParsedPage, ParsedTable
 from app.parsers.structure import Section, build_section_tree, section_path_for_page
-from app.splitter.chunker import build_chunks
+from app.splitter.chunker import Chunk, build_chunks
 from app.splitter.tokens import count_tokens
 
 
@@ -153,3 +153,58 @@ def test_oversized_table_summary_and_pagination():
     # 分页明细完整（末行数据保留）
     joined = "\n".join(c.content for c in tables)
     assert "科目299" in joined
+
+
+def test_table_pages_repeat_header_with_metadata():
+    headers = ["科目"] + [f"Q{i}" for i in range(10)]
+    rows = [[f"科目{i}"] + [str(i * 10 + j) for j in range(10)] for i in range(300)]
+    layout = LayoutResult(
+        pages=[
+            ParsedPage(
+                page_no=1,
+                text="财务明细",
+                tables=[ParsedTable(page=1, headers=headers, rows=rows)],
+            )
+        ]
+    )
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    tables = [c for c in chunks if c.chunk_type == "table"]
+    # 分页块各自携带表头 + 规模统计（独立可读）
+    pages = [c for c in tables if "以下为分页明细" in c.content]
+    assert len(pages) >= 2
+    for c in pages:
+        assert c.content.startswith("科目 | Q0")
+    # 摘要块与分页块均带结构化元数据
+    for c in tables:
+        assert c.table_headers == headers
+        assert c.n_rows == 300
+        assert c.n_cols == 11
+    # 加表头后分页块不超 table_max_tokens（2048）
+    for c in tables:
+        assert c.token_count <= 2048
+
+
+def test_small_table_metadata_and_serialization():
+    layout = LayoutResult(
+        pages=[
+            ParsedPage(
+                page_no=1,
+                text="收入明细",
+                tables=[ParsedTable(page=1, headers=["季度", "营收"], rows=[["Q1", "18.9"]])],
+            )
+        ]
+    )
+    chunks = build_chunks("doc1", layout, build_section_tree(layout))
+    table_chunk = next(c for c in chunks if c.chunk_type == "table")
+    assert table_chunk.table_headers == ["季度", "营收"]
+    assert table_chunk.n_rows == 1
+    assert table_chunk.n_cols == 2
+    # to_dict/from_dict 往返保留元数据
+    restored = Chunk.from_dict(table_chunk.to_dict())
+    assert restored.table_headers == ["季度", "营收"]
+    assert restored.n_rows == 1
+    assert restored.n_cols == 2
+    # 文本块无表格元数据
+    text_chunk = next(c for c in chunks if c.chunk_type == "text")
+    assert text_chunk.table_headers is None
+    assert text_chunk.n_rows is None

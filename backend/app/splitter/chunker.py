@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.core.config import get_settings
 from app.parsers.base import LayoutResult, ParsedTable
@@ -52,6 +52,9 @@ class Chunk:
     token_count: int
     seq: int = 0
     parent_id: str | None = None  # 父节点（章节级），阶段二用于上下文扩展
+    table_headers: list[str] | None = None  # 表格块元数据：表头（结构化，供过滤/展示）
+    n_rows: int | None = None
+    n_cols: int | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -64,6 +67,9 @@ class Chunk:
             "token_count": self.token_count,
             "seq": self.seq,
             "parent_id": self.parent_id,
+            "table_headers": self.table_headers,
+            "n_rows": self.n_rows,
+            "n_cols": self.n_cols,
         }
 
     @classmethod
@@ -78,6 +84,9 @@ class Chunk:
             token_count=d["token_count"],
             seq=d.get("seq", 0),
             parent_id=d.get("parent_id"),
+            table_headers=d.get("table_headers"),
+            n_rows=d.get("n_rows"),
+            n_cols=d.get("n_cols"),
         )
 
 
@@ -88,6 +97,16 @@ def _new_id() -> str:
 def _overlap_tokens(chunk_size: int) -> int:
     """相邻块保留 10% 重叠。"""
     return max(1, int(chunk_size * 0.1))
+
+
+def _table_header_block(t: ParsedTable) -> str:
+    """分页块的表头前缀：表头 + 规模统计行（保证每个分页块独立可读）。"""
+    lines: list[str] = []
+    if t.headers:
+        lines.append(" | ".join(str(h) for h in t.headers))
+    n_cols = len(t.headers) if t.headers else (len(t.rows[0]) if t.rows else 0)
+    lines.append(f"[本表共 {len(t.rows)} 行 × {n_cols} 列，以下为分页明细]")
+    return "\n".join(lines)
 
 
 def _table_summary(t: ParsedTable) -> str:
@@ -102,19 +121,27 @@ def _table_summary(t: ParsedTable) -> str:
     return "\n".join(lines)
 
 
-def build_chunks(
+def _table_meta(t: ParsedTable | None) -> tuple[list[str] | None, int | None, int | None]:
+    """表格结构化元数据 (headers, n_rows, n_cols)，供 payload 过滤/展示。"""
+    if t is None:
+        return None, None, None
+    headers = [str(h) for h in t.headers] if t.headers else None
+    n_cols = len(t.headers) if t.headers else (len(t.rows[0]) if t.rows else 0)
+    return headers, len(t.rows), n_cols
+
+
+def build_leaves(
     doc_id: str,
     layout: LayoutResult,
     sections: list[Section],
     doc_title: str = "",
 ) -> list[Chunk]:
-    """多粒度分块：叶子（正文聚合+重叠 / 表格摘要+分页）+ 章节级父块（2~4K token）。
+    """收集叶子块：正文按目标 token 聚合（10% 重叠）+ 表格（摘要/分页）。
 
-    返回顺序：父块在前、叶子在后；叶子的 parent_id 指向其所属章节父块。
+    语义精切（嵌入相似度断句）在 build_leaves 之后、父块构建之前执行。
     """
     settings = get_settings()
     leaves: list[Chunk] = []
-    parent_blocks: list[Chunk] = []
     seq = 0
 
     def make(
@@ -123,32 +150,37 @@ def build_chunks(
         page_no: int,
         section_path: str,
         parent_id: str | None = None,
+        table: ParsedTable | None = None,
     ) -> Chunk:
         nonlocal seq
         seq += 1
+        headers, n_rows, n_cols = _table_meta(table)
         return Chunk(
             id=_new_id(), doc_id=doc_id, page=page_no,
             section_path=section_path, chunk_type=chunk_type,
             content=content, token_count=count_tokens(content), seq=seq,
             parent_id=parent_id,
+            table_headers=headers, n_rows=n_rows, n_cols=n_cols,
         )
 
-    # ---- 1) 收集叶子 ----
     for page in layout.pages:
         section_path = section_path_for_page(sections, page.page_no) or doc_title or "文档正文"
 
-        # 1a) 表格：不可分割单元；超长表格 → 摘要 + 分页
+        # 1a) 表格：不可分割单元；超长表格 → 摘要 + 分页（分页块重复表头，保证独立可读）
         for t in page.tables:
             text = t.to_text()
             if not text.strip():
                 continue
             token_count = count_tokens(text)
             if token_count <= settings.table_max_tokens:
-                leaves.append(make("table", text, page.page_no, section_path))
+                leaves.append(make("table", text, page.page_no, section_path, table=t))
             else:
-                leaves.append(make("table", _table_summary(t), page.page_no, section_path))
-                for part in split_text_by_tokens(text, settings.table_max_tokens):
-                    leaves.append(make("table", part, page.page_no, section_path))
+                leaves.append(make("table", _table_summary(t), page.page_no, section_path, table=t))
+                header_block = _table_header_block(t)
+                # 每块容量扣除表头前缀占用，保证加上表头后仍不超限
+                capacity = max(1, settings.table_max_tokens - count_tokens(header_block))
+                for part in split_text_by_tokens(text, capacity):
+                    leaves.append(make("table", f"{header_block}\n\n{part}", page.page_no, section_path, table=t))
 
         # 1b) 正文：连续行累积到目标 token 数成块，相邻块保留尾部 10% 重叠
         text_lines = [
@@ -180,7 +212,17 @@ def build_chunks(
         if buffer:
             leaves.append(make("text", buffer, page.page_no, section_path))
 
-    # ---- 2) 章节级父块：按 section_path 连续段分组，累积到 parent_target 封块 ----
+    return leaves
+
+
+def build_parent_blocks(doc_id: str, leaves: list[Chunk]) -> list[Chunk]:
+    """章节级父块：按 section_path 连续段分组，累积到 parent_target 封块。
+
+    父块 id 会被写进叶子 parent_id，检索侧按 id 回查父块上下文。
+    """
+    settings = get_settings()
+    parent_blocks: list[Chunk] = []
+
     def flush_segment(segment: list[Chunk]) -> None:
         if not segment:
             return
@@ -191,7 +233,6 @@ def build_chunks(
         buf_tokens = 0
 
         def emit() -> None:
-            # 父块 id 必须与叶子分配的 parent_id 一致，检索侧才能按 id 回查
             nonlocal parent_id, buf, buf_tokens
             if not buf:
                 return
@@ -225,6 +266,21 @@ def build_chunks(
         segment.append(leaf)
     flush_segment(segment)
 
+    return parent_blocks
+
+
+def build_chunks(
+    doc_id: str,
+    layout: LayoutResult,
+    sections: list[Section],
+    doc_title: str = "",
+) -> list[Chunk]:
+    """多粒度分块：叶子（正文聚合+重叠 / 表格摘要+分页）+ 章节级父块（2~4K token）。
+
+    返回顺序：父块在前、叶子在后；叶子的 parent_id 指向其所属章节父块。
+    """
+    leaves = build_leaves(doc_id, layout, sections, doc_title)
+    parent_blocks = build_parent_blocks(doc_id, leaves)
     return parent_blocks + leaves
 
 

@@ -1,0 +1,13 @@
+{
+  "_说明": "小型检索评测集：question 为问题，snippet 为正确答案中的数字片段。相关集 = 内容（归一化）包含该片段的 chunk。脚本会自动预检并跳过相关集为空的条目。",
+  "questions": [
+    { "question": "浦发银行2024年营业收入是多少？", "snippet": "1,707.48" },
+    { "question": "浦发银行2024年归属于母公司股东的净利润是多少？", "snippet": "452.57" },
+    { "question": "浦发银行2024年基本每股收益是多少？", "snippet": "1.28" },
+    { "question": "What was Apple's total net sales in fiscal year 2024?", "snippet": "391,035" },
+    { "question": "What was Apple's net income in fiscal year 2024?", "snippet": "93,736" },
+    { "question": "What was Apple's operating income in fiscal year 2024?", "snippet": "123,216" },
+    { "question": "公司2023年度营业收入是多少？", "snippet": "86.5" },
+    { "question": "公司2023年归属于上市公司股东的净利润是多少？", "snippet": "7.9" }
+  ]
+}

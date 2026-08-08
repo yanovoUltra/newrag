@@ -19,7 +19,6 @@ class Settings(BaseSettings):
 
     # 服务
     app_env: str = "development"
-    app_port: int = 8000
     cors_origins: str = "http://localhost:5173"
 
     # 存储
@@ -46,7 +45,7 @@ class Settings(BaseSettings):
     # 多模型路由：简单问题走轻量模型（如阿里云套餐 qwen3.7-plus），未配置则全部走主模型
     llm_light_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     llm_light_api_key: str = ""
-    llm_light_model: str = "qwen3.5-flash"
+    llm_light_model: str = "qwen3.7-plus"
 
     # OCR（PaddleOCR AI Studio 在线 API）
     ocr_enabled: bool = False
@@ -63,6 +62,10 @@ class Settings(BaseSettings):
     recall_table_top_k: int = 20
     rrf_k: int = 60
     retrieval_top_k: int = 8
+    # 置信度门控（仅 rerank 模式生效；RRF-only 模式请置 0）：top 命中分低于该值视为低置信
+    retrieval_min_score: float = 0.3
+    # 复杂/抽象/多跳问题检索加深系数（多路 top_k 与 rerank 候选数按该系数放大）
+    retrieval_depth_scale: float = 1.5
     # 重排序：api（百炼 rerank，模型名可配） | none（RRF 直出）
     rerank_backend: str = "none"
     rerank_api_base: str = "https://dashscope.aliyuncs.com"
@@ -73,9 +76,7 @@ class Settings(BaseSettings):
 
     # 路由 / 查询重写 / HyDE
     intent_routing_enabled: bool = True
-    query_rewrite_enabled: bool = True
     hyde_enabled: bool = True
-    hyde_max_tokens: int = 256
 
     # 切分
     chunk_min_tokens: int = 128
@@ -83,16 +84,39 @@ class Settings(BaseSettings):
     chunk_max_tokens: int = 256
     chunk_parent_target_tokens: int = 3072  # 章节级父块目标（2~4K 区间中值）
     table_max_tokens: int = 2048  # 超过则表格"摘要+分页"
+    # 语义精切（结构优先、语义为辅）：对超长散文叶子按相邻句相似度断点切分
+    semantic_chunk_refine: bool = True
+    semantic_split_sim_threshold: float = 0.5  # 相邻句相似度低于该值视为主题切换
+    semantic_min_sentences: int = 6  # 句子数少于该值的叶子不精切
 
-    # 上传
+    # 上传 / 陈旧文档防护
     max_upload_mb: int = 50
+    upload_replace_same_filename: bool = True  # 同名文件上传 → 替换旧版（先删旧点再入库）
+    # 数据清洗（解析/OCR 之后、章节树之前）
+    clean_enable: bool = True
+    clean_nfkc: bool = True  # NFKC 归一化（全角→半角，统一数字/百分号/逗号）
+    clean_header_footer: bool = True  # 页眉/页脚去重
+    clean_header_footer_min_ratio: float = 0.5  # 行出现页数占比 >= 该值视为高频
+    clean_header_footer_max_tokens: int = 24  # 高频行 token 上限（页眉/页脚通常为短行）
+    clean_header_footer_margin: float = 0.15  # 页首/页尾边缘区比例（超出该区的行不删）
     upload_dir: str = "./data/uploads"
     pipeline_dir: str = "./data/pipeline"
     registry_db: str = "./data/registry.db"
 
     # 会话（阶段二启用）
     session_window: int = 10
-    semantic_cache_threshold: float = 0.95
+    semantic_cache_threshold: float = 0.95  # 语义答案缓存相似度阈值（复用）
+    # 语义答案缓存二次校验：向量命中后，问题文本字符重合度低于该值视为可疑（防御误命中）
+    answer_cache_min_overlap: float = 0.5
+
+    # 外部 API 缓解（缓存 + 限流 + 重试）
+    semantic_cache_enabled: bool = True  # 语义答案缓存（仅无 session_id 的单轮问答生效）
+    embed_cache_ttl: int = 86400  # 嵌入结果缓存秒数（相同文本复用向量，省外部调用）
+    answer_cache_ttl: int = 3600  # 答案缓存秒数
+    answer_cache_max_entries: int = 50  # 每 org+visibility 桶内最大缓存条目
+    max_embed_concurrency: int = 4  # 嵌入 API 并发上限（超限排队，防 429）
+    max_llm_concurrency: int = 4  # LLM 并发上限
+    max_rerank_concurrency: int = 4  # rerank 并发上限
 
     @property
     def cors_origin_list(self) -> list[str]:

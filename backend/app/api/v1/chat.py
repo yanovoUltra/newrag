@@ -23,6 +23,7 @@ async def chat(req: ChatRequest):
             req.question,
             org_id=req.org_id,
             user_visibility=req.user_visibility,
+            session_id=req.session_id,
         ):
             data = evt["data"]
             if evt["event"] == "meta":

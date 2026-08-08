@@ -18,7 +18,6 @@ os.environ["EMBEDDING_CACHE_DIR"] = os.path.join(_TMP, "models")
 os.environ["RERANK_BACKEND"] = "none"
 os.environ["LLM_LIGHT_API_KEY"] = ""
 os.environ["INTENT_ROUTING_ENABLED"] = "false"
-os.environ["QUERY_REWRITE_ENABLED"] = "false"
 os.environ["HYDE_ENABLED"] = "false"
 
 import pytest  # noqa: E402

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 from pathlib import Path
 
 from app.core.logging import get_logger
@@ -132,8 +131,3 @@ def _extraction_rate(pages: list[ParsedPage]) -> float:
         return 1.0
     with_text = sum(1 for p in pages if not p.scanned and len(p.text.replace(" ", "")) >= SCAN_PAGE_CHARS)
     return with_text / len(pages)
-
-
-def export_pdf_text(path: Path) -> str:
-    """辅助：纯文本导出。"""
-    return parse_pdf(path).all_text()

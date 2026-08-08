@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "C:\\Users\\admin\\.local\\bin\\serena.exe",
+      "args": [
+        "start-mcp-server",
+        "--context=ide",
+        "--project",
+        "c:\\Users\\admin\\Desktop\\work\\show\\newrag"
+      ],
+      "env": {
+        "PATH": "C:\\Users\\admin\\.local\\bin;C:\\Users\\admin\\AppData\\Local\\Microsoft\\WindowsApps;C:\\ComputerIDE\\Microsoft VS Code\\bin;C:\\ComputerIDE\\PyCharm 2026.1.2\\bin;C:\\Users\\admin\\AppData\\Roaming\\npm;C:\\Users\\admin\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;C:\\ComputerLangage\\Python\\Scripts\\;C:\\ComputerLangage\\Python\\;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\Git\\cmd;C:\\ComputerIDE\\bin",
+        "UV_DEFAULT_INDEX": "https://mirrors.aliyun.com/pypi/simple/",
+        "UV_HTTP_TIMEOUT": "60"
+      },
+      "type": "stdio"
+    },
+    "codegraph": {
+      "command": "codegraph",
+      "args": ["serve", "--mcp"],
+      "type": "stdio"
+    }
+  }
+}

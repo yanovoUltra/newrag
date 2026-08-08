@@ -124,7 +124,10 @@ def _parse_native_response(data: dict, model: str) -> tuple[list[list[float]], l
 
 
 class ApiEmbedBackend:
-    """百炼 DashScope 原生 API：qwen3.7-text-embedding，稠密 1024 + 模型原生稀疏。"""
+    """百炼 DashScope 原生 API：qwen3.7-text-embedding，稠密 1024 + 模型原生稀疏。
+
+    外部 API 缓解：结果缓存（相同文本复用向量）+ 并发限流（信号量，防 429）+ 失败重试。
+    """
 
     name = "api"
 
@@ -136,6 +139,36 @@ class ApiEmbedBackend:
         self._model = model
         self._batch_size = batch_size
         self._client = httpx.Client(timeout=60)
+        self._sem = threading.Semaphore(get_settings().max_embed_concurrency)
+
+    def _post_batch(self, batch: list[str], output_type: str, text_type: str):
+        with self._sem:
+            last_err: Exception | None = None
+            for attempt in range(3):  # 429/5xx 指数退避重试
+                try:
+                    resp = self._client.post(
+                        f"{self._base}/services/embeddings/text-embedding/text-embedding",
+                        headers={"Authorization": f"Bearer {self._key}"},
+                        json={
+                            "model": self._model,
+                            "input": {"texts": batch},
+                            "parameters": {"output_type": output_type, "dimension": EMBED_DIM, "text_type": text_type},
+                        },
+                    )
+                    if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:
+                        import time
+
+                        time.sleep(0.5 * (attempt + 1))
+                        continue
+                    resp.raise_for_status()
+                    return resp.json()
+                except (httpx.HTTPStatusError, httpx.TransportError) as e:
+                    last_err = e
+                    if attempt < 2:
+                        import time
+
+                        time.sleep(0.5 * (attempt + 1))
+            raise RuntimeError(f"embedding API 重试失败: {last_err}")
 
     def _call(self, texts: list[str], output_type: str, text_type: str) -> tuple[list[list[float]], list[dict] | None]:
         # DashScope 原生 API 单次 input.texts 上限 20，按配置 batch_size 分批调用后拼接
@@ -143,18 +176,8 @@ class ApiEmbedBackend:
         sparse_all: list[dict] | None = []
         for i in range(0, len(texts), self._batch_size):
             batch = texts[i : i + self._batch_size]
-            resp = self._client.post(
-                f"{self._base}/services/embeddings/text-embedding/text-embedding",
-                headers={"Authorization": f"Bearer {self._key}"},
-                json={
-                    "model": self._model,
-                    "input": {"texts": batch},
-                    "parameters": {"output_type": output_type, "dimension": EMBED_DIM, "text_type": text_type},
-                },
-            )
-            if resp.status_code != 200:
-                raise RuntimeError(f"embedding API {resp.status_code}: {resp.text[:300]}")
-            dense, sparse = _parse_native_response(resp.json(), self._model)
+            resp = self._post_batch(batch, output_type, text_type)
+            dense, sparse = _parse_native_response(resp, self._model)
             for emb in dense:
                 if len(emb) != EMBED_DIM:
                     raise RuntimeError(
@@ -169,15 +192,43 @@ class ApiEmbedBackend:
                 sparse_all = None
         return dense_all, (sparse_all or None)
 
+    def _cached_call(
+        self, texts: list[str], text_type: str, output_type: str
+    ) -> tuple[list[list[float]], list[dict] | None]:
+        """逐条查缓存，未命中批量调用后写缓存；稀疏整体缺失时返回 None。"""
+        from app.store.cache import embed_cache_get, embed_cache_set
+
+        dense_out: list[list[float]] = [None] * len(texts)  # type: ignore[list-item]
+        sparse_out: list[dict | None] = [None] * len(texts)
+        uncached_idx: list[int] = []
+        uncached_texts: list[str] = []
+        for i, t in enumerate(texts):
+            hit = embed_cache_get(t, text_type, output_type)
+            if hit is not None:
+                dense_out[i], sparse_out[i] = hit
+            else:
+                uncached_idx.append(i)
+                uncached_texts.append(t)
+        if uncached_texts:
+            dense, sparse = self._call(uncached_texts, output_type=output_type, text_type=text_type)
+            for k, i in enumerate(uncached_idx):
+                dense_out[i] = dense[k]
+                sp = sparse[k] if sparse else None
+                sparse_out[i] = sp
+                embed_cache_set(uncached_texts[k], text_type, output_type, dense[k], sp)
+        if any(s is None for s in sparse_out):
+            return dense_out, None
+        return dense_out, sparse_out  # type: ignore[return-value]
+
     def embed_texts(self, texts: list[str], *, text_type: str = "document") -> list[list[float]]:
-        dense, _ = self._call(texts, output_type="dense", text_type=text_type)
+        dense, _ = self._cached_call(texts, text_type=text_type, output_type="dense")
         return dense
 
     def embed_texts_with_sparse(
         self, texts: list[str], *, text_type: str = "document"
     ) -> tuple[list[list[float]], list[dict] | None]:
         # DashScope 原生接口 output_type=dense&sparse：一次返回稠密 + 模型原生稀疏
-        return self._call(texts, output_type="dense&sparse", text_type=text_type)
+        return self._cached_call(texts, text_type=text_type, output_type="dense&sparse")
 
 
 _lock = threading.Lock()

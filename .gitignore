@@ -12,6 +12,9 @@ data/
 .ruff_cache/
 coverage.xml
 htmlcov/
+# 工具生成物 / 本机配置
+.codegraph/
+.serena/
 # 不上传仓库的文档（用户要求）
 /DESIGN.md
 /INSTALL_RECORD.md

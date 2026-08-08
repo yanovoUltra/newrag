@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
@@ -10,6 +11,50 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class FairSemaphore:
+    """FIFO 公平信号量：按到达顺序放行。
+
+    asyncio.Semaphore 非公平——当大量协程同时涌入且配额不足时，后到者可能
+    先拿到配额，先到者被饿在队尾（实测并发 6 问时个别请求被拖到 5 倍延迟）。
+    检索段线程池化后，多个请求会同时到达 LLM 段，因此需要严格先来先服务。
+    """
+
+    def __init__(self, limit: int):
+        self._limit = max(limit, 1)
+        self._active = 0
+        self._queue: list[asyncio.Future] = []
+
+    async def acquire(self) -> None:
+        if self._active < self._limit:
+            self._active += 1
+            return
+        loop = asyncio.get_running_loop()
+        fut: asyncio.Future = loop.create_future()
+        self._queue.append(fut)
+        try:
+            await fut
+        except asyncio.CancelledError:
+            if fut in self._queue:
+                self._queue.remove(fut)
+            raise
+
+    def release(self) -> None:
+        if self._active > 0:
+            self._active -= 1
+        while self._queue and self._active < self._limit:
+            fut = self._queue.pop(0)
+            self._active += 1
+            if not fut.done():
+                fut.set_result(None)
+
+    async def __aenter__(self) -> "FairSemaphore":
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        self.release()
 
 
 class LLMClient(ABC):
@@ -39,9 +84,24 @@ class OpenAICompatClient(LLMClient):
 
         self._client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
         self._default_model = model
+        # 外部 API 缓解：并发限流（FIFO 公平排队，防 429 与信号量饥饿）+ 429/5xx 指数退避重试
+        self._sem = FairSemaphore(get_settings().max_llm_concurrency)
+
+    async def _create_with_retry(self, **kwargs: Any):
+        """限流 + 重试的 create 调用；重试 3 次后抛出最后一次异常。"""
+        async with self._sem:
+            for attempt in range(3):
+                try:
+                    return await self._client.chat.completions.create(**kwargs)
+                except Exception as e:
+                    status = getattr(e, "status_code", None)
+                    if status in (429, 500, 502, 503, 504) and attempt < 2:
+                        await asyncio.sleep(0.5 * (attempt + 1))
+                        continue
+                    raise
 
     async def stream_chat(self, messages: list[dict[str, str]], model: str | None = None) -> AsyncIterator[str]:
-        stream = await self._client.chat.completions.create(
+        stream = await self._create_with_retry(
             model=model or self._default_model,
             messages=messages,
             stream=True,
@@ -60,7 +120,7 @@ class OpenAICompatClient(LLMClient):
         kwargs = {}
         if response_format:
             kwargs["response_format"] = response_format
-        resp = await self._client.chat.completions.create(
+        resp = await self._create_with_retry(
             model=model or self._default_model,
             messages=messages,
             stream=False,
@@ -92,7 +152,7 @@ class MockLLMClient(LLMClient):
         last = messages[-1]["content"] if messages else ""
         import re
 
-        m = re.search(r"【知识块】\n(.*?)(?:\n【|$)", last, re.S)
+        m = re.search(r"【知识块\s*\d*】\n(.*?)(?:\n【|$)", last, re.S)
         if not m:
             return "（Mock LLM）未配置 API 密钥，无法生成基于真实模型的回答。"
         snippet = m.group(1).strip().replace("\n", " ")[:200]

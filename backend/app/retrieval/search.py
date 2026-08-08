@@ -18,6 +18,8 @@ def hybrid_search(
     query_text: str | None = None,
     top_k: int | None = None,
     query_sparse: dict | None = None,
+    recall_depth: float = 1.0,
+    fiscal_year: int | None = None,
 ) -> list[dict]:
     """混合检索主入口。
 
@@ -25,25 +27,30 @@ def hybrid_search(
     - 稀疏路：模型原生稀疏（text_type=query，由调用方传入 query_sparse）top-50
     - 表格路：chunk_type=table 稠密召回 top-20
     多路 RRF 融合 →（可选）rerank 精排 → 取 top_k。
+    recall_depth>1 时按比例放大各路 top_k 与 rerank 候选数（复杂/抽象问题用）。
+    fiscal_year 非 None 时按年份过滤（陈旧文档防护）。
     """
     settings = get_settings()
     k = top_k or settings.retrieval_top_k
+    depth = max(recall_depth, 1.0)
 
     routes: list[list[dict]] = [
         qdrant_store.search_dense(
             query_vector=query_vector,
             org_id=org_id,
             user_visibility=user_visibility,
-            top_k=settings.recall_dense_top_k,
+            top_k=int(settings.recall_dense_top_k * depth),
             exclude_chunk_types=list(_EXCLUDE_PARENT),
+            fiscal_year=fiscal_year,
         ),
         qdrant_store.search_dense(
             query_vector=query_vector,
             org_id=org_id,
             user_visibility=user_visibility,
-            top_k=settings.recall_table_top_k,
+            top_k=int(settings.recall_table_top_k * depth),
             chunk_type="table",
             exclude_chunk_types=list(_EXCLUDE_PARENT),
+            fiscal_year=fiscal_year,
         ),
     ]
     if query_text and query_sparse:
@@ -52,12 +59,13 @@ def hybrid_search(
                 query_sparse=query_sparse,
                 org_id=org_id,
                 user_visibility=user_visibility,
-                top_k=settings.recall_sparse_top_k,
+                top_k=int(settings.recall_sparse_top_k * depth),
                 exclude_chunk_types=list(_EXCLUDE_PARENT),
+                fiscal_year=fiscal_year,
             )
         )
 
-    fused = rrf_fuse(routes, k=settings.rrf_k, top_n=settings.rerank_candidates)
+    fused = rrf_fuse(routes, k=settings.rrf_k, top_n=int(settings.rerank_candidates * depth))
     if fused:
         reranker = get_reranker()
         docs = [r["content"] for r in fused]

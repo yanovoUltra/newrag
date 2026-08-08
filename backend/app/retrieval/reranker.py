@@ -33,23 +33,40 @@ class ApiReranker:
         self._url = f"{base_url}{path}"
         self._api_key = api_key
         self._model = model
+        # 外部 API 缓解：并发限流（超限排队，防 429）+ 429/5xx 指数退避重试
+        self._sem = threading.Semaphore(get_settings().max_rerank_concurrency)
 
     def rerank(self, query: str, documents: list[str]) -> list[float]:
         if not documents:
             return []
         try:
-            resp = self._httpx.post(
-                self._url,
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json={
-                    "model": self._model,
-                    "input": {"query": query, "documents": documents},
-                    "parameters": {"top_n": len(documents)},
-                },
-                timeout=60,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+            with self._sem:
+                for attempt in range(3):
+                    try:
+                        resp = self._httpx.post(
+                            self._url,
+                            headers={"Authorization": f"Bearer {self._api_key}"},
+                            json={
+                                "model": self._model,
+                                "input": {"query": query, "documents": documents},
+                                "parameters": {"top_n": len(documents)},
+                            },
+                            timeout=60,
+                        )
+                        if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:
+                            import time
+
+                            time.sleep(0.5 * (attempt + 1))
+                            continue
+                        resp.raise_for_status()
+                        data = resp.json()
+                        break
+                    except Exception as e:
+                        if attempt >= 2:
+                            raise
+                        import time
+
+                        time.sleep(0.5 * (attempt + 1))
         except Exception as e:
             # rerank 失败不阻断问答：返回全零分，调用方保持 RRF 顺序
             logger.warning("rerank 调用失败，跳过精排（保持 RRF 顺序）: %s", e)

@@ -113,6 +113,14 @@ def upsert_chunks(
             payload["fiscal_quarter"] = fiscal_quarter
         if chunk.parent_id:
             payload["parent_id"] = chunk.parent_id
+        if chunk.chunk_type == "table":
+            # 表格结构化元数据（供过滤/展示）
+            if chunk.table_headers is not None:
+                payload["table_headers"] = chunk.table_headers
+            if chunk.n_rows is not None:
+                payload["n_rows"] = chunk.n_rows
+            if chunk.n_cols is not None:
+                payload["n_cols"] = chunk.n_cols
         vector: dict[str, Any] = {"dense": vec}
         if sparse_vectors is not None:
             sv = sparse_vectors[idx]
@@ -155,8 +163,9 @@ def search_dense(
     top_k: int,
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
+    fiscal_year: int | None = None,
 ) -> list[dict]:
-    """单路稠密检索，强制注入权限 payload 过滤。"""
+    """单路稠密检索，强制注入权限 payload 过滤；可追加年份过滤（陈旧文档防护）。"""
     client = get_client()
     must: list[models.Condition] = [
         models.FieldCondition(key="org_id", match=models.MatchValue(value=org_id)),
@@ -165,6 +174,8 @@ def search_dense(
             match=models.MatchAny(any=visible_levels(user_visibility)),
         ),
     ]
+    if fiscal_year is not None:
+        must.append(models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year)))
     if chunk_type:
         must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
     must_not = None
@@ -209,8 +220,9 @@ def search_sparse(
     top_k: int,
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
+    fiscal_year: int | None = None,
 ) -> list[dict]:
-    """稀疏路召回（模型原生稀疏：词表 index + 语义权重），强制权限过滤。"""
+    """稀疏路召回（模型原生稀疏：词表 index + 语义权重），强制权限过滤；可追加年份过滤。"""
     client = get_client()
     must: list[models.Condition] = [
         models.FieldCondition(key="org_id", match=models.MatchValue(value=org_id)),
@@ -219,6 +231,8 @@ def search_sparse(
             match=models.MatchAny(any=visible_levels(user_visibility)),
         ),
     ]
+    if fiscal_year is not None:
+        must.append(models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year)))
     if chunk_type:
         must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
     must_not = None
@@ -267,12 +281,3 @@ def fetch_payloads(doc_id: str, chunk_ids: list[str]) -> dict[str, dict]:
         with_payload=True,
     )
     return {p.payload.get("chunk_id"): p.payload for p in pts if p.payload}
-
-
-def count_docs() -> int:
-    client = get_client()
-    try:
-        res = client.count(collection_name=get_settings().qdrant_collection, exact=True)
-        return res.count
-    except Exception:
-        return 0

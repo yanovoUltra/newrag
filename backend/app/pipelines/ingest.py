@@ -8,12 +8,12 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.embed.embedder import get_embedder
 from app.parsers.base import LayoutResult, parse_layout
-from app.parsers.metadata import guess_fiscal_meta
 from app.parsers.ocr import ocr_page_images
 from app.parsers.structure import Section, build_section_tree
-from app.splitter.chunker import Chunk, build_chunks
+from app.splitter.chunker import Chunk, build_leaves, build_parent_blocks
+from app.splitter.semantic import refine_leaves_semantically
 from app.store import qdrant as qdrant_store
-from app.store.registry import load_stage, save_stage, stage_done, update_document, update_task
+from app.store.registry import get_document, load_stage, save_stage, stage_done, update_document, update_task
 
 logger = get_logger(__name__)
 
@@ -59,6 +59,13 @@ def run_ingest(
                         page.scanned = False
                 save_stage(doc_id, "layout", layout.to_dict())
 
+        # ---- 阶段 1.6：数据清洗（页眉页脚去重 + NFKC 归一化，幂等）----
+        if settings.clean_enable:
+            from app.parsers.clean import clean_layout
+
+            clean_layout(layout)
+            save_stage(doc_id, "layout", layout.to_dict())
+
         # ---- 阶段 2：章节树（结构层）----
         if task_id:
             _update_task_progress(task_id, "chunk", 40, "正在构建章节树")
@@ -69,9 +76,14 @@ def run_ingest(
         else:
             sections = [Section.from_dict(s) for s in load_stage(doc_id, "sections")["sections"]]
 
-        # ---- 阶段 3：切分（Small-to-Big）----
+        # ---- 阶段 3：切分（Small-to-Big + 语义精切）----
         if not stage_done(doc_id, "chunks"):
-            chunks = build_chunks(doc_id, layout, sections, doc_title=file_path.stem)
+            # 3a) 结构叶子（章节/表格边界 + 目标 token 聚合）
+            leaves = build_leaves(doc_id, layout, sections, doc_title=file_path.stem)
+            # 3b) 语义精切：仅超长散文叶子按嵌入相似度断点细分（配置开启且非 mock 时生效）
+            leaves = refine_leaves_semantically(leaves)
+            # 3c) 章节级父块（叶子 parent_id 在此构建）
+            chunks = build_parent_blocks(doc_id, leaves) + leaves
             save_stage(doc_id, "chunks", {"chunks": [c.to_dict() for c in chunks]})
         else:
             chunks = [Chunk.from_dict(c) for c in load_stage(doc_id, "chunks")["chunks"]]
@@ -101,7 +113,7 @@ def run_ingest(
         # ---- 阶段 5：入库 ----
         if task_id:
             _update_task_progress(task_id, "index", 85, "正在写入向量库")
-        doc = get_document_safe(doc_id)
+        doc = get_document(doc_id)
         qdrant_store.ensure_collection()
         n = qdrant_store.upsert_chunks(
             doc_id=doc_id,
@@ -134,9 +146,3 @@ def load_layout(doc_id: str) -> LayoutResult:
     if data is None:
         raise PipelineError("layout stage missing")
     return LayoutResult.from_dict(data)
-
-
-def get_document_safe(doc_id: str):
-    from app.store.registry import get_document
-
-    return get_document(doc_id)
