@@ -22,3 +22,5 @@ htmlcov/
 /README.md
 # 本机 MCP 配置（含绝对路径，开发机个人配置）
 .mcp.json
+# Agent Skills（本机 IDE 技能，个人环境）
+.agents/
