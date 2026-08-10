@@ -80,6 +80,17 @@ function intentLabel(v: string | undefined): string {
             show-icon
           />
 
+          <!-- 字段抽取命中（结构化指标精确取值） -->
+          <div v-if="message.fields?.length" class="field-hits">
+            <span class="field-hits-label">字段命中</span>
+            <div v-for="(f, fi) in message.fields" :key="`${f.doc_id}-${f.metric}-${f.year}-${fi}`" class="field-hit">
+              <span class="field-name">{{ f.metric_label }}</span>
+              <span class="field-year">{{ f.year }}年</span>
+              <span class="field-value">{{ f.raw }}</span>
+              <span class="field-src">{{ f.doc_name }}-第{{ f.page }}页</span>
+            </div>
+          </div>
+
           <!-- 内容 -->
           <MarkdownText v-if="message.content" :text="message.content" />
           <div v-else-if="message.streaming" class="typing-dots" aria-label="生成中">
@@ -231,6 +242,47 @@ function intentLabel(v: string | undefined): string {
 
 .warning-alert {
   margin: 6px 0;
+}
+
+/* 字段抽取命中 */
+.field-hits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 8px;
+}
+.field-hits-label {
+  font-size: 11.5px;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.field-hit {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.field-name {
+  color: var(--color-fg);
+  font-weight: 600;
+}
+.field-year {
+  color: var(--color-fg-muted);
+  font-size: 12px;
+}
+.field-value {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.field-src {
+  color: var(--color-fg-faint);
+  font-size: 11.5px;
 }
 
 /* grounding */

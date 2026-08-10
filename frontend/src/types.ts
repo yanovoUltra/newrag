@@ -66,6 +66,24 @@ export interface GroundingData {
   citations: number
 }
 
+// 字段抽取：结构化指标精确取值（metric 类问题命中独立字段索引）
+export interface FieldData {
+  metric: string
+  metric_label: string
+  year: number
+  value: number
+  unit: string | null
+  raw: string
+  doc_id: string
+  doc_name: string
+  page: number
+  section_path: string
+}
+
+export interface FieldEventData {
+  fields: FieldData[]
+}
+
 export interface ErrorData {
   message: string
 }
@@ -80,6 +98,7 @@ export type ChatEvent =
   | { event: 'warning'; data: WarningData }
   | { event: 'token'; data: TokenData }
   | { event: 'grounding'; data: GroundingData }
+  | { event: 'field'; data: FieldEventData }
   | { event: 'error'; data: ErrorData }
   | { event: 'done'; data: DoneData }
 
@@ -90,6 +109,7 @@ export interface MessageTurn {
   question?: string
   content: string
   citations: CitationData[]
+  fields?: FieldData[]
   meta?: ChatMetaData
   warning: string | null
   grounding: GroundingData | null

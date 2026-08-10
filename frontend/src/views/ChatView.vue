@@ -169,6 +169,9 @@ async function send(question?: string) {
         case 'grounding':
           cur.grounding = evt.data
           break
+        case 'field':
+          cur.fields = evt.data.fields
+          break
         case 'error':
           cur.error = evt.data.message
           break
