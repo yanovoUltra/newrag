@@ -50,8 +50,15 @@ def parse_pdf(path: Path) -> LayoutResult:
 def _page_text_without_tables(
     fz_page, table_bboxes: list[tuple[float, float, float, float]]
 ) -> str:
-    """页面文本，剔除已识别表格区域内的词（避免表格内容双重入库）。失败回退全量文本。"""
+    """页面文本，剔除已识别表格区域内的词（避免表格内容双重入库）。失败回退全量文本。
+
+    无表格的页面先做双栏检测：双栏正文若按文档流顺序提取会左右栏交错，
+    需按"先左栏后右栏（栏内按 y）"重组；非双栏回退默认文本流。
+    """
     if not table_bboxes:
+        two_col = _two_column_text(fz_page)
+        if two_col is not None:
+            return two_col
         return fz_page.get_text("text")
     try:
         words = fz_page.get_text("words")  # x0,y0,x1,y1,word,block,line,word_no
@@ -75,6 +82,47 @@ def _page_text_without_tables(
     except Exception as e:  # 掩码失败不影响解析
         logger.warning("table mask failed, fallback full text: %s", e)
         return fz_page.get_text("text")
+
+
+def _two_column_text(fz_page) -> str | None:
+    """启发式双栏检测并重组文本；非双栏返回 None（调用方回退默认流程）。
+
+    使用 line 级 bbox（fitz get_text("dict") 的 lines），避免 fitz 将同行左右文本
+    合并进同一 block 导致的误判。判定条件（全部满足才视为双栏）：
+    - 窄行（宽度 < 页宽 60%）>= 6 个；
+    - 以页面中线为界，左右两侧各至少 20% 的窄行；
+    - 左右栏平均中心间距 >= 页宽 25%（确认存在明显分栏缝）。
+    """
+    try:
+        page_w = fz_page.rect.width or 1.0
+        lines: list[tuple[tuple[float, float, float, float], str]] = []
+        for blk in fz_page.get_text("dict").get("blocks", []):
+            if blk.get("type") != 0:
+                continue
+            for ln in blk.get("lines", []):
+                bbox = ln.get("bbox")
+                txt = " ".join((s.get("text") or "") for s in ln.get("spans", [])).strip()
+                if txt and bbox and (bbox[2] - bbox[0]) < page_w * 0.6:
+                    lines.append((bbox, txt))
+        if len(lines) < 6:
+            return None
+        mid = page_w / 2
+        left = [ln for ln in lines if (ln[0][0] + ln[0][2]) / 2 < mid]
+        right = [ln for ln in lines if (ln[0][0] + ln[0][2]) / 2 >= mid]
+        if not left or not right:
+            return None
+        if len(left) / len(lines) < 0.2 or len(right) / len(lines) < 0.2:
+            return None
+        ml = sum((ln[0][0] + ln[0][2]) / 2 for ln in left) / len(left)
+        mr = sum((ln[0][0] + ln[0][2]) / 2 for ln in right) / len(right)
+        if mr - ml < page_w * 0.25:
+            return None
+        # 先左栏（栏内按 y 自上而下）、再右栏
+        ordered = sorted(left, key=lambda ln: ln[0][1]) + sorted(right, key=lambda ln: ln[0][1])
+        return "\n".join(t for _, t in ordered)
+    except Exception as e:  # 检测失败不影响解析
+        logger.warning("two-column detect failed, fallback: %s", e)
+        return None
 
 
 def parse_docx(path: Path) -> LayoutResult:

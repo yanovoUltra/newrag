@@ -107,3 +107,53 @@ def test_upload_validation(client):
         data={"org_id": "orgA"},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.skipif(not qdrant_available(), reason="需要本地 Qdrant")
+def test_upload_replace_archives_old_version(client, sample_pdf):
+    """版本控制：同名文件替换 → 旧版标 archived（留档可追溯），list 默认隐藏归档。"""
+    import os
+    import tempfile
+
+    import fitz
+
+    # v1：sample_pdf
+    with open(sample_pdf, "rb") as f:
+        resp = client.post(
+            "/api/v1/documents",
+            files={"file": ("version_test.pdf", f, "application/pdf")},
+            data={"org_id": "orgC"},
+        )
+    assert resp.status_code == 201
+    v1_id = resp.json()["doc_id"]
+    assert _wait_task(client, resp.json()["task_id"])["status"] == "success"
+
+    # v2：同名不同内容
+    tmp = os.path.join(tempfile.mkdtemp(), "version_test.pdf")
+    doc = fitz.open()
+    p = doc.new_page()
+    p.insert_text((72, 80), "Revenue two hundred thirty four point five million", fontsize=11)
+    doc.save(tmp)
+    with open(tmp, "rb") as f:
+        resp = client.post(
+            "/api/v1/documents",
+            files={"file": ("version_test.pdf", f, "application/pdf")},
+            data={"org_id": "orgC"},
+        )
+    assert resp.status_code == 201
+    v2_id = resp.json()["doc_id"]
+    assert _wait_task(client, resp.json()["task_id"])["status"] == "success"
+
+    # 旧版归档：状态 archived、list 默认不显示、include_archived=true 显示
+    d1 = client.get(f"/api/v1/documents/{v1_id}").json()
+    assert d1["status"] == "archived"
+    listed = client.get("/api/v1/documents", params={"org_id": "orgC"}).json()
+    assert v1_id not in [d["id"] for d in listed]
+    assert v2_id in [d["id"] for d in listed]
+    archived = client.get("/api/v1/documents", params={"org_id": "orgC", "include_archived": True}).json()
+    ids = [d["id"] for d in archived]
+    assert v1_id in ids and v2_id in ids
+
+    # 清理
+    client.delete(f"/api/v1/documents/{v1_id}")
+    client.delete(f"/api/v1/documents/{v2_id}")

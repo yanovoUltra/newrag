@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     app_env: str = "development"
     cors_origins: str = "http://localhost:5173"
 
+    # API 认证（HMAC 签名 + 时间戳窗口 + nonce 防重放；默认关闭，开启后 /api/v1/* 需携带签名头）
+    auth_enabled: bool = False
+    auth_client_key: str = ""  # 客户端标识（明文头）
+    auth_secret: str = ""  # 共享密钥（仅服务端持有，验签用）
+    auth_timestamp_window: int = 300  # 时间戳允许偏差（秒），超出视为过期/重放
+    auth_nonce_ttl: int = 300  # nonce 去重保留时长（秒）
+
     # 存储
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "chunks"
@@ -46,6 +53,9 @@ class Settings(BaseSettings):
     llm_light_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     llm_light_api_key: str = ""
     llm_light_model: str = "qwen3.7-plus"
+    # 会话/任务级超时（超时后发送 error 事件 / 标记任务失败）
+    chat_timeout: int = 180  # SSE 问答整条流总超时（秒）
+    ingest_timeout: int = 1800  # 单文档解析入库总超时（秒）
 
     # OCR（PaddleOCR AI Studio 在线 API）
     ocr_enabled: bool = False
@@ -99,6 +109,7 @@ class Settings(BaseSettings):
     clean_header_footer_min_ratio: float = 0.5  # 行出现页数占比 >= 该值视为高频
     clean_header_footer_max_tokens: int = 24  # 高频行 token 上限（页眉/页脚通常为短行）
     clean_header_footer_margin: float = 0.15  # 页首/页尾边缘区比例（超出该区的行不删）
+    clean_page_numbers: bool = True  # 页码行剔除（纯数字 / 第X页 / Page X，仅限页首/页尾边缘区）
     upload_dir: str = "./data/uploads"
     pipeline_dir: str = "./data/pipeline"
     registry_db: str = "./data/registry.db"
@@ -108,15 +119,29 @@ class Settings(BaseSettings):
     semantic_cache_threshold: float = 0.95  # 语义答案缓存相似度阈值（复用）
     # 语义答案缓存二次校验：向量命中后，问题文本字符重合度低于该值视为可疑（防御误命中）
     answer_cache_min_overlap: float = 0.5
+    # 问答记录持久化（chat_records 表，供离线复评 / RAGAS）
+    qa_record_enabled: bool = True
+
+    # Agent 防线（Guard 层，轻量版）
+    guard_enabled: bool = True  # 开启注入/循环检测
+    guard_injection_trigger_words: str = ""  # 额外注入关键词（逗号分隔，追加到正则特征）
+    guard_loop_max_repeats: int = 3  # 同问题归一化重复达该次数判定循环
 
     # 外部 API 缓解（缓存 + 限流 + 重试）
     semantic_cache_enabled: bool = True  # 语义答案缓存（仅无 session_id 的单轮问答生效）
     embed_cache_ttl: int = 86400  # 嵌入结果缓存秒数（相同文本复用向量，省外部调用）
     answer_cache_ttl: int = 3600  # 答案缓存秒数
     answer_cache_max_entries: int = 50  # 每 org+visibility 桶内最大缓存条目
-    max_embed_concurrency: int = 4  # 嵌入 API 并发上限（超限排队，防 429）
+    max_embed_concurrency: int = 8  # 嵌入 API 并发上限（超限排队，防 429；实测 8 为吞吐/稳定性平衡点）
     max_llm_concurrency: int = 4  # LLM 并发上限
     max_rerank_concurrency: int = 4  # rerank 并发上限
+
+    # 文档侧 IDF 重写（稀疏路治本）：入库时对稀疏 index 乘 IDF，压低高频结构词、抬升判别词
+    sparse_idf_enabled: bool = True
+    sparse_idf_path: str = "./data/idf.json"  # 离线统计的 index→IDF 映射
+
+    # 结构块（财务表头/页眉/版式说明）：检索时置后降权（占比极小，实测对召回无影响，保留单一行为）
+    structural_chunk_enabled: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -140,6 +165,11 @@ class Settings(BaseSettings):
     @property
     def resolved_embedding_cache_dir(self) -> Path:
         p = Path(self.embedding_cache_dir)
+        return p if p.is_absolute() else ROOT_DIR / p
+
+    @property
+    def resolved_sparse_idf_path(self) -> Path:
+        p = Path(self.sparse_idf_path)
         return p if p.is_absolute() else ROOT_DIR / p
 
 

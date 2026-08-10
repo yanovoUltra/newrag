@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.models.entities import Base, Document, Task
+from app.models.entities import Base, ChatRecord, Document, EvalResult, Task
 
 logger = get_logger(__name__)
 
@@ -119,6 +119,72 @@ def update_task(task_id: str, **fields) -> None:
         for k, v in fields.items():
             setattr(t, k, v)
         s.commit()
+
+
+# ---------- ChatRecord（问答记录） ----------
+
+def create_chat_record(
+    question: str,
+    answer: str = "",
+    session_id: str = "",
+    org_id: str = "default",
+    visibility: str = "public",
+    citations: list | None = None,
+    intent: str = "",
+    usage: dict | None = None,
+) -> ChatRecord:
+    with get_session() as s:
+        rec = ChatRecord(
+            question=question,
+            answer=answer,
+            session_id=session_id,
+            org_id=org_id,
+            visibility=visibility,
+            citations=json.dumps(citations or [], ensure_ascii=False),
+            intent=intent,
+            usage=json.dumps(usage or {}, ensure_ascii=False),
+        )
+        s.add(rec)
+        s.commit()
+        s.refresh(rec)
+        return rec
+
+
+def list_chat_records(org_id: str | None = None, limit: int = 200, offset: int = 0) -> list[ChatRecord]:
+    with get_session() as s:
+        stmt = select(ChatRecord).order_by(ChatRecord.created_at.desc()).limit(limit).offset(offset)
+        if org_id:
+            stmt = stmt.where(ChatRecord.org_id == org_id)
+        return list(s.scalars(stmt).all())
+
+
+def get_chat_record(record_id: str) -> ChatRecord | None:
+    with get_session() as s:
+        return s.get(ChatRecord, record_id)
+
+
+# ---------- EvalResult（评测结果） ----------
+
+def save_eval_result(eval_name: str, scope: str, metrics: dict, payload: dict | None = None) -> EvalResult:
+    with get_session() as s:
+        rec = EvalResult(
+            eval_name=eval_name,
+            scope=scope,
+            metrics=json.dumps(metrics, ensure_ascii=False),
+            payload=json.dumps(payload or {}, ensure_ascii=False),
+        )
+        s.add(rec)
+        s.commit()
+        s.refresh(rec)
+        return rec
+
+
+def list_eval_results(eval_name: str | None = None, limit: int = 100) -> list[EvalResult]:
+    with get_session() as s:
+        stmt = select(EvalResult).order_by(EvalResult.created_at.desc()).limit(limit)
+        if eval_name:
+            stmt = stmt.where(EvalResult.eval_name == eval_name)
+        return list(s.scalars(stmt).all())
 
 
 # ---------- 串行持久化（断点续跑） ----------

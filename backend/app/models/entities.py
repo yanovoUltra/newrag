@@ -56,3 +56,33 @@ class Task(Base):
     message: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class ChatRecord(Base):
+    """问答记录（持久化）：离线复评 / RAGAS 评测的历史回答来源。"""
+
+    __tablename__ = "chat_records"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(String(64), default="", index=True)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    visibility: Mapped[str] = mapped_column(String(16), default="public")
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text, default="")
+    citations: Mapped[str] = mapped_column(Text, default="[]")  # JSON 序列化引用列表
+    intent: Mapped[str] = mapped_column(String(32), default="")
+    usage: Mapped[str] = mapped_column(String(500), default="{}")  # JSON：tokens 等
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class EvalResult(Base):
+    """评测结果（RAGAS / 检索消融等）：指标 + 明细 JSON。"""
+
+    __tablename__ = "eval_results"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    eval_name: Mapped[str] = mapped_column(String(64), index=True)  # retrieval_ablation / ragas / bm25_vs_sparse
+    scope: Mapped[str] = mapped_column(String(255), default="")  # 数据集/文档范围
+    metrics: Mapped[str] = mapped_column(Text, default="{}")  # JSON：{ndcg_at_8: 0.21, ...}
+    payload: Mapped[str] = mapped_column(Text, default="{}")  # JSON：明细/报告
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)

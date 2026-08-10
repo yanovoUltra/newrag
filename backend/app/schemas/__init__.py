@@ -15,6 +15,7 @@ class DocumentOut(BaseModel):
     fiscal_year: int | None = None
     fiscal_quarter: int | None = None
     chunk_count: int = 0
+    size_bytes: int = 0
     error: str | None = None
     created_at: str
     updated_at: str

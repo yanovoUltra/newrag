@@ -12,6 +12,7 @@ from qdrant_client import QdrantClient
 from app.api.v1 import chat, documents, tasks
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
+from app.core.security import AuthMiddleware
 from app.store import qdrant as qdrant_store
 from app.store.registry import init_db
 
@@ -36,6 +37,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="多模态财报深度分析 RAG 系统", version="0.1.0", lifespan=lifespan)
+    # 认证中间件在内（仅保护 /api/v1/*，默认关闭），CORS 在外（保证 401 也带 CORS 头）
+    app.add_middleware(AuthMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

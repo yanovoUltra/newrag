@@ -143,3 +143,66 @@ def test_same_file_key():
 
     assert _same_file_key("600000_2024年报.PDF", "600000_2024年报.pdf")
     assert _same_file_key("aa.docx", "bb.docx") is False
+
+
+# ---- 数据清洗：页码剔除 + 接地校验单位归一化 ----
+
+def test_clean_strips_page_numbers_only_at_edges():
+    from app.parsers.clean import clean_layout
+    from app.parsers.base import LayoutResult, ParsedPage
+
+    settings = SimpleNamespace(
+        clean_enable=True, clean_nfkc=True, clean_header_footer=False,
+        clean_header_footer_min_ratio=0.5, clean_header_footer_max_tokens=24,
+        clean_header_footer_margin=0.15, clean_page_numbers=True,
+    )
+    # 页尾纯数字（页码）与页首 "第 2 页" 应剔除；页中部数字行保留
+    pages = [
+        ParsedPage(page_no=1, text="第 1 页\n正文第一行\n正文第二行\n正文第三行\n正文第四行\n正文第五行\n25"),
+        ParsedPage(page_no=2, text="第 2 页\n正文内容包含数字 2024 是正常的\n正文第三行\n26"),
+    ]
+    layout = LayoutResult(pages=pages, text_extraction_rate=1.0)
+    clean_layout(layout, settings)
+    assert "第 1 页" not in layout.pages[0].text
+    assert "\n25" not in layout.pages[0].text
+    assert "第 2 页" not in layout.pages[1].text
+    # 页中部数字行（如正文里的年份）不受影响
+    assert "2024" in layout.pages[1].text
+
+
+def test_clean_keeps_page_numbers_in_middle():
+    from app.parsers.clean import _PAGE_NO_RE
+
+    assert _PAGE_NO_RE.match("25")
+    assert _PAGE_NO_RE.match("第 3 页")
+    assert _PAGE_NO_RE.match("- 12 -")
+    assert _PAGE_NO_RE.match("Page 7")
+    assert not _PAGE_NO_RE.match("营业收入 2024 亿元")
+    assert not _PAGE_NO_RE.match("25 0000")
+
+
+def test_normalize_number_expr_units():
+    from app.generation.grounding import normalize_number_expr
+
+    exprs = normalize_number_expr("营业收入1,707,480万元，同比归母净利润1707.48亿元，每股收益1.28元。")
+    vals = {round(v, 4) for v, _ in exprs}
+    # 1,707,480 万元 = 1.70748e10 元；1707.48 亿元 = 1.70748e11 元（不同量级，不误并）
+    assert 17074800000.0 in vals
+    assert 170748000000.0 in vals
+    assert 1.28 in vals
+    # 无单位的普通数字不纳入（年份等）
+    assert normalize_number_expr("2024年营收增长18.2%") == []
+
+
+def test_ground_answer_cross_unit_match():
+    """跨单位等价：回答"17.07亿元" 与 知识块"170,748万元" 应数值匹配（非 missing）。"""
+    from app.generation.grounding import ground_answer
+
+    blocks = [{"content": "营业收入170,748万元，同比增长3.4%。", "parent_content": ""}]
+    g = ground_answer("营业收入17.07亿元，同比增长3.4%。", blocks)
+    assert g["checked"] >= 2
+    assert "17.07" not in g["missing"]
+    assert "3.4" not in g["missing"]
+    # 单位不同但数值不等 → 仍应列为 missing
+    g2 = ground_answer("营业收入18.5亿元。", blocks)
+    assert "18.5" in g2["missing"]

@@ -19,6 +19,7 @@ from app.store.registry import (
     delete_document,
     get_document,
     list_documents,
+    update_document,
 )
 from app.parsers.base import SUPPORTED_EXTENSIONS
 
@@ -33,7 +34,7 @@ def _same_file_key(a: str, b: str) -> bool:
 
 
 def _purge_document(doc_id: str) -> None:
-    """删除旧版本文档的全部痕迹：向量点 + registry 记录 + 管线中间产物。"""
+    """彻底删除文档全部痕迹：向量点 + registry 记录 + 管线中间产物（用户显式删除用）。"""
     try:
         qdrant_store.delete_doc(doc_id)
     except Exception as e:
@@ -44,14 +45,27 @@ def _purge_document(doc_id: str) -> None:
         shutil.rmtree(pipeline_target, ignore_errors=True)
 
 
+def _archive_document(doc_id: str) -> None:
+    """版本归档（同名替换用）：删向量点防检索命中旧版，registry 记录标 archived 保留
+    （上传文件与管线中间产物不清除，可追溯/可回滚），新版本正常入库。"""
+    try:
+        qdrant_store.delete_doc(doc_id)
+    except Exception as e:
+        raise HTTPException(500, f"旧版向量删除失败: {e}")
+    update_document(doc_id, status="archived")
+
+
 def _find_replace_target(settings, org_id: str, content: bytes, filename: str):
     """陈旧文档防护：
     - 同 org + 同 sha256 → 返回 ("duplicate", doc)：幂等，不重复入库（failed 状态除外，允许重试）；
-    - 同 org + 同名文件且内容不同 → 返回 ("replace", doc)：替换旧版，先删旧点再入库。
+    - 同 org + 同名文件且内容不同 → 返回 ("replace", doc)：替换旧版，先归档旧点再入库。
+    已归档（archived）记录视为不存在：跳过，允许重新入库形成新版本（旧版留档）。
     返回 (kind, doc|None)。"""
     sha256 = hashlib.sha256(content).hexdigest()
     docs = list_documents(org_id=org_id, limit=500)
     for d in docs:
+        if d.status == "archived":
+            continue  # 已归档版本不参与幂等/替换判定
         if d.sha256 and d.sha256 == sha256:
             if d.status == "failed":
                 return "replace", d  # 上次失败，允许重试（旧痕迹已无向量，直接重入）
@@ -83,12 +97,12 @@ async def upload_document(
     if len(content) > settings.max_upload_mb * 1024 * 1024:
         raise HTTPException(413, f"文件超过大小限制 {settings.max_upload_mb}MB")
 
-    # ---- 陈旧文档防护：sha256 幂等 / 同名替换 ----
+    # ---- 陈旧文档防护：sha256 幂等 / 同名替换（旧版归档留档）----
     kind, existing = _find_replace_target(settings, org_id, content, file.filename or "")
     if kind == "duplicate" and existing is not None:
         return {"task_id": "", "doc_id": existing.id, "status": "duplicate"}
     if kind == "replace" and existing is not None:
-        _purge_document(existing.id)
+        _archive_document(existing.id)
 
     upload_dir = settings.resolved_upload_dir
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -122,8 +136,16 @@ async def upload_document(
 
 
 @router.get("", response_model=list[DocumentOut])
-def list_docs(org_id: str | None = None, limit: int = 50, offset: int = 0):
-    return [doc_dict(d) for d in list_documents(org_id, limit, offset)]
+def list_docs(
+    org_id: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    include_archived: bool = False,
+):
+    docs = list_documents(org_id, limit, offset)
+    if not include_archived:
+        docs = [d for d in docs if d.status != "archived"]
+    return [doc_dict(d) for d in docs]
 
 
 @router.get("/{doc_id}", response_model=DocumentOut)
@@ -154,6 +176,7 @@ def doc_dict(d) -> DocumentOut:
         fiscal_year=d.fiscal_year,
         fiscal_quarter=d.fiscal_quarter,
         chunk_count=d.chunk_count,
+        size_bytes=d.size_bytes,
         error=d.error,
         created_at=d.created_at.isoformat(),
         updated_at=d.updated_at.isoformat(),

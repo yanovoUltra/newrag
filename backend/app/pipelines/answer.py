@@ -143,6 +143,27 @@ async def stream_answer(
         events.append(ev)
         return ev
 
+    # 0.5 Guard 层（Agent 防线）：Prompt 注入 → 拒绝回答；循环 → 提示（均不阻断异常流程）
+    if settings.guard_enabled:
+        from app.generation.guard import check_conversation_loop, check_prompt_injection
+
+        inj = check_prompt_injection(question)
+        if inj.flagged:
+            logger.warning("检测到 prompt 注入: %s", question[:60])
+            yield _emit({
+                "event": "meta",
+                "data": {"org_id": org_id, "top_k": 0, "intent": "guard", "complexity": "simple",
+                         "needs_hyde": False, "year": None, "year_fell_back": False,
+                         "guarded": "injection"},
+            })
+            yield _emit({"event": "warning", "data": {"message": "检测到提示注入（指令覆盖/越权诱导），已拒绝处理该请求。"}})
+            yield _emit({"event": "token", "data": {"delta": "抱歉，该请求包含提示注入特征，已拒绝处理。"}})
+            yield _emit({"event": "done", "data": {"usage": {}}})
+            return
+        loop = check_conversation_loop(get_history(session_id), question)
+        if loop:
+            yield _emit({"event": "warning", "data": {"message": "检测到重复提问，本轮已回答。如需不同角度，请换一种问法。"}})
+
     # 1. 意图路由（阶段二；Mock/关闭时返回默认计划）
     plan = await route_query(question)
 
@@ -223,6 +244,17 @@ async def stream_answer(
     append_turn(session_id, question, answer_text)
     yield _emit({"event": "done", "data": {"usage": usage}})
 
+    # 5.5 问答记录持久化（离线复评 / RAGAS 数据来源；失败不影响回答）
+    if settings.qa_record_enabled and answer_text:
+        try:
+            await asyncio.to_thread(
+                _save_chat_record,
+                question, answer_text, session_id, org_id, user_visibility,
+                [b.get("doc_id") for b in blocks], plan.intent, usage,
+            )
+        except Exception as e:
+            logger.warning("问答记录落库失败（忽略）: %s", e)
+
     # 6. 写入语义答案缓存（仅无会话 + 有完整回答 + 问题向量可用）
     if settings.semantic_cache_enabled and not session_id and q_vec and answer_text and not had_error:
         from app.store.cache import answer_store
@@ -232,3 +264,27 @@ async def stream_answer(
             user_visibility,
             {"q_norm": " ".join(question.split()).lower(), "q_vec": q_vec, "events": events},
         )
+
+
+def _save_chat_record(
+    question: str,
+    answer: str,
+    session_id: str,
+    org_id: str,
+    visibility: str,
+    citation_doc_ids: list,
+    intent: str,
+    usage: dict,
+) -> None:
+    from app.store.registry import create_chat_record
+
+    create_chat_record(
+        question=question,
+        answer=answer,
+        session_id=session_id,
+        org_id=org_id,
+        visibility=visibility,
+        citations=citation_doc_ids,
+        intent=intent,
+        usage=usage,
+    )

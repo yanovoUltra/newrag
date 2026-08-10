@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
 import httpx
@@ -171,13 +172,24 @@ class ApiEmbedBackend:
             raise RuntimeError(f"embedding API 重试失败: {last_err}")
 
     def _call(self, texts: list[str], output_type: str, text_type: str) -> tuple[list[list[float]], list[dict] | None]:
-        # DashScope 原生 API 单次 input.texts 上限 20，按配置 batch_size 分批调用后拼接
+        # DashScope 原生 API 单次 input.texts 上限 20，按配置 batch_size 分批调用后拼接。
+        # 并发发送各批（并发上限 = max_embed_concurrency，信号量兜底），避免串行成为瓶颈。
+        batches = [texts[i : i + self._batch_size] for i in range(0, len(texts), self._batch_size)]
+        concurrency = get_settings().max_embed_concurrency
+        results: list[tuple[int, list[list[float]], list[dict] | None]] = [None] * len(batches)  # type: ignore[list-item]
+
+        def _run(i: int, batch: list[str]) -> None:
+            resp = self._post_batch(batch, output_type, text_type)
+            results[i] = (i,) + _parse_native_response(resp, self._model)
+
+        with ThreadPoolExecutor(max_workers=max(1, concurrency)) as ex:
+            futures = [ex.submit(_run, idx, batch) for idx, batch in enumerate(batches)]
+            for f in futures:
+                f.result()  # 等待全部完成，异常在此抛出
+
         dense_all: list[list[float]] = []
         sparse_all: list[dict] | None = []
-        for i in range(0, len(texts), self._batch_size):
-            batch = texts[i : i + self._batch_size]
-            resp = self._post_batch(batch, output_type, text_type)
-            dense, sparse = _parse_native_response(resp, self._model)
+        for i, dense, sparse in results:
             for emb in dense:
                 if len(emb) != EMBED_DIM:
                     raise RuntimeError(

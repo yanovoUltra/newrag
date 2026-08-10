@@ -121,6 +121,13 @@ def upsert_chunks(
                 payload["n_rows"] = chunk.n_rows
             if chunk.n_cols is not None:
                 payload["n_cols"] = chunk.n_cols
+        # 结构块标记（财务表头/页眉/版式说明），检索时降权/排除
+        if settings.structural_chunk_enabled:
+            from app.parsers.structural import is_structural_chunk
+
+            payload["is_structural"] = bool(is_structural_chunk(chunk.content))
+        else:
+            payload["is_structural"] = False
         vector: dict[str, Any] = {"dense": vec}
         if sparse_vectors is not None:
             sv = sparse_vectors[idx]
@@ -136,6 +143,7 @@ def upsert_chunks(
         client.upsert(
             collection_name=settings.qdrant_collection,
             points=points[i : i + 64],
+            timeout=120,  # 大文档分批写入需更长写超时，避免负载高时 30s 默认超时中断
         )
     logger.info("upserted %d points for doc %s", len(points), doc_id)
     return len(points)
@@ -154,6 +162,18 @@ def delete_doc(doc_id: str) -> int:
     logger.info("deleted doc %s points", doc_id)
     # UpdateStatus 枚举不可直接 int()，统一返回 1 表示执行成功
     return 1 if getattr(res, "status", None) else 0
+
+
+def _apply_structural(results: list[dict]) -> list[dict]:
+    """结构块置后降权：把 is_structural 块移到末尾（rank 降级，RRF 贡献变小）。
+    原 exclude/off 多模式实测对召回无影响，已收敛为单一降权行为。"""
+    settings = get_settings()
+    if not settings.structural_chunk_enabled:
+        return results
+    stable = [r for r in results if not r.get("is_structural")] + [
+        r for r in results if r.get("is_structural")
+    ]
+    return stable
 
 
 def search_dense(
@@ -208,9 +228,10 @@ def search_dense(
                 # 检索后二次校验（权限）
                 "org_id": p.get("org_id"),
                 "visibility": p.get("visibility"),
+                "is_structural": bool(p.get("is_structural")),
             }
         )
-    return results
+    return _apply_structural(results)
 
 
 def search_sparse(
@@ -264,9 +285,10 @@ def search_sparse(
                 "score": h.score,
                 "org_id": p.get("org_id"),
                 "visibility": p.get("visibility"),
+                "is_structural": bool(p.get("is_structural")),
             }
         )
-    return results
+    return _apply_structural(results)
 
 
 def fetch_payloads(doc_id: str, chunk_ids: list[str]) -> dict[str, dict]:

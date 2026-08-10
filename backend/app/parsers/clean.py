@@ -1,13 +1,15 @@
-"""数据清洗：页眉/页脚去重 + NFKC 归一化。
+"""数据清洗：页眉/页脚去重 + 页码剔除 + NFKC 归一化。
 
 - 页眉/页脚去重：跨页高频出现的短行（出现页数占比 >= min_ratio 且 token <= max_tokens），
   且位于页首/页尾边缘区（margin）时剔除；出现在页中部的高频行（如表格内重复表头）不受影响。
+- 页码剔除：单行纯数字 / "第 X 页" / "Page X" / "- X -" 且位于页首或页尾边缘区 → 剔除。
 - NFKC 归一化：全角数字/逗号/百分号 → 半角，统一数字表达，利于检索与接地校验匹配。
 - 全程幂等：对同一 layout 重复执行结果不变，可安全接入断点续跑管线。
 """
 
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from app.core.config import get_settings
@@ -16,6 +18,12 @@ from app.parsers.base import LayoutResult
 from app.splitter.tokens import count_tokens
 
 logger = get_logger(__name__)
+
+# 页码行模式：纯数字（1-4 位）/"第 X 页"/"Page X"/"- X -" 等，容忍前后空白
+_PAGE_NO_RE = re.compile(
+    r"^\s*[-—–]?\s*(?:\d{1,4}|第\s*\d{1,4}\s*页|(?:page|p\.?)\s*\d{1,4}|[-—–]?\s*\d{1,4}\s*[-—–]?)\s*$",
+    re.IGNORECASE,
+)
 
 
 def normalize_text(text: str) -> str:
@@ -39,7 +47,32 @@ def clean_layout(layout: LayoutResult, settings=None) -> LayoutResult:
     if settings.clean_header_footer:
         _strip_headers_footers(layout.pages, settings)
 
+    if getattr(settings, "clean_page_numbers", True):
+        _strip_page_numbers(layout.pages, settings)
+
     return layout
+
+
+def _strip_page_numbers(pages, settings) -> None:
+    """剔除位于页首/页尾边缘区的页码行（纯数字 / 第 X 页 / Page X / - X -）。"""
+    margin = getattr(settings, "clean_header_footer_margin", 0.15)
+    removed = 0
+    for p in pages:
+        lines = p.text.split("\n")
+        total = len(lines)
+        if total == 0:
+            continue
+        keep: list[str] = []
+        for i, line in enumerate(lines):
+            pos = i / total
+            if _PAGE_NO_RE.match(line.strip()) and (pos <= margin or pos >= 1 - margin):
+                removed += 1
+                continue
+            keep.append(line)
+        if len(keep) != len(lines):
+            p.text = "\n".join(keep)
+    if removed:
+        logger.info("clean: removed %d page-number lines", removed)
 
 
 def _strip_headers_footers(pages, settings) -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from app.core.config import get_settings
@@ -26,6 +27,12 @@ def _update_task_progress(task_id: str, stage: str, progress: int, message: str 
     update_task(task_id, stage=stage, progress=progress, message=message)
 
 
+def _check_deadline(deadline: float, doc_id: str) -> None:
+    """任务级超时：超过 deadline 立即中止（协作式，由异常分支统一标记 failed）。"""
+    if time.monotonic() > deadline:
+        raise PipelineError(f"解析超时（>{get_settings().ingest_timeout}s），已中止")
+
+
 def run_ingest(
     doc_id: str,
     file_path: Path,
@@ -37,6 +44,7 @@ def run_ingest(
 ) -> dict:
     """串行执行全流程；中间结果落盘 data/pipeline/{doc_id}/，可断点续跑。"""
     settings = get_settings()
+    deadline = time.monotonic() + settings.ingest_timeout
     try:
         # ---- 阶段 1：解析（版式层）----
         if task_id:
@@ -47,6 +55,7 @@ def run_ingest(
             save_stage(doc_id, "layout", layout.to_dict())
         else:
             layout = load_layout(doc_id)  # 已反序列化为 LayoutResult
+        _check_deadline(deadline, doc_id)
 
         # ---- 阶段 1.5：OCR 按需触发（提取率 < 80% 且启用）----
         if layout.text_extraction_rate < 0.8 and settings.ocr_enabled and file_path.suffix.lower() == ".pdf":
@@ -58,6 +67,7 @@ def run_ingest(
                         page.text = ocr_text[page.page_no]
                         page.scanned = False
                 save_stage(doc_id, "layout", layout.to_dict())
+            _check_deadline(deadline, doc_id)
 
         # ---- 阶段 1.6：数据清洗（页眉页脚去重 + NFKC 归一化，幂等）----
         if settings.clean_enable:
@@ -65,6 +75,7 @@ def run_ingest(
 
             clean_layout(layout)
             save_stage(doc_id, "layout", layout.to_dict())
+        _check_deadline(deadline, doc_id)
 
         # ---- 阶段 2：章节树（结构层）----
         if task_id:
@@ -75,6 +86,7 @@ def run_ingest(
             save_stage(doc_id, "sections", {"sections": [s.to_dict() for s in sections]})
         else:
             sections = [Section.from_dict(s) for s in load_stage(doc_id, "sections")["sections"]]
+        _check_deadline(deadline, doc_id)
 
         # ---- 阶段 3：切分（Small-to-Big + 语义精切）----
         if not stage_done(doc_id, "chunks"):
@@ -90,6 +102,7 @@ def run_ingest(
 
         if not chunks:
             raise PipelineError("切分结果为空（文档无可检索内容）")
+        _check_deadline(deadline, doc_id)
 
         # ---- 阶段 4：向量化（稠密 + 稀疏）----
         if task_id:
@@ -107,8 +120,15 @@ def run_ingest(
             vectors = stage["vectors"]
             sparse_vectors = stage.get("sparse")
 
+        # 文档侧 IDF 重写（稀疏路治本）：入库前对稀疏 index 乘 IDF
+        if sparse_vectors:
+            from app.retrieval.idf import apply_idf
+
+            sparse_vectors = [apply_idf(sv) for sv in sparse_vectors]
+
         if len(vectors) != len(chunks):
             raise PipelineError("向量数与分块数不一致，中止入库")
+        _check_deadline(deadline, doc_id)
 
         # ---- 阶段 5：入库 ----
         if task_id:
@@ -135,6 +155,12 @@ def run_ingest(
 
     except Exception as e:
         logger.exception("ingest failed for doc %s", doc_id)
+        # 三写补偿：Qdrant 写入失败/半写时，回滚该文档已写入的向量点，
+        # 避免"向量库有孤儿点、registry 却标记 failed"的不一致（文件/阶段产物保留供断点续跑）。
+        try:
+            qdrant_store.delete_doc(doc_id)
+        except Exception as ce:
+            logger.warning("向量回滚失败（可手工清理）: %s", ce)
         update_document(doc_id, status="failed", error=str(e))
         if task_id:
             update_task(task_id, status="failed", message=str(e))
