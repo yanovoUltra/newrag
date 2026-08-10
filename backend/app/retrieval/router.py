@@ -14,10 +14,43 @@ from app.generation.prompts import HYDE_PROMPT, ROUTER_PROMPT
 logger = get_logger(__name__)
 
 
+# metric（指标型，关闭 IDF）/ entity（实体金额型，保留 IDF）/ general（通用）
+QUERY_TYPES = ("metric", "entity", "general")
+
+# 指标型关键词（比率/每股类，IDF 负收益 → 关闭 IDF），匹配优先级高于 entity
+_METRIC_KEYWORDS = [
+    "净资产收益率", "归母净利润", "扣非净利润", "净利润", "每股收益", "每股净资产",
+    "每股经营现金流", "加权平均", "摊薄", "roaa", "roa", "roe", "eps",
+    "毛利率", "净利率", "资产负债率", "权益乘数", "市盈率", "市净率", "总资产收益率",
+    "净利", "每股",
+]
+# 实体金额型关键词（金额/经营主线，IDF 正收益 → 保留 IDF）
+_ENTITY_KEYWORDS = [
+    "营业收入", "营业总收入", "主营收入", "营收",
+    "利润总额", "营业利润", "经营现金流", "经营活动产生的现金流量净额", "现金流",
+    "货币资金", "总资产", "净资产", "所有者权益", "收入",
+]
+
+# HyDE 触发放宽触发词：综述/总结/分析类问题即使 LLM 未标复杂也生成假设文档
+# （对抗性评测 §7.3 实证：D 类综述型 baseline Recall@8=0，HyDE 修复至 0.37）
+_SUMMARY_TRIGGERS = (
+    "总结", "综述", "归纳", "概述", "概括", "梳理",
+    "看法", "观点", "评价", "意见", "分析",
+    "summar", "overview",
+)
+
+
+def _is_summary_query(question: str) -> bool:
+    """启发式：问题是否属于综述/总结/分析型（多块综合，单块检索易漏）。"""
+    q = (question or "").lower()
+    return any(t in q for t in _SUMMARY_TRIGGERS)
+
+
 @dataclass
 class RoutePlan:
     intent: str = "factual"  # factual | abstract | multi_hop | table
     complexity: str = "simple"  # simple | complex
+    query_type: str = "general"  # metric | entity | general
     rewritten_query: str | None = None
     sub_queries: list[str] = field(default_factory=list)
     needs_hyde: bool = False
@@ -30,6 +63,28 @@ class RoutePlan:
         if self.rewritten_query:
             return [self.rewritten_query]
         return []
+
+
+def classify_query_type_keyword(question: str) -> str:
+    """关键词启发式分类：metric 优先（指标型），其次 entity（实体金额型），否则 general。
+
+    用于 IDF 动态开关的查询类别判定；与 LLM 路由结果做"双重"合并（见 route_query）。
+    """
+    q = (question or "").lower()
+    for kw in _METRIC_KEYWORDS:
+        if kw in q:
+            return "metric"
+    for kw in _ENTITY_KEYWORDS:
+        if kw in q:
+            return "entity"
+    return "general"
+
+
+def _merge_query_type(plan_type: str, keyword_type: str) -> str:
+    """双重合并：关键词给出明确 metric/entity 信号时优先生效；否则回退 LLM 结果。"""
+    if keyword_type in ("metric", "entity"):
+        return keyword_type
+    return plan_type if plan_type in ("metric", "entity") else "general"
 
 
 def _parse_plan(raw: str) -> RoutePlan:
@@ -56,9 +111,13 @@ def _parse_plan(raw: str) -> RoutePlan:
     complexity = data.get("complexity", "simple")
     if complexity not in ("simple", "complex"):
         complexity = "simple"
+    query_type = data.get("query_type", "general")
+    if query_type not in QUERY_TYPES:
+        query_type = "general"
     return RoutePlan(
         intent=intent,
         complexity=complexity,
+        query_type=query_type,
         rewritten_query=str(data.get("rewritten_query") or "").strip() or None,
         sub_queries=[str(q).strip() for q in data.get("sub_queries", []) if str(q).strip()][:3],
         needs_hyde=bool(data.get("needs_hyde", False)),
@@ -66,13 +125,16 @@ def _parse_plan(raw: str) -> RoutePlan:
 
 
 async def route_query(question: str) -> RoutePlan:
-    """意图路由（JSON mode）。Mock LLM / 关闭路由时返回默认计划。"""
+    """意图路由（JSON mode）。Mock LLM / 关闭路由时返回（默认计划 + 关键词类别）。"""
     settings = get_settings()
+    keyword_type = classify_query_type_keyword(question)
+    # HyDE 触发放宽：综述/总结/分析型问题强制开启（即使 LLM 标为 simple/factual）
+    summary_trigger = _is_summary_query(question)
     if not settings.intent_routing_enabled:
-        return RoutePlan()
+        return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
     llm = get_llm()
     if llm.name == "mock":
-        return RoutePlan()
+        return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
     try:
         raw = await llm.chat(
             [
@@ -83,8 +145,12 @@ async def route_query(question: str) -> RoutePlan:
         )
     except Exception as e:
         logger.warning("意图路由调用失败，使用默认计划: %s", e)
-        return RoutePlan()
-    return _parse_plan(raw)
+        return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
+    plan = _parse_plan(raw)
+    # 双重合并：关键词信号优先，LLM 结果兜底
+    plan.query_type = _merge_query_type(plan.query_type, keyword_type)
+    plan.needs_hyde = plan.needs_hyde or summary_trigger
+    return plan
 
 
 async def generate_hypothetical_document(question: str) -> str | None:

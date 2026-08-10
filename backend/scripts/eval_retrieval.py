@@ -3,8 +3,8 @@
 用法（在 backend/ 目录下）：
     python scripts/eval_retrieval.py [--k 30,60,100] [--top-k 8] [--org default] [--visibility public]
 
-- golden 集：scripts/eval_golden.json，[{question, snippet}]
-- 相关集：滚动全量 payload，内容（归一化）包含 snippet 的 chunk_id
+- golden 集：scripts/golden/offline_257.json（257 题，预标注 relevant_chunk_ids）
+- 相关集：直接使用 golden 预标注的 relevant_chunk_ids
 - 指标：NDCG@top_k（rel=1，折扣 log2(i+1)），多查询取均值；同时输出命中率（Rec@top_k）
 - 注意：检索走当前 .env 配置（rerank 按配置启用/关闭），会真实调用嵌入与 rerank API
 """
@@ -27,7 +27,7 @@ from app.embed.embedder import get_embedder  # noqa: E402
 from app.retrieval.search import hybrid_search  # noqa: E402
 from app.store import qdrant as qdrant_store  # noqa: E402
 
-GOLDEN_FILE = SCRIPT_DIR / "eval_golden.json"
+GOLDEN_FILE = SCRIPT_DIR / "golden" / "offline_257.json"
 
 
 def _norm(text: str) -> str:
@@ -96,17 +96,15 @@ def main() -> int:
         return 1
     golden = json.loads(GOLDEN_FILE.read_text(encoding="utf-8"))["questions"]
 
-    print("加载语料（滚动全量 payload）...")
-    corpus = _load_corpus()
-    print(f"语料 chunk 数: {len(corpus)}")
+    print("golden 相关集已预标注（relevant_chunk_ids），跳过语料滚动。")
 
     # 预检：构建相关集，跳过相关集为空的条目
     embedder = get_embedder()
     items: list[tuple[str, set[str]]] = []
     for q in golden:
-        rel = {cid for cid, content in corpus.items() if _norm(q["snippet"]) in content}
+        rel = set(q.get("relevant_chunk_ids") or [])
         if not rel:
-            print(f"  [跳过] 问题相关集为空（snippet 未命中）: {q['question']} <- {q['snippet']}")
+            print(f"  [跳过] 问题相关集为空: {q['question']}")
             continue
         items.append((q["question"], rel))
     if not items:

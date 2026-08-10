@@ -1,0 +1,329 @@
+{
+  "_说明": "对抗性/压力测试评测集 v2（通用检索场景，目录化 golden/）。4 类×5 题=20 题：数值精度(numeric_precision)/否定词(negation_trap)/时间混淆(year_confusion)/跨页长文本(long_text_crosspage)。",
+  "usage": "python scripts/eval_adversarial.py --top-k 10 --k 5,8,10",
+  "n": 20,
+  "questions": [
+    {
+      "id": "A1_numeric_exact",
+      "category": "numeric_precision",
+      "question": "中芯国际2025年营业收入是67,323,192千元吗？",
+      "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+      "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+      "special": "top3",
+      "relevant_chunk_ids": [
+        "6d901db0f5294e67bc1588e2a789fe2b",
+        "53928f334e2545a09f7538bb34d1e3de",
+        "f0e21abf9dff48fc85b6320b868269c7",
+        "671d1a133ae547c4851e73163c0378a8",
+        "279a6201d43647e8b322cca9d2f95965",
+        "70b4c5eeea0b4f8c9714e8f96c081a90"
+      ]
+    },
+    {
+      "id": "A2_numeric_approx",
+      "category": "numeric_precision",
+      "question": "中芯国际2025年营业收入约为67,400,000千元吗？",
+      "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+      "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+      "special": "top3",
+      "relevant_chunk_ids": [
+        "6d901db0f5294e67bc1588e2a789fe2b",
+        "53928f334e2545a09f7538bb34d1e3de",
+        "f0e21abf9dff48fc85b6320b868269c7",
+        "671d1a133ae547c4851e73163c0378a8",
+        "279a6201d43647e8b322cca9d2f95965",
+        "70b4c5eeea0b4f8c9714e8f96c081a90"
+      ]
+    },
+    {
+      "id": "A3_numeric_npat",
+      "category": "numeric_precision",
+      "question": "浦发银行2024年归属于母公司股东的净利润是452.57亿元吗？",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "top3",
+      "relevant_chunk_ids": [
+        "2607325272c14c7f8a269a0d29824892",
+        "e22fe8185c7d4cb1aceb929890caf7d1",
+        "0173019202504980b3d90b41efa6b310",
+        "7b2d5c6b8f064bbe8382ba9cbcfa0535",
+        "4c247ae6e5dc49aeb6eafe1a97a9bb2a"
+      ]
+    },
+    {
+      "id": "A4_numeric_revenue",
+      "category": "numeric_precision",
+      "question": "浦发银行2024年营业收入是1,707.48亿元吗？",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "top3",
+      "relevant_chunk_ids": [
+        "dc0728bfe56749c79fbeabb73e7210de",
+        "2607325272c14c7f8a269a0d29824892",
+        "e22fe8185c7d4cb1aceb929890caf7d1",
+        "5725516bb4f149bf94db35635456b989",
+        "4c247ae6e5dc49aeb6eafe1a97a9bb2a"
+      ]
+    },
+    {
+      "id": "A5_numeric_apple",
+      "category": "numeric_precision",
+      "question": "Apple在2024财年的净销售额是391,035百万美元吗？",
+      "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+      "doc_name": "AAPL_10-K_2024-11-01.docx",
+      "special": "top3",
+      "relevant_chunk_ids": [
+        "6791f35b72eb4a32b15562f63051b097",
+        "a37beb3785704d45b8f8949affd84473",
+        "f193ceb1034842319a9a95f1b7f4db68",
+        "4c2f246bd4854d61a6bcb6fcc270abcb",
+        "3c801fbd400a480a9c4ac460549857be"
+      ]
+    },
+    {
+      "id": "B1_except_iphone",
+      "category": "negation_trap",
+      "question": "除了iPhone之外，Apple哪些产品的净销售额在增长？",
+      "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+      "doc_name": "AAPL_10-K_2024-11-01.docx",
+      "special": "no_iphone_only",
+      "relevant_chunk_ids": [
+        "f193ceb1034842319a9a95f1b7f4db68",
+        "4c2f246bd4854d61a6bcb6fcc270abcb"
+      ]
+    },
+    {
+      "id": "B2_mac_ipad",
+      "category": "negation_trap",
+      "question": "Apple的Mac和iPad净销售额在2024财年表现如何？",
+      "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+      "doc_name": "AAPL_10-K_2024-11-01.docx",
+      "special": "",
+      "relevant_chunk_ids": [
+        "f193ceb1034842319a9a95f1b7f4db68",
+        "4c2f246bd4854d61a6bcb6fcc270abcb"
+      ]
+    },
+    {
+      "id": "B3_except_mac_decline",
+      "category": "negation_trap",
+      "question": "除了Mac之外，Apple哪些产品的净销售额在2024财年下降？",
+      "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+      "doc_name": "AAPL_10-K_2024-11-01.docx",
+      "special": "",
+      "relevant_chunk_ids": [
+        "f193ceb1034842319a9a95f1b7f4db68",
+        "4c2f246bd4854d61a6bcb6fcc270abcb"
+      ]
+    },
+    {
+      "id": "B4_pufa_except_nii",
+      "category": "negation_trap",
+      "question": "浦发银行除了利息净收入之外，2024年还有哪些收入来源在增长？",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "f9480c81d4d74c769b534d8b8b8c0707",
+        "6fdf28aec63d4641b28ff480075dbea4",
+        "8120290f6ddb4ece96f8488074a9fd7b",
+        "74da0e8436024f4dbf268f9d24696a81",
+        "a98ba66463e846c2a11acad156d23a28",
+        "b0b61b5a7a9944c391cdecf78a9a920b",
+        "baa3134cfe644af39ee0854215da2201",
+        "273ea22c6ad845d291e93191af9c0e08"
+      ]
+    },
+    {
+      "id": "B5_byd_except_nev",
+      "category": "negation_trap",
+      "question": "除了新能源汽车之外，比亚迪还有哪些主营业务？",
+      "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+      "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "8a85583bee2f43fda2fcdcc7c6846d71",
+        "48aaebf302fe4b1695782ad82cd93f6a",
+        "da168e368a424077a8a98f0d0d9caacb",
+        "767321a0a9334ca2b8c27474e4ac8790",
+        "c82ccf9c990e41988d3b434db9ef54c2",
+        "ecb8709452b14104af40b177d5f0323e",
+        "6ceff1a9a5194e7b9b8ccab70c4e2073",
+        "d25c888ecd78458aa089c1a5f7a63552"
+      ]
+    },
+    {
+      "id": "C1_pufa_2024",
+      "category": "year_confusion",
+      "question": "浦发银行2024年营业收入是多少？",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "year_filter",
+      "relevant_chunk_ids": [
+        "dc0728bfe56749c79fbeabb73e7210de",
+        "2607325272c14c7f8a269a0d29824892",
+        "e22fe8185c7d4cb1aceb929890caf7d1",
+        "5725516bb4f149bf94db35635456b989",
+        "4c247ae6e5dc49aeb6eafe1a97a9bb2a"
+      ]
+    },
+    {
+      "id": "C2_byd_2025",
+      "category": "year_confusion",
+      "question": "比亚迪2025年营业收入是多少？",
+      "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+      "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+      "special": "year_filter",
+      "relevant_chunk_ids": [
+        "7060dfdf36544c93a55b3cc6721824f2",
+        "d4ce327c95354e4790a7f4596db7b60c",
+        "a24eb1ed7f8e407b95b85146eb6c258d",
+        "f6343e2d7f69493394f373c6ee608c3c",
+        "d69dcd0630b346479c6693d8f795fdfe",
+        "62a86368f44d451a9e8a20d1414365de",
+        "d402d688e4f84ac1b0f88b9a4c53a596",
+        "1627267190cd414bad639728ac432c1a",
+        "133b040ea5eb48c0ab665e60407ec5a7",
+        "21eace35c8094de0a6f07b0220a3e468"
+      ]
+    },
+    {
+      "id": "C3_smic_2025",
+      "category": "year_confusion",
+      "question": "中芯国际2025年营业收入是多少？",
+      "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+      "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+      "special": "year_filter",
+      "relevant_chunk_ids": [
+        "88a15b2264b148ac88f00531a5a04eb2",
+        "f265a35fd5e34bafb1a4d6b9d8a38eb5",
+        "07da96755802470d9166fe77d601122a",
+        "e79ee9ee9b654cc9a6b894a8fd3257e5",
+        "5e9ebafbc2904d60ad6da8516834a434",
+        "53928f334e2545a09f7538bb34d1e3de",
+        "f29bee36c1554e34b880bc57983760fa",
+        "83df9c1793324af5bd41ab5cdc86ca10"
+      ]
+    },
+    {
+      "id": "C4_apple_2024",
+      "category": "year_confusion",
+      "question": "Apple在2024财年的净销售额是多少？",
+      "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+      "doc_name": "AAPL_10-K_2024-11-01.docx",
+      "special": "year_filter",
+      "relevant_chunk_ids": [
+        "8d59385d1207462891716985d65df524",
+        "264d6ae3c7f44713bbd79aa6878ba3a9",
+        "695892abf7364769b57724ea08a8c18d",
+        "90cfdc7d31bb4de5a8f9a3daecfb1b3d",
+        "6791f35b72eb4a32b15562f63051b097",
+        "a37beb3785704d45b8f8949affd84473",
+        "f193ceb1034842319a9a95f1b7f4db68",
+        "e6e5d60002e34a689c4871cd7732cab3"
+      ]
+    },
+    {
+      "id": "C5_pufa_npat_2024",
+      "category": "year_confusion",
+      "question": "浦发银行2024年归属于母公司股东的净利润是多少？",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "year_filter",
+      "relevant_chunk_ids": [
+        "d5e33cfa5bc04ec092fb71685a152f0f",
+        "2607325272c14c7f8a269a0d29824892",
+        "e22fe8185c7d4cb1aceb929890caf7d1",
+        "6a8bc25b0afa4e2fab562b7df61adeae",
+        "5c73b361b2cb483f802c0d498134d46f",
+        "f8238da87c394c31b01ccb926b4a5411",
+        "e7364a609b0042748348967687ad54f4",
+        "0173019202504980b3d90b41efa6b310"
+      ]
+    },
+    {
+      "id": "D1_mda_risk",
+      "category": "long_text_crosspage",
+      "question": "请总结浦发银行管理层讨论与分析（MD&A）中关于风险的观点",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "f96f0b79f7b74d42a487ba56ffbfc526",
+        "6a15b845a4024d18b3925e9e76b98031",
+        "00e45ca5494c4d2fa166a82c1cb6165a",
+        "7a307cd5a0304e2090bc6476de86a773",
+        "bb7e14dc95a64afea959784e7f466b41",
+        "a3be6d4e2ca941aa8efef3b85baaab6f",
+        "f8f12e5bd99541fc81f5da408dfc9744"
+      ]
+    },
+    {
+      "id": "D2_asset_quality",
+      "category": "long_text_crosspage",
+      "question": "浦发银行2024年对资产质量与不良贷款的管理情况如何？",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "f96f0b79f7b74d42a487ba56ffbfc526",
+        "6a15b845a4024d18b3925e9e76b98031",
+        "00e45ca5494c4d2fa166a82c1cb6165a",
+        "7a307cd5a0304e2090bc6476de86a773",
+        "a3be6d4e2ca941aa8efef3b85baaab6f"
+      ]
+    },
+    {
+      "id": "D3_main_business",
+      "category": "long_text_crosspage",
+      "question": "请总结浦发银行2024年报中主营业务发展情况的分析",
+      "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+      "doc_name": "600000_2024年报.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "5d37609b2fce431a93c1874d23d79b2f",
+        "c0d98bdb856b49828ce6a659bd690398",
+        "b33a966cf0a8453b8eeba82dfd6b1051",
+        "c927c514f8024cba8a58fc1549c309ae",
+        "21d91396829d4f33b17db6933fcc4781",
+        "8b4d4ebc94c94c2388c65f795494a921"
+      ]
+    },
+    {
+      "id": "D4_smic_rd",
+      "category": "long_text_crosspage",
+      "question": "请总结中芯国际2025年报中关于研发投入的情况",
+      "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+      "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "67c296d930784e0eba5de1664f3724b1",
+        "768614b44a3f41308475ef2680b657fb",
+        "152a35454d8d4f17af75be47a006b0b1",
+        "0ce5553aa26d4221a818fb8f208d8268",
+        "44aa8b8a48884ce58dc5c1a9ef5d2dfa",
+        "e79ee9ee9b654cc9a6b894a8fd3257e5",
+        "6bff2b7ccff64df59d9f3b0a81c1cb75",
+        "1f360a3f73e2457a9abf10c3dab42544"
+      ]
+    },
+    {
+      "id": "D5_byd_business",
+      "category": "long_text_crosspage",
+      "question": "请总结比亚迪2025年报中主营业务经营情况的分析",
+      "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+      "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+      "special": "",
+      "relevant_chunk_ids": [
+        "df75c10d70674546b58e7149bbb4a07e",
+        "5f36dcc3cc3c4737a4f8218cf86d2b22",
+        "2cee3268010244b5a24c3a2beb0a5b77",
+        "44aad210b72e4d74ab88e7cd60cf1f81",
+        "acfb2c985c7e401aa74d8b4c8a42ac3e",
+        "1c7afd1715b44012bd53c04cf362035a",
+        "c3eaaff553fe4193ba9a0d87f1836cea",
+        "384d8b4610a946a5ae42883f40377ff5"
+      ]
+    }
+  ]
+}

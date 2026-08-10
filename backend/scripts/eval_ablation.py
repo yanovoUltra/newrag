@@ -1,14 +1,14 @@
-"""检索消融网格 + BM25 轻量基线对比（B1）。
+"""检索消融网格（B1）。
 
-对比各检索配置在小型 golden 集上的 NDCG@8 / Rec@8：
+对比各检索配置在小型 golden 集上的 NDCG@8 / Rec@8 / Rec@1 / Prec@8 / MRR：
   1. dense-only         仅稠密路（排除 section/table），无 rerank
   2. sparse-only        仅模型原生稀疏路，无 rerank
   3. table-only         仅表格路，无 rerank
   4. dense+sparse       稠密+稀疏 RRF，无 rerank
   5. dense+sparse+table 三路 RRF，无 rerank
   6. 生产完整            三路 RRF + rerank（走 .env 配置的真实 rerank API）
-  7. BM25 轻量基线      本地 BM25（k1=1.5,b=0.75，英文词+中文bigram），词法纯基线
-  8. 加权配比            稠密/稀疏 RRF 分 convex 加权（w=0.3/0.5/0.7）
+注：BM25 词法基线与稠密/稀疏加权配比实验已删除——结论已固化（ablation_report.md）：
+    BM25 无贡献、加权配比无意义，本语料（数字指标型+中文）不重做。
 
 用法（backend/ 下）：
     python scripts/eval_ablation.py [--top-k 8] [--org default] [--visibility public]
@@ -30,12 +30,13 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.core.config import get_settings  # noqa: E402
 from app.embed.embedder import get_embedder  # noqa: E402
+from app.pipelines.answer import _extract_year  # noqa: E402
 from app.retrieval.rrf import rrf_fuse  # noqa: E402
 from app.retrieval.search import hybrid_search  # noqa: E402
 from app.store import qdrant as qdrant_store  # noqa: E402
 from app.store.registry import init_db, save_eval_result  # noqa: E402
 
-GOLDEN_FILE = SCRIPT_DIR / "eval_golden.json"
+GOLDEN_FILE = SCRIPT_DIR / "golden" / "offline_257.json"
 _EXCLUDE = {"section"}
 
 
@@ -89,87 +90,21 @@ def _recall_at_k(ranked: list[str], relevant: set[str], k: int) -> float:
     return len(set(ranked[:k]) & relevant) / len(relevant)
 
 
-# ---------------- BM25 轻量基线 ----------------
-
-def _tokenize(text: str) -> list[str]:
-    """轻量分词：英文/数字连续串 + 中文 2-gram（按连续中文字符滑窗）。"""
-    tokens: list[str] = []
-    i, n = 0, len(text)
-    while i < n:
-        ch = text[i]
-        if ch.isascii() and ch.isalnum():
-            j = i
-            while j < n and text[j].isascii() and text[j].isalnum():
-                j += 1
-            tokens.append(text[i:j].lower())
-            i = j
-        elif "\u4e00" <= ch <= "\u9fff":
-            j = i
-            while j < n and "\u4e00" <= text[j] <= "\u9fff":
-                j += 1
-            seg = text[i:j]
-            for t in range(len(seg) - 1):
-                tokens.append(seg[t : t + 2])
-            if len(seg) == 1:
-                tokens.append(seg)
-            i = j
-        else:
-            i += 1
-    return tokens
+def _precision_at_k(ranked: list[str], relevant: set[str], k: int) -> float:
+    if k <= 0:
+        return 0.0
+    return len(set(ranked[:k]) & relevant) / k
 
 
-class BM25:
-    """标准 BM25（k1=1.5, b=0.75），就地实现，不做持久化。"""
-
-    def __init__(self, corpus: list[str], k1: float = 1.5, b: float = 0.75):
-        self.k1, self.b = k1, b
-        self.doc_len: list[int] = []
-        self.docs: list[list[str]] = []
-        df: dict[str, int] = {}
-        for raw in corpus:
-            toks = _tokenize(raw)
-            self.docs.append(toks)
-            self.doc_len.append(len(toks))
-            for t in set(toks):
-                df[t] = df.get(t, 0) + 1
-        self.N = len(corpus)
-        self.avgdl = sum(self.doc_len) / self.N if self.N else 0.0
-        self.idf = {t: math.log(1 + (self.N - f + 0.5) / (f + 0.5)) for t, f in df.items()}
-
-    def score(self, query: str) -> list[float]:
-        q_tokens = _tokenize(query)
-        scores = [0.0] * self.N
-        for qt in set(q_tokens):
-            idf = self.idf.get(qt, 0.0)
-            if idf == 0.0:
-                continue
-            for i, doc in enumerate(self.docs):
-                tf = doc.count(qt)
-                if tf == 0:
-                    continue
-                dl = self.doc_len[i]
-                denom = tf + self.k1 * (1 - self.b + self.b * dl / self.avgdl)
-                scores[i] += idf * tf * (self.k1 + 1) / denom
-        return scores
-
-
-def _ranked_from_scores(ids: list[str], scores: list[float]) -> list[str]:
-    return [cid for cid, _ in sorted(zip(ids, scores), key=lambda x: x[1], reverse=True)]
-
-
-def _weighted_fuse(dense: list[dict], sparse: list[dict], w: float, k: int = 60) -> list[dict]:
-    """稠密/稀疏两路 RRF 分 convex 加权融合（非去重排序，权重配比实验用）。"""
-    acc: dict[str, dict] = {}
-    for route, weight in ((dense, w), (sparse, 1.0 - w)):
-        for rank, hit in enumerate(route, start=1):
-            cid = hit["chunk_id"]
-            entry = acc.setdefault(cid, dict(hit))
-            entry["fused_score"] = entry.get("fused_score", 0.0) + weight / (k + rank)
-    return sorted(acc.values(), key=lambda h: h["fused_score"], reverse=True)
+def _mrr(ranked: list[str], relevant: set[str]) -> float:
+    for i, cid in enumerate(ranked, start=1):
+        if cid in relevant:
+            return 1.0 / i
+    return 0.0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="检索消融网格 + BM25 基线")
+    parser = argparse.ArgumentParser(description="检索消融网格")
     parser.add_argument("--top-k", type=int, default=8)
     parser.add_argument("--org", default="default")
     parser.add_argument("--visibility", default="public")
@@ -186,31 +121,32 @@ def main() -> int:
 
     items: list[tuple[str, set[str]]] = []
     for q in golden:
-        rel = {cid for cid, info in corpus.items() if _norm(q["snippet"]) in info["content"]}
+        rel = set(q.get("relevant_chunk_ids") or [])
         if not rel:
             print(f"  [跳过] 相关集为空: {q['question']}")
             continue
         items.append((q["question"], rel))
     print(f"有效 golden 条目: {len(items)}/{len(golden)}\n")
 
-    # BM25 构建（词法纯基线）
-    bm25 = BM25([corpus[c]["raw"] for c in corpus_ids])
     settings.rrf_k = 60
 
     embedder = get_embedder()
     per_query: dict[str, dict[str, list[str]]] = {}
     for question, _ in items:
+        year = _extract_year(question)
         dense, sparse = embedder.embed_texts_with_sparse([question], text_type="query")
         d_vec, s_vec = dense[0], (sparse[0] if sparse else None)
 
         dense_hits = qdrant_store.search_dense(
             query_vector=d_vec, org_id=args.org, user_visibility=args.visibility,
             top_k=settings.recall_dense_top_k, exclude_chunk_types=list(_EXCLUDE),
+            fiscal_year=year,
         )
         sparse_hits = (
             qdrant_store.search_sparse(
                 query_sparse=s_vec, org_id=args.org, user_visibility=args.visibility,
                 top_k=settings.recall_sparse_top_k, exclude_chunk_types=list(_EXCLUDE),
+                fiscal_year=year,
             )
             if s_vec
             else []
@@ -218,10 +154,22 @@ def main() -> int:
         table_hits = qdrant_store.search_dense(
             query_vector=d_vec, org_id=args.org, user_visibility=args.visibility,
             top_k=settings.recall_table_top_k, chunk_type="table", exclude_chunk_types=list(_EXCLUDE),
+            fiscal_year=year,
         )
-        bm_scores = bm25.score(question)
-        bm_ranked = _ranked_from_scores(corpus_ids, bm_scores)[: settings.recall_sparse_top_k]
 
+        # 生产完整列：hybrid_search（含 rerank + 字段 relay），并模拟与 answer.py 一致的
+        # 年份回退——年份过滤后无非 relay 真实命中 → 回退全量再检索（修复 Rec@8 口径）
+        hyb = hybrid_search(
+            query_vector=d_vec, org_id=args.org, user_visibility=args.visibility,
+            query_text=question, top_k=args.top_k, query_sparse=s_vec,
+            fiscal_year=year,
+        )
+        if year and not any(not h.get("is_relay") for h in hyb):
+            hyb = hybrid_search(
+                query_vector=d_vec, org_id=args.org, user_visibility=args.visibility,
+                query_text=question, top_k=args.top_k, query_sparse=s_vec,
+                fiscal_year=None,
+            )
         per_query[question] = {
             "dense": [h["chunk_id"] for h in dense_hits],
             "sparse": [h["chunk_id"] for h in sparse_hits],
@@ -229,21 +177,27 @@ def main() -> int:
             "dense_objs": dense_hits,
             "sparse_objs": sparse_hits,
             "table_objs": table_hits,
-            "bm25_ids": bm_ranked,
-            "hybrid": [h["chunk_id"] for h in hybrid_search(
-                query_vector=d_vec, org_id=args.org, user_visibility=args.visibility,
-                query_text=question, top_k=args.top_k, query_sparse=s_vec,
-            )],
+            "hybrid": [h["chunk_id"] for h in hyb],
         }
         print(f"  已检索: {question[:30]}")
 
     def _eval(ranked: dict[str, list[str]]) -> dict[str, dict]:
-        """返回 {col: {ndcg, rec, per_q}}。"""
+        """返回 {col: {ndcg, rec, rec1, prec, mrr, per}}。"""
         out: dict[str, dict] = {}
         for col, ranks in ranked.items():
             ndcg = [_ndcg_at_k(ranks[q], rel, args.top_k) for q, rel in items]
             rec = [_recall_at_k(ranks[q], rel, args.top_k) for q, rel in items]
-            out[col] = {"ndcg": sum(ndcg) / len(ndcg), "rec": sum(rec) / len(rec), "per": ndcg}
+            rec1 = [_recall_at_k(ranks[q], rel, 1) for q, rel in items]
+            prec = [_precision_at_k(ranks[q], rel, args.top_k) for q, rel in items]
+            mrrs = [_mrr(ranks[q], rel) for q, rel in items]
+            out[col] = {
+                "ndcg": sum(ndcg) / len(ndcg),
+                "rec": sum(rec) / len(rec),
+                "rec1": sum(rec1) / len(rec1),
+                "prec": sum(prec) / len(prec),
+                "mrr": sum(mrrs) / len(mrrs),
+                "per": ndcg,
+            }
         return out
 
     # 组装各列排序
@@ -254,10 +208,6 @@ def main() -> int:
         "dense+sparse": {},
         "dense+sparse+table": {},
         "生产完整(+rerank)": {},
-        "BM25基线": {},
-        "加权d0.3/s0.7": {},
-        "加权d0.5/s0.5": {},
-        "加权d0.7/s0.3": {},
     }
     for q, rel in items:
         d_ids = per_query[q]["dense"]
@@ -274,22 +224,21 @@ def main() -> int:
         ranked["dense+sparse"][q] = [h["chunk_id"] for h in ds]
         ranked["dense+sparse+table"][q] = [h["chunk_id"] for h in dst]
         ranked["生产完整(+rerank)"][q] = per_query[q]["hybrid"]
-        ranked["BM25基线"][q] = per_query[q]["bm25_ids"][: args.top_k]
-        for w, col in ((0.3, "加权d0.3/s0.7"), (0.5, "加权d0.5/s0.5"), (0.7, "加权d0.7/s0.3")):
-            fused = _weighted_fuse(per_query[q]["dense_objs"], per_query[q]["sparse_objs"], w)
-            ranked[col][q] = [h["chunk_id"] for h in fused[: args.top_k]]
 
     results = _eval(ranked)
 
-    print(f"\n{'配置':<22}{'NDCG@8':<12}{'Rec@8':<12}")
-    print("-" * 46)
+    print(f"\n{'配置':<22}{'NDCG@8':<12}{'Rec@8':<12}{'Rec@1':<12}{'Prec@8':<12}{'MRR':<12}")
+    print("-" * 70)
     ordered = [
         "dense-only", "sparse-only", "table-only", "dense+sparse", "dense+sparse+table",
-        "生产完整(+rerank)", "BM25基线", "加权d0.3/s0.7", "加权d0.5/s0.5", "加权d0.7/s0.3",
+        "生产完整(+rerank)",
     ]
     for col in ordered:
         r = results[col]
-        print(f"{col:<22}{r['ndcg']:<12.4f}{r['rec']:<12.4f}")
+        print(
+            f"{col:<22}{r['ndcg']:<12.4f}{r['rec']:<12.4f}{r['rec1']:<12.4f}"
+            f"{r['prec']:<12.4f}{r['mrr']:<12.4f}"
+        )
 
     print("\n--- 逐问题 NDCG@8 ---")
     print(f"{'问题':<34}" + "".join(f"{c[:10]:>12}" for c in ordered))
@@ -305,6 +254,9 @@ def main() -> int:
         "org": args.org,
         "ndcg": {c: round(results[c]["ndcg"], 4) for c in ordered},
         "recall": {c: round(results[c]["rec"], 4) for c in ordered},
+        "recall1": {c: round(results[c]["rec1"], 4) for c in ordered},
+        "precision": {c: round(results[c]["prec"], 4) for c in ordered},
+        "mrr": {c: round(results[c]["mrr"], 4) for c in ordered},
     }
     payload = {
         "per_question_ndcg": {
@@ -312,7 +264,6 @@ def main() -> int:
         },
         "corpus_chunks": len(corpus_ids),
         "golden_questions": len(items),
-        "bm25_params": {"k1": 1.5, "b": 0.75, "tokenizer": "ascii-word + zh-bigram"},
     }
     try:
         rec = save_eval_result("ablation", f"org={args.org};top_k={args.top_k}", metrics, payload)

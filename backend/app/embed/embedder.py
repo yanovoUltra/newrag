@@ -161,6 +161,10 @@ class ApiEmbedBackend:
 
                         time.sleep(0.5 * (attempt + 1))
                         continue
+                    if resp.status_code == 400:
+                        logger.error(
+                            "embedding 400: body=%s", resp.text[:600]
+                        )
                     resp.raise_for_status()
                     return resp.json()
                 except (httpx.HTTPStatusError, httpx.TransportError) as e:

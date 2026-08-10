@@ -9,8 +9,8 @@
 
 IDF 从当前 collection 的稀疏向量统计（按 index 的文档频率 DF，每个点计 1 次），指数项与 BM25 一致：
     idf = ln( (N - df + 0.5) / (df + 0.5) + 1 )
-生成的 index→idf 映射写 data/idf.json，入库管线在 upsert 前应用；`scripts/rebuild_idf.py` 可离线
-重建并重写已入库点。
+生成的 index→idf 映射写 data/idf.json，入库管线在 upsert 前应用；`scripts/rebuild_idf_from_pipeline.py`
+可离线以 pipeline 原始向量为真源幂等重建并重写已入库点（旧 `scripts/rebuild_idf.py` 非幂等已废弃）。
 """
 
 from __future__ import annotations
@@ -137,6 +137,26 @@ def apply_idf(sparse: dict | None) -> dict | None:
     if not idf:
         return sparse
     weighted = [(i, v * idf.get(i, 1.0)) for i, v in zip(sparse["indices"], sparse["values"])]
+    weighted = [(i, v) for i, v in weighted if v > 0]
+    if not weighted:
+        return sparse
+    weighted.sort(key=lambda t: t[1], reverse=True)
+    return {"indices": [i for i, _ in weighted], "values": [v for _, v in weighted]}
+
+
+def neutralize_idf(sparse: dict | None) -> dict | None:
+    """撤销文档侧 IDF 的影响（用于 metric/指标型查询的动态开关）。
+
+    IDF 已乘在入库文档的稀疏向量上（apply_idf），检索时点乘默认带 IDF 加权。
+    对 metrics/label 类查询 IDF 为负收益，故把查询稀疏按 IDF 逐 index 相除，
+    还原"未乘 IDF"的点乘语境（RRF 只用 rank，排序可精确还原，见 eval_idf 无 IDF 对照法）。
+    """
+    if not sparse:
+        return sparse
+    idf = _idf_map()
+    if not idf:
+        return sparse
+    weighted = [(i, v / idf.get(i, 1.0)) for i, v in zip(sparse["indices"], sparse["values"])]
     weighted = [(i, v) for i, v in weighted if v > 0]
     if not weighted:
         return sparse

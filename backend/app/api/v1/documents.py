@@ -17,6 +17,7 @@ from app.store.registry import (
     create_document,
     create_task,
     delete_document,
+    delete_fields,
     get_document,
     list_documents,
     update_document,
@@ -34,11 +35,15 @@ def _same_file_key(a: str, b: str) -> bool:
 
 
 def _purge_document(doc_id: str) -> None:
-    """彻底删除文档全部痕迹：向量点 + registry 记录 + 管线中间产物（用户显式删除用）。"""
+    """彻底删除文档全部痕迹：向量点 + 字段索引 + registry 记录 + 管线中间产物（用户显式删除用）。"""
     try:
         qdrant_store.delete_doc(doc_id)
     except Exception as e:
         raise HTTPException(500, f"旧版向量删除失败: {e}")
+    try:
+        delete_fields(doc_id)
+    except Exception:
+        pass  # 字段索引删除失败不阻断主流程
     delete_document(doc_id)
     pipeline_target = get_settings().resolved_pipeline_dir / doc_id
     if pipeline_target.exists():
@@ -52,6 +57,10 @@ def _archive_document(doc_id: str) -> None:
         qdrant_store.delete_doc(doc_id)
     except Exception as e:
         raise HTTPException(500, f"旧版向量删除失败: {e}")
+    try:
+        delete_fields(doc_id)
+    except Exception:
+        pass
     update_document(doc_id, status="archived")
 
 

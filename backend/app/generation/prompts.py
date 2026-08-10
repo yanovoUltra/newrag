@@ -19,11 +19,12 @@ SYSTEM_PROMPT = """你是"多模态财报深度分析助手"，一位严谨的�
 4. 数字保留原始口径，注明同比/环比；不得换算、不得猜测未给出的数字。
 5. 若问题与财报无关或无法从知识块得出，直接回答"文档信息不足"。"""
 
-# 意图路由 + 查询重写 + 多跳拆分（JSON mode，阶段二）
+# 意图路由 + 查询重写 + 多跳拆分 + query 类别（JSON mode，阶段二）
 ROUTER_PROMPT = """你是检索路由引擎。根据用户问题，输出 JSON（不要输出任何其他内容），字段如下：
 {
   "intent": "factual | abstract | multi_hop | table",
   "complexity": "simple | complex",
+  "query_type": "metric | entity | general",
   "rewritten_query": "改写后的精准检索查询（去除口语、补充指代），
   "sub_queries": ["多跳问题时拆分的 2~3 个子查询；非多跳时为空数组"],
   "needs_hyde": true | false
@@ -34,6 +35,11 @@ ROUTER_PROMPT = """你是检索路由引擎。根据用户问题，输出 JSON�
 - abstract（抽象推理型）：需要基于多块知识推理/总结/对比。needs_hyde=true。
 - multi_hop（多跳型）：需要先回答中间问题才能得到最终答案，拆分为 2~3 个子查询。needs_hyde=false。
 - table（表格型）：问题针对表格数据（如明细表、构成表）。优先表格检索。needs_hyde=false。
+
+query_type 判定规则（用于稀疏路检索的 IDF 动态开关）：
+- metric（指标型）：问题针对某项财务指标的精确数值，如 净利润/归母净利润/每股收益/EPS/净资产收益率/ROE/毛利率/净利率/资产负债率 等"比率或每股类"指标，需精确取值。
+- entity（实体型）：问题针对某类实体金额/经营主线，如 营业收入/营收/利润总额/营业利润/经营现金流/总资产 等"金额类"数据，聚合检索更有效。
+- general（通用）：不明确属于上述两类（如对比、成因、描述性）时。
 
 complexity：问题简单（单数字/单事实）为 simple，涉及推理/多文档/多步骤为 complex。"""
 

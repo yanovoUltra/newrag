@@ -29,7 +29,8 @@ def visible_levels(user_visibility: str) -> list[str]:
 def get_client() -> QdrantClient:
     global _client
     if _client is None:
-        _client = QdrantClient(url=get_settings().qdrant_url, timeout=30, check_compatibility=False)
+        # timeout=120：大文档分批写入需更长写超时，避免负载高时 30s 默认超时中断
+        _client = QdrantClient(url=get_settings().qdrant_url, timeout=120, check_compatibility=False)
     return _client
 
 
@@ -143,7 +144,6 @@ def upsert_chunks(
         client.upsert(
             collection_name=settings.qdrant_collection,
             points=points[i : i + 64],
-            timeout=120,  # 大文档分批写入需更长写超时，避免负载高时 30s 默认超时中断
         )
     logger.info("upserted %d points for doc %s", len(points), doc_id)
     return len(points)
@@ -176,6 +176,36 @@ def _apply_structural(results: list[dict]) -> list[dict]:
     return stable
 
 
+def _dedup_diverse(results: list[dict]) -> list[dict]:
+    """召回多样性：对近重复内容去重（子串/包含关系视为同一片段，只保留首个最高分）。
+
+    防止 dense 路返回同一表格/段落的多个复制块挤占 RRF 候选，让更可能含答案的多样化块得以上浮。
+    """
+    settings = get_settings()
+    if not settings.retrieval_diversity_enabled:
+        return results
+    kept: list[dict] = []
+    kept_norms: list[str] = []
+
+    def _norm(s: str) -> str:
+        return s.replace(",", "").replace(" ", "").replace("\n", "")
+
+    for r in results:
+        content = _norm(r.get("content") or "")
+        if len(content) < 40:
+            kept.append(r)
+            continue
+        dup = False
+        for k in kept_norms:
+            if content in k or k in content:
+                dup = True
+                break
+        if not dup:
+            kept.append(r)
+            kept_norms.append(content)
+    return kept
+
+
 def search_dense(
     query_vector: list[float],
     org_id: str,
@@ -184,8 +214,9 @@ def search_dense(
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
     fiscal_year: int | None = None,
+    doc_ids: list[str] | None = None,
 ) -> list[dict]:
-    """单路稠密检索，强制注入权限 payload 过滤；可追加年份过滤（陈旧文档防护）。"""
+    """单路稠密检索，强制注入权限 payload 过滤；可追加年份过滤（陈旧文档防护）与文档过滤（主体预过滤）。"""
     client = get_client()
     must: list[models.Condition] = [
         models.FieldCondition(key="org_id", match=models.MatchValue(value=org_id)),
@@ -196,6 +227,8 @@ def search_dense(
     ]
     if fiscal_year is not None:
         must.append(models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year)))
+    if doc_ids:
+        must.append(models.FieldCondition(key="doc_id", match=models.MatchAny(any=doc_ids)))
     if chunk_type:
         must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
     must_not = None
@@ -231,7 +264,7 @@ def search_dense(
                 "is_structural": bool(p.get("is_structural")),
             }
         )
-    return _apply_structural(results)
+    return _dedup_diverse(_apply_structural(results))
 
 
 def search_sparse(
@@ -242,8 +275,9 @@ def search_sparse(
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
     fiscal_year: int | None = None,
+    doc_ids: list[str] | None = None,
 ) -> list[dict]:
-    """稀疏路召回（模型原生稀疏：词表 index + 语义权重），强制权限过滤；可追加年份过滤。"""
+    """稀疏路召回（模型原生稀疏：词表 index + 语义权重），强制权限过滤；可追加年份/文档过滤。"""
     client = get_client()
     must: list[models.Condition] = [
         models.FieldCondition(key="org_id", match=models.MatchValue(value=org_id)),
@@ -254,6 +288,8 @@ def search_sparse(
     ]
     if fiscal_year is not None:
         must.append(models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year)))
+    if doc_ids:
+        must.append(models.FieldCondition(key="doc_id", match=models.MatchAny(any=doc_ids)))
     if chunk_type:
         must.append(models.FieldCondition(key="chunk_type", match=models.MatchValue(value=chunk_type)))
     must_not = None

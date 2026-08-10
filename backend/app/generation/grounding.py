@@ -17,7 +17,7 @@ _CITE_RE = re.compile(r"\[[^\[\]]{3,}\]")
 # "数字 + 单位" 表达式（单位选长优先；数值换算后用于跨单位等价匹配）
 _NUM_UNIT_RE = re.compile(
     r"(?P<num>[\d][\d,，]*(?:\.\d+)?)\s*"
-    r"(?P<unit>万亿元|亿元|千万元|百万元|万元|元|千元|亿|万|千|billion|million|thousand|B|M|K|k|[$￥¥])?"
+    r"(?P<unit>万亿元|亿元|千万元|百万元|万元|元|千元|亿|万|千|billion|million|thousand|B|M|K|k)?"
 )
 # 中文/英文单位 → 换算为"元"的倍数
 _UNIT_MULT = {
@@ -25,7 +25,6 @@ _UNIT_MULT = {
     "千元": 1e3, "元": 1.0, "亿": 1e8, "万": 1e4, "千": 1e3,
     "billion": 1e9, "million": 1e6, "thousand": 1e3,
     "B": 1e9, "M": 1e6, "K": 1e3, "k": 1e3,
-    "$": 1.0, "￥": 1.0, "¥": 1.0,
 }
 
 
@@ -67,7 +66,7 @@ def normalize_number_expr(text: str) -> list[tuple[float, str]]:
         raw = m.group(0).strip()
         if not num_s:
             continue
-        if not unit or unit in ("$", "￥", "¥"):
+        if not unit:
             continue  # 无单位不做数值匹配
         try:
             val = float(num_s.replace(",", "").replace("，", ""))

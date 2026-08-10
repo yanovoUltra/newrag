@@ -41,7 +41,7 @@ from app.generation.llm import get_llm  # noqa: E402
 from app.retrieval.search import hybrid_search  # noqa: E402
 from app.store.registry import init_db, list_chat_records, save_eval_result  # noqa: E402
 
-GOLDEN_FILE = SCRIPT_DIR / "eval_golden.json"
+GOLDEN_FILE = SCRIPT_DIR / "golden" / "offline_257.json"
 
 _SKIP_PREFIX = ("（Mock", "文档信息不足", "抱歉")
 
@@ -166,11 +166,16 @@ def _retrieve_contexts(question: str, top_k: int = 8) -> list[str]:
     return [h.get("content") or "" for h in hits]
 
 
-async def _answer_golden() -> int:
-    """对 golden 集跑真实问答（无 session_id，走答案缓存 + 落库 chat_records）。"""
+async def _answer_golden(limit: int = 0) -> int:
+    """对 golden 集跑真实问答（无 session_id，走答案缓存 + 落库 chat_records）。
+
+    limit>0 时只处理前 N 题（--mode answer 默认 0=全量；212 题全量成本高，建议按需限量）。
+    """
     from app.pipelines.answer import stream_answer
 
     golden = json.loads(GOLDEN_FILE.read_text(encoding="utf-8"))["questions"]
+    if limit > 0:
+        golden = golden[:limit]
     n = 0
     for item in golden:
         q = item["question"]
@@ -246,7 +251,7 @@ def main() -> int:
     if args.mode == "list":
         return asyncio.run(_list_records())
     if args.mode == "answer":
-        return asyncio.run(_answer_golden())
+        return asyncio.run(_answer_golden(args.limit))
     if args.mode == "offline":
         return asyncio.run(_offline_eval(args.limit))
     return 1

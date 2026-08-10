@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.models.entities import Base, ChatRecord, Document, EvalResult, Task
+from app.fields.extract import FieldRecord
+from app.models.entities import Base, ChatRecord, Document, EvalResult, FinancialField, Task
 
 logger = get_logger(__name__)
 
@@ -26,7 +27,25 @@ def init_db() -> None:
     _engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
     _session_factory = sessionmaker(bind=_engine, expire_on_commit=False)
     Base.metadata.create_all(_engine)
+    _migrate_fields_company()
     logger.info("SQLite registry ready: %s", db_path)
+
+
+def _migrate_fields_company() -> None:
+    """轻量迁移：为已有 financial_fields 表补 company / source_chunk_id 列（新增列 not null 默认空串）。"""
+    from sqlalchemy import text
+
+    try:
+        with _engine.begin() as conn:
+            cols = [row[1] for row in conn.execute(text("PRAGMA table_info(financial_fields)"))]
+            if "company" not in cols:
+                conn.execute(text("ALTER TABLE financial_fields ADD COLUMN company VARCHAR(64) DEFAULT ''"))
+                logger.info("financial_fields: 已新增 company 列（待回填）")
+            if "source_chunk_id" not in cols:
+                conn.execute(text("ALTER TABLE financial_fields ADD COLUMN source_chunk_id VARCHAR(32) DEFAULT ''"))
+                logger.info("financial_fields: 已新增 source_chunk_id 列（待回填）")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("financial_fields 列迁移跳过: %s", e)
 
 
 def get_session() -> Session:
@@ -158,9 +177,84 @@ def list_chat_records(org_id: str | None = None, limit: int = 200, offset: int =
         return list(s.scalars(stmt).all())
 
 
-def get_chat_record(record_id: str) -> ChatRecord | None:
+# ---------- FinancialField（财务字段独立索引） ----------
+
+def replace_fields(doc_id: str, records: list[FieldRecord], org_id: str, visibility: str) -> int:
+    """整文档替换字段索引：先删该文档旧字段，再写入新抽取结果。"""
     with get_session() as s:
-        return s.get(ChatRecord, record_id)
+        s.execute(delete(FinancialField).where(FinancialField.doc_id == doc_id))
+        for r in records:
+            s.add(
+                FinancialField(
+                    doc_id=r.doc_id,
+                    org_id=org_id,
+                    visibility=visibility,
+                    metric=r.metric,
+                    metric_label=r.metric_label,
+                    year=r.year,
+                    value=r.value,
+                    unit=r.unit,
+                    raw=r.raw,
+                    source_chunk_id=getattr(r, "source_chunk_id", ""),
+                    company=r.company,
+                    source=r.source,
+                    page=r.page,
+                    section_path=r.section_path,
+                )
+            )
+        s.commit()
+        return len(records)
+
+
+def delete_fields(doc_id: str) -> None:
+    with get_session() as s:
+        s.execute(delete(FinancialField).where(FinancialField.doc_id == doc_id))
+        s.commit()
+
+
+def query_fields(
+    metric_keys: list[str],
+    org_id: str,
+    user_visibility: str,
+    year: int | None = None,
+    company: str | None = None,
+    limit: int = 20,
+) -> list[FinancialField]:
+    """按指标（+可选年份/公司）+ 权限过滤查询字段索引。company 用于主体公司过滤。"""
+    from app.store.qdrant import visible_levels
+
+    with get_session() as s:
+        stmt = (
+            select(FinancialField)
+            .where(
+                FinancialField.metric.in_(metric_keys),
+                FinancialField.org_id == org_id,
+                FinancialField.visibility.in_(visible_levels(user_visibility)),
+            )
+            .order_by(FinancialField.year.desc())
+            .limit(limit)
+        )
+        if year is not None:
+            stmt = stmt.where(FinancialField.year == year)
+        if company:
+            stmt = stmt.where(FinancialField.company == company)
+        return list(s.scalars(stmt).all())
+
+
+def list_field_companies(org_id: str, user_visibility: str) -> list[str]:
+    """返回该 org 下字段索引中的去重公司名（用于问题主体匹配）。"""
+    from app.store.qdrant import visible_levels
+
+    with get_session() as s:
+        rows = s.scalars(
+            select(FinancialField.company)
+            .where(
+                FinancialField.org_id == org_id,
+                FinancialField.visibility.in_(visible_levels(user_visibility)),
+            )
+            .distinct()
+        ).all()
+    return [c for c in rows if c]
 
 
 # ---------- EvalResult（评测结果） ----------
@@ -177,14 +271,6 @@ def save_eval_result(eval_name: str, scope: str, metrics: dict, payload: dict | 
         s.commit()
         s.refresh(rec)
         return rec
-
-
-def list_eval_results(eval_name: str | None = None, limit: int = 100) -> list[EvalResult]:
-    with get_session() as s:
-        stmt = select(EvalResult).order_by(EvalResult.created_at.desc()).limit(limit)
-        if eval_name:
-            stmt = stmt.where(EvalResult.eval_name == eval_name)
-        return list(s.scalars(stmt).all())
 
 
 # ---------- 串行持久化（断点续跑） ----------

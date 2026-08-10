@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     rerank_model: str = "qwen3-rerank"
     rerank_api_path: str = "/api/v1/services/rerank/text-rerank/text-rerank"
     rerank_candidates: int = 50  # RRF 融合后送入 rerank 的候选数
+    # 字段回填保底：relay 块（字段索引精确指路的答案块）rerank 分数加成，
+    # 防止被语义打分挤出 top_k（字段确定性 > rerank 概率性，见 2026-08-10 消融）
+    field_relay_boost: float = 0.5
+    # 召回多样性：稠密路对近重复内容去重（同一表格/段落多块只保留最高分），提升候选覆盖
+    retrieval_diversity_enabled: bool = True
 
     # 路由 / 查询重写 / HyDE
     intent_routing_enabled: bool = True
@@ -142,6 +147,9 @@ class Settings(BaseSettings):
 
     # 结构块（财务表头/页眉/版式说明）：检索时置后降权（占比极小，实测对召回无影响，保留单一行为）
     structural_chunk_enabled: bool = True
+
+    # 字段抽取（结构化指标 → 独立索引）：入库时抽取财务指标，支撑"某年某指标"类问答精确取值
+    fields_enabled: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -45,9 +45,6 @@ class LayoutResult:
     pages: list[ParsedPage]
     text_extraction_rate: float = 1.0  # 含文本页数 / 总页数
 
-    def all_text(self) -> str:
-        return "\n".join(p.text for p in self.pages)
-
     def to_dict(self) -> dict:
         return {
             "pages": [

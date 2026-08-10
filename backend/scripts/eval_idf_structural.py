@@ -5,7 +5,7 @@
 - 结构块已收敛为单一降权行为（原 off/exclude/downgrade 多模式实测对召回无影响，已移除），
   本脚本按生产结构块设置（启用 + 降权）评估 IDF 单独的开/关差异。
 
-Golden：现有 eval_golden.json（跳过 rel 为空项）+ 新增财报 golden
+Golden：scripts/golden/offline_257.json（257 题，预标注相关集，跳过 rel 为空项）
 （茅台/比亚迪/宁德：营收 · 净利润 · 基本每股收益 · 加权平均净资产收益率）。
 用法（backend/ 下）：python scripts/eval_idf_structural.py [--top-k 8]
 """
@@ -29,43 +29,12 @@ from app.store import qdrant as qdrant_store  # noqa: E402
 from app.store.registry import init_db  # noqa: E402
 from eval_ablation import _norm, _load_corpus, _ndcg_at_k, _recall_at_k  # noqa: E402
 
-GOLDEN_FILE = SCRIPT_DIR / "eval_golden.json"
+GOLDEN_FILE = SCRIPT_DIR / "golden" / "offline_257.json"
 _EXCLUDE = {"section"}
-
-# 新增财报 golden（snippet 为财报中确证的指标值；_norm 去除逗号/空格/换行后做子串匹配）
-# 说明：净利/营收用大额唯一数值；EPS/ROE 用小数值存在子串误匹配（如"300,065.66"含"65.66"、
-# "11.12%"百分比），故拼接「指标标签|数值」提高特异性，避免把无关 chunk 计入相关集。
-FINANCIAL_GOLDEN = [
-    # 营收
-    {"question": "贵州茅台2025年营业收入是多少？", "snippet": "168,838,102,514.79"},
-    {"question": "比亚迪2025年营业收入是多少？", "snippet": "803,964,958,000.00"},
-    {"question": "宁德时代2025年营业收入是多少？", "snippet": "423,701,834"},
-    # 净利润
-    {"question": "贵州茅台2025年归属于上市公司股东的净利润是多少？",
-     "snippet": "82,320,067,101.68"},
-    {"question": "比亚迪2025年归属于上市公司股东的净利润是多少？",
-     "snippet": "32,619,022,000.00"},
-    # 基本每股收益
-    {"question": "贵州茅台2025年基本每股收益是多少？", "snippet": "基本每股收益(元/股)|65.66"},
-    {"question": "比亚迪2025年按原股本计算的基本每股收益是多少？",
-     "snippet": "基本每股收益(元/股)|11.12"},
-    {"question": "宁德时代2025年基本每股收益是多少？",
-     "snippet": "归属于公司普通股股东的净利润||24.91|16.14"},
-    # 加权平均净资产收益率(ROE)
-    {"question": "贵州茅台2025年加权平均净资产收益率是多少？",
-     "snippet": "加权平均净资产收益率(%)|32.53"},
-    {"question": "宁德时代2025年加权平均净资产收益率是多少？",
-     "snippet": "归属于公司普通股股东的净利润||24.91|16.14"},
-]
 
 
 def _load_golden() -> list[dict]:
-    base = json.loads(GOLDEN_FILE.read_text(encoding="utf-8"))["questions"]
-    seen = {q["question"] for q in base}
-    for q in FINANCIAL_GOLDEN:
-        if q["question"] not in seen:
-            base.append(q)
-    return base
+    return json.loads(GOLDEN_FILE.read_text(encoding="utf-8"))["questions"]
 
 
 def _idf_map() -> dict[int, float]:
@@ -95,13 +64,11 @@ def main() -> int:
     settings = get_settings()
     init_db()
     golden = _load_golden()
-    corpus = _load_corpus()
-    corpus_ids = list(corpus.keys())
-    print(f"语料 chunk 数: {len(corpus_ids)}")
+    print(f"golden 相关集已预标注（relevant_chunk_ids），跳过语料滚动。")
 
     items: list[tuple[str, set[str]]] = []
     for q in golden:
-        rel = {cid for cid, info in corpus.items() if _norm(q["snippet"]) in info["content"]}
+        rel = set(q.get("relevant_chunk_ids") or [])
         if not rel:
             print(f"  [跳过 rel 为空] {q['question']}")
             continue
@@ -112,7 +79,6 @@ def main() -> int:
     print(f"idf index 种类: {len(idf)}\n")
 
     embedder = get_embedder()
-    # struct_mode: off | downgrade | exclude
     per: dict[str, dict] = {}
     for q, _ in items:
         dense, sparse = embedder.embed_texts_with_sparse([q], text_type="query")

@@ -42,7 +42,8 @@ def _adjacent_sims(embedder, sentences: list[str]) -> list[float]:
     vecs: list[list[float]] = []
     batch_size = getattr(embedder, "_batch_size", 16)
     for i in range(0, len(sentences), batch_size):
-        dense, _ = embedder.embed_texts(sentences[i : i + batch_size], text_type="document")
+        # 注意：embed_texts 只返回稠密列表（单值）；embed_texts_with_sparse 才返回 (dense, sparse)
+        dense = embedder.embed_texts(sentences[i : i + batch_size], text_type="document")
         vecs.extend(dense)
     return [_cosine(vecs[i], vecs[i + 1]) for i in range(len(vecs) - 1)]
 

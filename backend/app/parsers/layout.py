@@ -26,6 +26,24 @@ def parse_pdf(path: Path) -> LayoutResult:
                 try:
                     found = pl_page.find_tables() or []
                     table_bboxes = [t.bbox for t in found]
+                    # 无框线财报主表（浦发/招商/平安等）line 策略检测不到行线，
+                    # 当本页没有"有效"表格（≥3列且表头含年份）时，用 text 策略抢救。
+                    if not any(_is_good_table(t) for t in found):
+                        try:
+                            text_tables = pl_page.find_tables(
+                                {"vertical_strategy": "text", "horizontal_strategy": "text"}
+                            ) or []
+                        except Exception:
+                            text_tables = []
+                        for t in text_tables:
+                            # 只保留"有效"财报表（≥3列且表头含年份）；text 策略会把普通正文/整列数值
+                            # 挤成单格垃圾表，若加入会屏蔽正文文本并污染结构化表，故丢弃。
+                            if not _is_good_table(t):
+                                continue
+                            if any(_bbox_overlap(t.bbox, b) for b in table_bboxes):
+                                continue
+                            found.append(t)
+                            table_bboxes.append(t.bbox)
                     for table in found:
                         raw = table.extract() or []
                         rows = [[("" if c is None else str(c)).strip() for c in r] for r in raw]
@@ -45,6 +63,32 @@ def parse_pdf(path: Path) -> LayoutResult:
     rate = _extraction_rate(pages)
     logger.info("pdf parsed: %s pages=%d tables=%d rate=%.2f", path.name, len(pages), sum(len(p.tables) for p in pages), rate)
     return LayoutResult(pages=pages, text_extraction_rate=rate)
+
+
+def _is_good_table(table) -> bool:
+    """表格是否"有效"：≥3 列且表头含年份（可作为结构化财报表）。"""
+    try:
+        rows = table.extract() or []
+    except Exception:
+        return False
+    rows = [r for r in rows if any(r)]
+    if not rows or len(rows[0]) < 3:
+        return False
+    import re
+
+    return any(re.search(r"(19|20)\d{2}", str(h) or "") for h in rows[0])
+
+
+def _bbox_overlap(a, b) -> bool:
+    """两个 bbox 是否重叠（用于去重 text/line 策略检测到的同一区域）。"""
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+    ix0, iy0, ix1, iy1 = max(ax0, bx0), max(ay0, by0), min(ax1, bx1), min(ay1, by1)
+    if ix1 <= ix0 or iy1 <= iy0:
+        return False
+    inter = (ix1 - ix0) * (iy1 - iy0)
+    ua = (ax1 - ax0) * (ay1 - ay0) + (bx1 - bx0) * (by1 - by0) - inter
+    return inter / ua >= 0.5 if ua else False
 
 
 def _page_text_without_tables(

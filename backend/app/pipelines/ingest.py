@@ -11,7 +11,7 @@ from app.embed.embedder import get_embedder
 from app.parsers.base import LayoutResult, parse_layout
 from app.parsers.ocr import ocr_page_images
 from app.parsers.structure import Section, build_section_tree
-from app.splitter.chunker import Chunk, build_leaves, build_parent_blocks
+from app.splitter.chunker import Chunk, build_leaves, build_parent_blocks, embedding_text_for
 from app.splitter.semantic import refine_leaves_semantically
 from app.store import qdrant as qdrant_store
 from app.store.registry import get_document, load_stage, save_stage, stage_done, update_document, update_task
@@ -88,6 +88,15 @@ def run_ingest(
             sections = [Section.from_dict(s) for s in load_stage(doc_id, "sections")["sections"]]
         _check_deadline(deadline, doc_id)
 
+        # ---- 阶段 2.5：字段抽取（结构化指标 → 独立索引，幂等 replace）----
+        if settings.fields_enabled:
+            from app.fields.extract import extract_fields
+            from app.store.registry import replace_fields
+
+            field_records = extract_fields(doc_id, layout, sections)
+            n_fields = replace_fields(doc_id, field_records, org_id, visibility)
+            logger.info("doc %s fields extracted: %d", doc_id, n_fields)
+
         # ---- 阶段 3：切分（Small-to-Big + 语义精切）----
         if not stage_done(doc_id, "chunks"):
             # 3a) 结构叶子（章节/表格边界 + 目标 token 聚合）
@@ -104,15 +113,31 @@ def run_ingest(
             raise PipelineError("切分结果为空（文档无可检索内容）")
         _check_deadline(deadline, doc_id)
 
+        # ---- 阶段 3.5：字段 source_chunk_id 回填（relay 强候选前提）----
+        # 依赖阶段 3 的叶子块（内容含 指标标签+数值 才能定位），故必须在切分后执行；
+        # 幂等：只回填未定位字段，重传/续跑不重复修改。
+        if settings.fields_enabled:
+            try:
+                from app.fields.backfill import backfill_doc_fields
+
+                n_fill = backfill_doc_fields(doc_id, chunks)
+                if n_fill:
+                    logger.info("doc %s fields backfilled: %d", doc_id, n_fill)
+            except Exception as e:  # 回填失败不阻断主流程（检索有 rerank 兜底）
+                logger.warning("doc %s fields backfill 失败（跳过）: %s", doc_id, e)
+        _check_deadline(deadline, doc_id)
+
         # ---- 阶段 4：向量化（稠密 + 稀疏）----
         if task_id:
             _update_task_progress(task_id, "embed", 65, f"正在向量化 {len(chunks)} 个分块")
         update_document(doc_id, status="embedding")
         if not stage_done(doc_id, "vectors"):
             embedder = get_embedder()
-            # 模型原生稠密 + 稀疏（text_type=document）
+            # 模型原生稠密 + 稀疏（text_type=document）；表格块用语义锚点增强文本嵌入
+            # （锚点仅用于向量，展示/上下文仍用 chunk.content 原文）
+            embed_texts = [embedding_text_for(c, doc_title=file_path.stem) for c in chunks]
             vectors, sparse_vectors = embedder.embed_texts_with_sparse(
-                [c.content for c in chunks], text_type="document"
+                embed_texts, text_type="document"
             )
             save_stage(doc_id, "vectors", {"vectors": vectors, "sparse": sparse_vectors})
         else:

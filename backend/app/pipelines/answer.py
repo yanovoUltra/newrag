@@ -33,6 +33,63 @@ def _extract_year(text: str) -> int | None:
     return int(m.group(0)) if m else None
 
 
+def _lookup_field_evidence(
+    question: str, org_id: str, user_visibility: str, year: int | None
+) -> list[dict]:
+    """字段抽取检索：metric 类问题→定位主体公司，按 (指标, 年份, 公司) 查独立字段索引。
+
+    主体公司无法确定（无公司名/多个公司）时返回空——避免把多公司混合值当"强证据"注入。
+    显式年份无命中时回退该公司全年份。
+    """
+    from app.fields.metrics import extract_metric_from_question
+    from app.fields.subject import find_subject_company
+    from app.store.registry import get_document, list_field_companies, query_fields
+
+    key, q_year = extract_metric_from_question(question)
+    if key is None:
+        return []
+    company = find_subject_company(question, list_field_companies(org_id, user_visibility))
+    if company is None:
+        return []
+    target_year = q_year or year
+    rows = query_fields([key], org_id, user_visibility, year=target_year, company=company, limit=20)
+    if not rows and target_year is not None:
+        rows = query_fields([key], org_id, user_visibility, year=None, company=company, limit=20)
+    evidence: list[dict] = []
+    for r in rows:
+        doc = get_document(r.doc_id)
+        evidence.append(
+            {
+                "metric": r.metric,
+                "metric_label": r.metric_label,
+                "year": r.year,
+                "value": r.value,
+                "unit": r.unit,
+                "raw": r.raw,
+                "doc_id": r.doc_id,
+                "doc_name": doc.filename if doc else r.doc_id,
+                "company": r.company,
+                "page": r.page,
+                "section_path": r.section_path,
+            }
+        )
+    return evidence
+
+
+def _field_block(ev: dict) -> dict:
+    """把字段证据组装成知识块（供 LLM 引用精确取值），来源标注与普通块一致。"""
+    src = f"{ev['doc_name']}-{ev['section_path']}-第{ev['page']}页"
+    return {
+        "doc_id": ev["doc_id"],
+        "doc_name": ev["doc_name"],
+        "page": ev["page"],
+        "section_path": ev["section_path"],
+        "chunk_type": "field",
+        "content": f"【字段】{ev['metric_label']} {ev['year']}年：{ev['raw']}（来源：{src}）",
+        "parent_content": "",
+    }
+
+
 def _merge_blocks(results: list[dict], top_k: int) -> list[dict]:
     """多查询结果去重合并：同一 chunk 保留分数最高的一条，按分数降序取 top_k。"""
     best: dict[str, dict] = {}
@@ -79,6 +136,12 @@ async def _search_plan(
         dense_list, sparse_list = await asyncio.to_thread(
             embedder.embed_texts_with_sparse, [hyde_doc or q], text_type="query"
         )
+        query_sparse = sparse_list[0] if sparse_list else None
+        # IDF 动态开关：metric/指标型查询关闭文档侧 IDF（查询稀疏除以 IDF 还原语境）
+        if query_sparse and plan.query_type == "metric":
+            from app.retrieval.idf import neutralize_idf
+
+            query_sparse = neutralize_idf(query_sparse)
         hits = await asyncio.to_thread(
             hybrid_search,
             query_vector=dense_list[0],
@@ -86,7 +149,7 @@ async def _search_plan(
             user_visibility=user_visibility,
             query_text=q,
             top_k=top_k,
-            query_sparse=sparse_list[0] if sparse_list else None,
+            query_sparse=query_sparse,
             recall_depth=depth,
             fiscal_year=fiscal_year,
         )
@@ -100,6 +163,11 @@ def _best_score(blocks: list[dict]) -> float | None:
         return None
     r = blocks[0]
     return r.get("rerank_score") if r.get("rerank_score") is not None else r.get("fused_score")
+
+
+def _has_real_hits(blocks: list[dict]) -> bool:
+    """年份过滤后是否含非字段 relay 的真实检索命中（年份回退判断依据）。"""
+    return any(not b.get("is_relay") for b in blocks)
 
 
 async def stream_answer(
@@ -168,12 +236,25 @@ async def stream_answer(
     plan = await route_query(question)
 
     # 2. 混合检索（陈旧文档防护：问题含显式年份 → 按年份过滤；无该年份文档时回退全量）
+    #    回退条件：年份过滤后无非 relay 的真实检索命中（字段索引 relay 恒注入，不能算"命中该年份"）
     year = _extract_year(question)
     blocks = await _search_plan(plan, question, org_id, user_visibility, k, fiscal_year=year)
     year_fell_back = False
-    if year and not blocks:
+    if year and not _has_real_hits(blocks):
         blocks = await _search_plan(plan, question, org_id, user_visibility, k, fiscal_year=None)
         year_fell_back = True
+
+    # 2.5 字段抽取检索：metric 类问题 → 查独立字段索引，命中则作为强证据前置并发出 field 事件
+    field_evidence: list[dict] = []
+    if settings.fields_enabled and plan.query_type == "metric":
+        try:
+            field_evidence = _lookup_field_evidence(question, org_id, user_visibility, year)
+        except Exception as e:
+            logger.warning("字段抽取检索失败（忽略）: %s", e)
+            field_evidence = []
+    if field_evidence:
+        yield _emit({"event": "field", "data": {"fields": field_evidence}})
+        blocks = [_field_block(ev) for ev in field_evidence] + blocks
 
     yield _emit({
         "event": "meta",

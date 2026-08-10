@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -86,3 +86,26 @@ class EvalResult(Base):
     metrics: Mapped[str] = mapped_column(Text, default="{}")  # JSON：{ndcg_at_8: 0.21, ...}
     payload: Mapped[str] = mapped_column(Text, default="{}")  # JSON：明细/报告
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class FinancialField(Base):
+    """财务字段（结构化指标 → 独立索引）：支撑"某年某指标"类问答的精确取值。"""
+
+    __tablename__ = "financial_fields"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    doc_id: Mapped[str] = mapped_column(String(32), index=True)
+    org_id: Mapped[str] = mapped_column(String(64), index=True)
+    visibility: Mapped[str] = mapped_column(String(16), default="public")
+    metric: Mapped[str] = mapped_column(String(32), index=True)  # canonical key，如 net_profit
+    metric_label: Mapped[str] = mapped_column(String(64), default="")
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    raw: Mapped[str] = mapped_column(String(255), default="")
+    source_chunk_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    company: Mapped[str] = mapped_column(String(64), default="", index=True)
+    source: Mapped[str] = mapped_column(String(8), default="table")  # table | text
+    page: Mapped[int] = mapped_column(Integer, default=0)
+    section_path: Mapped[str] = mapped_column(String(255), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

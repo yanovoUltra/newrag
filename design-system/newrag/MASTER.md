@@ -4,31 +4,31 @@
 > If that file exists, its rules **override** this Master file.
 > If not, strictly follow the rules below.
 
----
+***
 
 **Project:** NewRAG 财报分析
 **Generated:** 2026-08-09 01:11:41
 **Category:** AI/Chatbot Platform
 **Design Dials:** Density 7/10 (Standard)
 
----
+***
 
 ## Global Rules
 
 ### Color Palette
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#0F172A` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#1E293B` | `--color-secondary` |
-| Accent/CTA | `#22C55E` | `--color-accent` |
-| Background | `#020617` | `--color-background` |
-| Foreground | `#F8FAFC` | `--color-foreground` |
-| Muted | `#1A1E2F` | `--color-muted` |
-| Border | `#334155` | `--color-border` |
+| Role        | Hex       | CSS Variable          |
+| ----------- | --------- | --------------------- |
+| Primary     | `#0F172A` | `--color-primary`     |
+| On Primary  | `#FFFFFF` | `--color-on-primary`  |
+| Secondary   | `#1E293B` | `--color-secondary`   |
+| Accent/CTA  | `#22C55E` | `--color-accent`      |
+| Background  | `#020617` | `--color-background`  |
+| Foreground  | `#F8FAFC` | `--color-foreground`  |
+| Muted       | `#1A1E2F` | `--color-muted`       |
+| Border      | `#334155` | `--color-border`      |
 | Destructive | `#EF4444` | `--color-destructive` |
-| Ring | `#0F172A` | `--color-ring` |
+| Ring        | `#0F172A` | `--color-ring`        |
 
 **Color Notes:** Dark bg + green positive indicators
 
@@ -37,9 +37,10 @@
 - **Heading Font:** IBM Plex Sans
 - **Body Font:** IBM Plex Sans
 - **Mood:** financial, trustworthy, professional, corporate, banking, serious
-- **Google Fonts:** [IBM Plex Sans + IBM Plex Sans](https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap)
+- **Google Fonts:** [IBM Plex Sans + IBM Plex Sans](https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700\&display=swap)
 
 **CSS Import:**
+
 ```css
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 ```
@@ -48,26 +49,26 @@
 
 *Density: 7/10 — Standard*
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `4px` / `0.25rem` | Tight gaps |
-| `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
-| `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
+| Token         | Value             | Usage                     |
+| ------------- | ----------------- | ------------------------- |
+| `--space-xs`  | `4px` / `0.25rem` | Tight gaps                |
+| `--space-sm`  | `8px` / `0.5rem`  | Icon gaps, inline spacing |
+| `--space-md`  | `16px` / `1rem`   | Standard padding          |
+| `--space-lg`  | `24px` / `1.5rem` | Section padding           |
+| `--space-xl`  | `32px` / `2rem`   | Large gaps                |
+| `--space-2xl` | `48px` / `3rem`   | Section margins           |
+| `--space-3xl` | `64px` / `4rem`   | Hero padding              |
 
 ### Shadow Depths
 
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
+| Level         | Value                          | Usage                       |
+| ------------- | ------------------------------ | --------------------------- |
+| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)`   | Subtle lift                 |
+| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)`    | Cards, buttons              |
+| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)`  | Modals, dropdowns           |
 | `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
 
----
+***
 
 ## Component Specs
 
@@ -157,7 +158,7 @@
 }
 ```
 
----
+***
 
 ## Style Guidelines
 
@@ -177,7 +178,7 @@
 - **CTA Placement:** Context-aware placement based on user segment
 - **Section Order:** 1. Dynamic hero (personalized), 2. Relevant features, 3. Tailored testimonials, 4. Smart CTA
 
----
+***
 
 ## Anti-Patterns (Do NOT Use)
 
@@ -193,7 +194,7 @@
 - ❌ **Instant state changes** — Always use transitions (150-300ms)
 - ❌ **Invisible focus states** — Focus states must be visible for a11y
 
----
+***
 
 ## Pre-Delivery Checklist
 
@@ -209,3 +210,4 @@ Before delivering any UI code, verify:
 - [ ] Responsive: 375px, 768px, 1024px, 1440px
 - [ ] No content hidden behind fixed navbars
 - [ ] No horizontal scroll on mobile
+

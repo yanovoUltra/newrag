@@ -130,6 +130,25 @@ def _table_meta(t: ParsedTable | None) -> tuple[list[str] | None, int | None, in
     return headers, len(t.rows), n_cols
 
 
+def embedding_text_for(chunk: Chunk, doc_title: str = "") -> str:
+    """表格块的嵌入文本增强：拼接语义锚点（文档标题/公司名 + 章节路径）。
+
+    数字密集的"主要财务指标"表，原始内容只有表头+数值，嵌入向量与语义问句（"某公司某年
+    某指标是多少"）相似度低。这里仅对**嵌入文本**（dense/sparse 向量）补充语义锚点，
+    展示/上下文仍用 chunk.content 原文——让表格在语义空间里能被公司/指标/章节命中。
+    """
+    if chunk.chunk_type != "table":
+        return chunk.content
+    anchors: list[str] = []
+    if doc_title:
+        anchors.append(doc_title)
+    if chunk.section_path and chunk.section_path != "文档正文":
+        anchors.append(chunk.section_path)
+    if not anchors:
+        return chunk.content
+    return " | ".join(anchors) + "\n" + chunk.content
+
+
 def build_leaves(
     doc_id: str,
     layout: LayoutResult,

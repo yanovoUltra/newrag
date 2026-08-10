@@ -34,7 +34,7 @@ from app.store import qdrant as qdrant_store  # noqa: E402
 from app.store.registry import init_db, save_eval_result  # noqa: E402
 from eval_ablation import _norm, _load_corpus, _ndcg_at_k, _recall_at_k  # noqa: E402
 
-GOLDEN_FILE = SCRIPT_DIR / "eval_golden.json"
+GOLDEN_FILE = SCRIPT_DIR / "golden" / "offline_257.json"
 _EXCLUDE = {"section"}
 
 
@@ -87,13 +87,10 @@ def main() -> int:
     settings = get_settings()
     init_db()
     golden = json.loads(GOLDEN_FILE.read_text(encoding="utf-8"))["questions"]
-    corpus = _load_corpus()
-    corpus_ids = list(corpus.keys())
-    print(f"语料 chunk 数: {len(corpus_ids)}")
 
     items = []
     for q in golden:
-        rel = {cid for cid, info in corpus.items() if _norm(q["snippet"]) in info["content"]}
+        rel = set(q.get("relevant_chunk_ids") or [])
         if rel:
             items.append((q["question"], rel))
     print(f"有效 golden 条目: {len(items)}/{len(golden)}")

@@ -1,4 +1,4 @@
-"""统计当前 collection 的结构块分布，供评估 STRUCTURAL_EXCLUDE 默认行为。
+"""统计当前 collection 的结构块分布，供人工核对结构块是否为纯版式块。
 
 输出：结构块总数、按 chunk_type 分布、结构块内容片段（人工核对是否纯版式块）。
 
