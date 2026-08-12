@@ -124,3 +124,99 @@ export interface MessageTurn {
   streaming: boolean
   createdAt: number
 }
+
+// ---- 财报竞品对标 Agent ----
+export interface BenchmarkMetricOption {
+  key: string
+  label: string
+  kind: 'amount' | 'percent' | 'per_share'
+  display_unit: string
+  direction: 'higher' | 'lower' | 'neutral'
+  available_records: number
+}
+
+export interface BenchmarkCatalog {
+  companies: string[]
+  years: number[]
+  metrics: BenchmarkMetricOption[]
+}
+
+export interface BenchmarkEvidence {
+  doc_id: string
+  doc_name: string
+  page: number
+  section_path: string
+  chunk_id: string
+  source: string
+  raw: string
+}
+
+export interface BenchmarkObservation {
+  company: string
+  year: number
+  metric: string
+  status: 'available' | 'missing'
+  value: number | null
+  normalized_value: number | null
+  display_value: string
+  unit: string | null
+  comparable: boolean
+  conflict: boolean
+  change_value: number | null
+  change_unit: string | null
+  evidence: BenchmarkEvidence | null
+  warnings: string[]
+}
+
+export interface BenchmarkMetricResult {
+  key: string
+  label: string
+  kind: string
+  display_unit: string
+  direction: string
+  observations: BenchmarkObservation[]
+  insights: string[]
+}
+
+export interface BenchmarkStage {
+  key: string
+  label: string
+  status: 'complete' | 'warning'
+  detail: string
+}
+
+export interface BenchmarkAnalysis {
+  id: string
+  name: string
+  generated_at: string
+  org_id: string
+  visibility: string
+  companies: string[]
+  years: number[]
+  metrics: BenchmarkMetricResult[]
+  summary: {
+    requested_cells: number
+    available_cells: number
+    comparable_cells: number
+    evidenced_cells: number
+    coverage: number
+    comparable_coverage: number
+    evidence_coverage: number
+    conflicts: number
+    confidence: 'high' | 'medium' | 'low'
+  }
+  insights: string[]
+  warnings: string[]
+  stages: BenchmarkStage[]
+}
+
+export interface BenchmarkRunSummary {
+  id: string
+  name: string
+  companies: string[]
+  years: number[]
+  metric_count: number
+  coverage: number
+  confidence: string
+  created_at: string
+}

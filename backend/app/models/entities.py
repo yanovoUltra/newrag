@@ -88,6 +88,20 @@ class EvalResult(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
+class BenchmarkRun(Base):
+    """竞品对标分析快照：保存输入与可审计结果，便于复看和导出。"""
+
+    __tablename__ = "benchmark_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), default="default", index=True)
+    visibility: Mapped[str] = mapped_column(String(16), default="public")
+    name: Mapped[str] = mapped_column(String(120), default="")
+    request_json: Mapped[str] = mapped_column(Text, default="{}")
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
 class FinancialField(Base):
     """财务字段（结构化指标 → 独立索引）：支撑"某年某指标"类问答的精确取值。"""
 

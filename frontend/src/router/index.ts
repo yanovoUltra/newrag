@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { title: '智能问答' },
     },
     {
+      path: '/benchmark',
+      name: 'benchmark',
+      component: () => import('@/views/BenchmarkView.vue'),
+      meta: { title: '竞品对标' },
+    },
+    {
       path: '/documents',
       name: 'documents',
       component: () => import('@/views/DocumentsView.vue'),

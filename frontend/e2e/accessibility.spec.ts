@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
-const routes = ['/chat', '/documents', '/upload']
+const routes = ['/chat', '/benchmark', '/documents', '/upload']
 const viewports = [
   { width: 375, height: 752 },
   { width: 768, height: 900 },

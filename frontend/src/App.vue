@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import {
   ChatDotRound,
   DataAnalysis,
+  TrendCharts,
   UploadFilled,
   CircleCheckFilled,
   WarningFilled,
@@ -35,6 +36,7 @@ onUnmounted(() => window.clearInterval(timer))
 
 const navItems = [
   { path: '/chat', label: '智能问答', icon: ChatDotRound },
+  { path: '/benchmark', label: '竞品对标', icon: TrendCharts },
   { path: '/documents', label: '文档库', icon: DataAnalysis },
   { path: '/upload', label: '上传文档', icon: UploadFilled },
 ]

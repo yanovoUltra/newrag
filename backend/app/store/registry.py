@@ -13,6 +13,7 @@ from app.core.logging import get_logger
 from app.fields.extract import FieldRecord
 from app.models.entities import (
     Base,
+    BenchmarkRun,
     ChatRecord,
     Document,
     EvalResult,
@@ -75,6 +76,8 @@ def _ensure_indexes() -> None:
         "(org_id, visibility, company, metric, year)",
         "CREATE INDEX IF NOT EXISTS ix_number_phrase_lookup ON number_phrase_index "
         "(org_id, visibility, phrase, fiscal_year)",
+        "CREATE INDEX IF NOT EXISTS ix_benchmark_runs_org_created ON benchmark_runs "
+        "(org_id, created_at)",
     )
     with _engine.begin() as conn:
         for statement in statements:
@@ -344,6 +347,143 @@ def list_field_companies(org_id: str, user_visibility: str) -> list[str]:
             .distinct()
         ).all()
     return [c for c in rows if c]
+
+
+def benchmark_dimensions(
+    org_id: str, user_visibility: str
+) -> tuple[list[str], list[int], dict[str, int]]:
+    """返回对标工作台所需的公司、年份和各指标可用记录数。"""
+    from app.store.qdrant import visible_levels
+
+    filters = (
+        FinancialField.org_id == org_id,
+        FinancialField.visibility.in_(visible_levels(user_visibility)),
+    )
+    with get_session() as s:
+        companies = list(
+            s.scalars(
+                select(FinancialField.company)
+                .where(*filters, FinancialField.company != "")
+                .distinct()
+                .order_by(FinancialField.company)
+            ).all()
+        )
+        years = list(
+            s.scalars(
+                select(FinancialField.year)
+                .where(*filters)
+                .distinct()
+                .order_by(FinancialField.year.desc())
+            ).all()
+        )
+        metric_rows = s.execute(
+            select(FinancialField.metric, func.count(FinancialField.id))
+            .where(*filters)
+            .group_by(FinancialField.metric)
+        ).all()
+    return companies, years, {str(key): int(count) for key, count in metric_rows}
+
+
+def query_benchmark_fields(
+    metric_keys: list[str],
+    companies: list[str],
+    years: list[int],
+    org_id: str,
+    user_visibility: str,
+    limit: int = 2000,
+) -> list[FinancialField]:
+    """一次查询完整对标矩阵，避免按公司/指标/年份产生 N+1 查询。"""
+    from app.store.qdrant import visible_levels
+
+    if not metric_keys or not companies or not years:
+        return []
+    with get_session() as s:
+        stmt = (
+            select(FinancialField)
+            .where(
+                FinancialField.metric.in_(metric_keys),
+                FinancialField.company.in_(companies),
+                FinancialField.year.in_(years),
+                FinancialField.org_id == org_id,
+                FinancialField.visibility.in_(visible_levels(user_visibility)),
+            )
+            .order_by(
+                FinancialField.metric,
+                FinancialField.company,
+                FinancialField.year,
+                FinancialField.created_at.desc(),
+            )
+            .limit(limit)
+        )
+        return list(s.scalars(stmt).all())
+
+
+def get_documents_by_ids(doc_ids: list[str]) -> dict[str, Document]:
+    """批量读取证据文档，供对标结果补齐文件名。"""
+    if not doc_ids:
+        return {}
+    with get_session() as s:
+        docs = s.scalars(select(Document).where(Document.id.in_(set(doc_ids)))).all()
+        return {doc.id: doc for doc in docs}
+
+
+# ---------- BenchmarkRun（竞品对标分析快照） ----------
+
+def save_benchmark_run(
+    run_id: str,
+    org_id: str,
+    visibility: str,
+    name: str,
+    request_data: dict,
+    result_data: dict,
+) -> BenchmarkRun:
+    with get_session() as s:
+        run = BenchmarkRun(
+            id=run_id,
+            org_id=org_id,
+            visibility=visibility,
+            name=name,
+            request_json=json.dumps(request_data, ensure_ascii=False),
+            result_json=json.dumps(result_data, ensure_ascii=False),
+        )
+        s.add(run)
+        s.commit()
+        s.refresh(run)
+        return run
+
+
+def get_benchmark_run(
+    run_id: str, org_id: str, user_visibility: str
+) -> BenchmarkRun | None:
+    from app.store.qdrant import visible_levels
+
+    with get_session() as s:
+        return s.scalar(
+            select(BenchmarkRun).where(
+                BenchmarkRun.id == run_id,
+                BenchmarkRun.org_id == org_id,
+                BenchmarkRun.visibility.in_(visible_levels(user_visibility)),
+            )
+        )
+
+
+def list_benchmark_runs(
+    org_id: str, user_visibility: str, limit: int = 20
+) -> list[BenchmarkRun]:
+    from app.store.qdrant import visible_levels
+
+    with get_session() as s:
+        return list(
+            s.scalars(
+                select(BenchmarkRun)
+                .where(
+                    BenchmarkRun.org_id == org_id,
+                    BenchmarkRun.visibility.in_(visible_levels(user_visibility)),
+                )
+                .order_by(BenchmarkRun.created_at.desc())
+                .limit(limit)
+            ).all()
+        )
 
 
 # ---------- NumberPhraseIndex（数字+单位短语倒排索引，离线构建） ----------

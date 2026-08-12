@@ -9,11 +9,12 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import chat, config_public, documents, metrics, tasks
+from app.api.v1 import benchmark, chat, config_public, documents, metrics, tasks
 from app.core.config import get_settings
 from app.core.logging import get_logger, set_trace_id, setup_logging
 from app.core.otel import setup_otel
@@ -144,7 +145,7 @@ def create_app() -> FastAPI:
     @app.exception_handler(RequestValidationError)
     async def validation_exc_handler(request: Request, exc: RequestValidationError):
         logger.warning("validation error: %s %s %s", request.method, request.url.path, exc.errors())
-        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
     @app.exception_handler(Exception)
     async def unhandled_exc_handler(request: Request, exc: Exception):
@@ -156,6 +157,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix="/api/v1")
     app.include_router(config_public.router, prefix="/api/v1")
     app.include_router(metrics.router, prefix="/api/v1")
+    app.include_router(benchmark.router, prefix="/api/v1")
 
     @app.get("/livez")
     def livez():
