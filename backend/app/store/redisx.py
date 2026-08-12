@@ -18,7 +18,8 @@ def get_redis():
             import redis
 
             settings = get_settings()
-            r = redis.Redis.from_url(settings.redis_url, socket_timeout=2)
+            cache_url = settings.redis_cache_url or settings.redis_url
+            r = redis.Redis.from_url(cache_url, socket_timeout=2)
             r.ping()
             _client = r
         except Exception as e:

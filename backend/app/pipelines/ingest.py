@@ -16,7 +16,14 @@ from app.parsers.structure import Section, build_section_tree
 from app.splitter.chunker import Chunk, build_leaves, build_parent_blocks, embedding_text_for
 from app.splitter.semantic import refine_leaves_semantically
 from app.store import qdrant as qdrant_store
-from app.store.registry import get_document, load_stage, save_stage, stage_done, update_document, update_task
+from app.store.registry import (
+    get_document,
+    load_stage,
+    save_stage,
+    stage_done,
+    update_document,
+    update_task,
+)
 
 logger = get_logger(__name__)
 
@@ -65,8 +72,6 @@ def run_ingest(
     if enabled():
         span = get_tracer("ingest").start_span("ingest.run")
         span.set_attribute("doc_id", doc_id)
-        span.set_attribute("file", str(file_path))
-        span.set_attribute("org_id", org_id)
     try:
         # ---- 阶段 1：解析（版式层）----
         t0 = time.monotonic()

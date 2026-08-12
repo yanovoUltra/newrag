@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew NewRAG short-lived IP certificate
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/newrag
+ExecStart=/usr/bin/docker compose -f infra/docker-compose.production.yml --profile maintenance run --rm certbot renew --cert-name newrag-ip --no-random-sleep-on-renew --non-interactive --quiet
+ExecStart=/usr/bin/docker compose -f infra/docker-compose.production.yml exec -T gateway caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile

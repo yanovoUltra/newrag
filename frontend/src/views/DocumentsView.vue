@@ -1,31 +1,34 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Refresh,
-  Plus,
-  Delete,
-  Document,
-  Search,
-} from '@element-plus/icons-vue'
+import { Refresh, Plus, Delete, Document, Search } from '@element-plus/icons-vue'
 import { deleteDocument, listDocumentPage } from '@/api/documents'
 import { notifyError } from '@/api/client'
 import type { DocumentItem } from '@/types'
 
 const router = useRouter()
+const route = useRoute()
 const docs = ref<DocumentItem[]>([])
 const loading = ref(false)
-const keyword = ref('')
-const orgFilter = ref('')
-const statusFilter = ref('')
+const keyword = ref(String(route.query.filename ?? ''))
+const orgFilter = ref(String(route.query.org_id ?? ''))
+const statusFilter = ref(String(route.query.status ?? ''))
 const total = ref(0)
-const page = ref(1)
+const page = ref(Math.max(1, Number(route.query.page) || 1))
 const pageSize = 20
 let loadAbort: AbortController | null = null
 let searchTimer: number | undefined
 
 async function load() {
+  void router.replace({
+    query: {
+      ...(keyword.value.trim() ? { filename: keyword.value.trim() } : {}),
+      ...(orgFilter.value.trim() ? { org_id: orgFilter.value.trim() } : {}),
+      ...(statusFilter.value ? { status: statusFilter.value } : {}),
+      ...(page.value > 1 ? { page: String(page.value) } : {}),
+    },
+  })
   loadAbort?.abort()
   const ctrl = new AbortController()
   loadAbort = ctrl
@@ -178,7 +181,10 @@ onUnmounted(() => {
               <el-icon :size="16" class="doc-icon"><Document /></el-icon>
               <div class="doc-name-text">
                 <span class="doc-filename">{{ row.filename }}</span>
-                <span class="doc-meta">{{ row.file_type?.toUpperCase() }} · {{ fmtSizeBytes(row.size_bytes ?? 0) }}</span>
+                <span class="doc-meta"
+                  >{{ row.file_type?.toUpperCase() }} ·
+                  {{ fmtSizeBytes(row.size_bytes ?? 0) }}</span
+                >
               </div>
             </div>
           </template>
@@ -186,8 +192,12 @@ onUnmounted(() => {
 
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tooltip :content="row.error || statusInfo(row).label" placement="top" :disabled="!row.error">
-              <el-tag :type="(statusInfo(row).type as any)" size="small" effect="dark">
+            <el-tooltip
+              :content="row.error || statusInfo(row).label"
+              placement="top"
+              :disabled="!row.error"
+            >
+              <el-tag :type="statusInfo(row).type as any" size="small" effect="dark">
                 {{ statusInfo(row).label }}
               </el-tag>
             </el-tooltip>
@@ -204,7 +214,10 @@ onUnmounted(() => {
 
         <el-table-column label="财年" width="80" align="center">
           <template #default="{ row }">
-            <span v-if="row.fiscal_year">{{ row.fiscal_year }}<template v-if="row.fiscal_quarter">Q{{ row.fiscal_quarter }}</template></span>
+            <span v-if="row.fiscal_year"
+              >{{ row.fiscal_year
+              }}<template v-if="row.fiscal_quarter">Q{{ row.fiscal_quarter }}</template></span
+            >
             <span v-else class="muted">—</span>
           </template>
         </el-table-column>
@@ -243,7 +256,10 @@ onUnmounted(() => {
               <el-icon :size="18" class="doc-icon"><Document /></el-icon>
               <div class="doc-name-text">
                 <span class="doc-filename">{{ doc.filename }}</span>
-                <span class="doc-meta">{{ doc.file_type?.toUpperCase() }} · {{ fmtSizeBytes(doc.size_bytes ?? 0) }}</span>
+                <span class="doc-meta"
+                  >{{ doc.file_type?.toUpperCase() }} ·
+                  {{ fmtSizeBytes(doc.size_bytes ?? 0) }}</span
+                >
               </div>
             </div>
             <el-button
@@ -257,10 +273,22 @@ onUnmounted(() => {
             />
           </div>
           <dl class="card-grid">
-            <div><dt>状态</dt><dd>{{ statusInfo(doc).label }}</dd></div>
-            <div><dt>机构</dt><dd>{{ doc.org_id }}</dd></div>
-            <div><dt>财年</dt><dd>{{ doc.fiscal_year ?? '—' }}</dd></div>
-            <div><dt>知识块</dt><dd>{{ doc.chunk_count }}</dd></div>
+            <div>
+              <dt>状态</dt>
+              <dd>{{ statusInfo(doc).label }}</dd>
+            </div>
+            <div>
+              <dt>机构</dt>
+              <dd>{{ doc.org_id }}</dd>
+            </div>
+            <div>
+              <dt>财年</dt>
+              <dd>{{ doc.fiscal_year ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt>知识块</dt>
+              <dd>{{ doc.chunk_count }}</dd>
+            </div>
           </dl>
           <div class="card-date">上传于 {{ fmtDate(doc.created_at) }}</div>
         </article>

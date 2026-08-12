@@ -104,11 +104,7 @@ async function submit() {
     }
     const ctrl = new AbortController()
     taskAbort.value = ctrl
-    const finished = await pollTask(
-      res.task_id,
-      (t) => (task.value = t),
-      ctrl.signal,
-    )
+    const finished = await pollTask(res.task_id, (t) => (task.value = t), ctrl.signal)
     if (finished.status === 'success') {
       ElMessage.success('文档解析入库完成')
     }
@@ -157,15 +153,12 @@ onMounted(async () => {
         @click="!uploading && ($refs.fileInput as any)?.click()"
         role="button"
         tabindex="0"
+        aria-label="选择要上传的文档"
+        :aria-disabled="uploading"
         @keydown.enter="!uploading && ($refs.fileInput as any)?.click()"
+        @keydown.space.prevent="!uploading && ($refs.fileInput as any)?.click()"
       >
-        <input
-          ref="fileInput"
-          type="file"
-          :accept="accept"
-          hidden
-          @change="onFilePick"
-        />
+        <input ref="fileInput" type="file" :accept="accept" hidden @change="onFilePick" />
         <template v-if="fileMeta">
           <el-icon :size="34" class="dz-icon"><Document /></el-icon>
           <div class="dz-name">{{ fileMeta.name }}</div>
@@ -190,13 +183,25 @@ onMounted(async () => {
       <!-- 元数据表单 -->
       <div class="form-grid card">
         <div class="form-field">
-          <label>机构 ID <span class="req">*</span></label>
-          <el-input v-model="orgId" placeholder="default" :disabled="uploading" />
+          <label for="upload-org">机构 ID <span class="req">*</span></label>
+          <el-input
+            id="upload-org"
+            v-model="orgId"
+            name="org_id"
+            autocomplete="off"
+            placeholder="例如 default…"
+            :disabled="uploading"
+          />
           <span class="field-hint">检索按此维度做权限隔离</span>
         </div>
         <div class="form-field">
-          <label>可见性 <span class="req">*</span></label>
-          <el-select v-model="visibility" :disabled="uploading">
+          <label for="upload-visibility">可见性 <span class="req">*</span></label>
+          <el-select
+            id="upload-visibility"
+            v-model="visibility"
+            name="visibility"
+            :disabled="uploading"
+          >
             <el-option label="公开 public" value="public" />
             <el-option label="内部 internal" value="internal" />
             <el-option label="受限 restricted" value="restricted" />
@@ -204,13 +209,15 @@ onMounted(async () => {
           <span class="field-hint">越高的档位仅更高权限用户可见</span>
         </div>
         <div class="form-field">
-          <label>财年（可选）</label>
+          <label for="upload-year">财年（可选）</label>
           <el-input-number
+            id="upload-year"
             v-model="fiscalYear"
+            name="fiscal_year"
             :min="fiscalYearMin"
             :max="currentYear"
             :disabled="uploading"
-            placeholder="如 2024"
+            placeholder="例如 2024…"
             controls-position="right"
             style="width: 100%"
           />
@@ -219,8 +226,15 @@ onMounted(async () => {
           </span>
         </div>
         <div class="form-field">
-          <label>财季（可选）</label>
-          <el-select v-model="fiscalQuarter" :disabled="uploading" clearable placeholder="全年">
+          <label for="upload-quarter">财季（可选）</label>
+          <el-select
+            id="upload-quarter"
+            v-model="fiscalQuarter"
+            name="fiscal_quarter"
+            :disabled="uploading"
+            clearable
+            placeholder="全年"
+          >
             <el-option v-for="q in [1, 2, 3, 4]" :key="q" :label="`Q${q}`" :value="q" />
           </el-select>
           <span class="field-hint">仅财年报告需要填写</span>
@@ -237,12 +251,13 @@ onMounted(async () => {
         class="dup-alert"
       >
         <template #default>
-          doc_id：<code>{{ duplicateDocId }}</code>，已可直接提问
+          doc_id：<code>{{ duplicateDocId }}</code
+          >，已可直接提问
         </template>
       </el-alert>
 
       <!-- 任务进度 -->
-      <div v-if="task" class="task-panel card">
+      <div v-if="task" class="task-panel card" role="status" aria-live="polite">
         <div class="task-head">
           <span class="task-stage">{{ stageLabels[task.stage] ?? task.stage }}</span>
           <span v-if="task.status === 'failed'" class="task-status fail">
@@ -255,7 +270,13 @@ onMounted(async () => {
         </div>
         <el-progress
           :percentage="task.progress"
-          :status="task.status === 'failed' ? 'exception' : task.status === 'success' ? 'success' : undefined"
+          :status="
+            task.status === 'failed'
+              ? 'exception'
+              : task.status === 'success'
+                ? 'success'
+                : undefined
+          "
           :stroke-width="10"
         />
         <div v-if="task.message" class="task-msg muted">{{ task.message }}</div>
@@ -326,7 +347,9 @@ onMounted(async () => {
   padding: 42px 24px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -334,6 +357,10 @@ onMounted(async () => {
 }
 .dropzone:hover {
   border-color: var(--color-accent);
+}
+.dropzone:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
 }
 .dropzone.active {
   border-color: var(--color-accent);

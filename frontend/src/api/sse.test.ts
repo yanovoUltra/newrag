@@ -49,15 +49,18 @@ describe('postSse', () => {
     const onEvent = (e: string, d: unknown) => events.push([e, d])
     const onError = vi.fn()
 
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      body: sseStream(
-        'event: meta\ndata: {"top_k": 8}\n\n',
-        'event: token\ndata: 浦发银行\n\n',
-        'event: done\ndata: {"usage": {}}\n\n',
-      ),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: sseStream(
+          'event: meta\ndata: {"top_k": 8}\n\n',
+          'event: token\ndata: 浦发银行\n\n',
+          'event: done\ndata: {"usage": {}}\n\n',
+        ),
+      }),
+    )
 
     await postSse({
       url: '/api/v1/chat',
@@ -73,18 +76,20 @@ describe('postSse', () => {
 
   it('跨 chunk 边界的事件也能拼接解析（缓冲）', async () => {
     const events: Array<[string, unknown]> = []
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      body: sseStream(
-        'event: meta\ndata: {"top',
-        '_k": 8}\n\nevent: token\ndata: x',
-        '\n\n',
-      ),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: sseStream('event: meta\ndata: {"top', '_k": 8}\n\nevent: token\ndata: x', '\n\n'),
+      }),
+    )
     await postSse({
-      url: '/api/v1/chat', body: {}, signal: new AbortController().signal,
-      onEvent: (e, d) => events.push([e, d]), onError: vi.fn(),
+      url: '/api/v1/chat',
+      body: {},
+      signal: new AbortController().signal,
+      onEvent: (e, d) => events.push([e, d]),
+      onError: vi.fn(),
     })
     expect(events[0]).toEqual(['meta', { top_k: 8 }])
     expect(events[1]).toEqual(['token', 'x'])
@@ -92,14 +97,20 @@ describe('postSse', () => {
 
   it('非 2xx 时读取 detail 并触发 onError', async () => {
     const onError = vi.fn()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ detail: '问题不能为空' }),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({ detail: '问题不能为空' }),
+      }),
+    )
     await postSse({
-      url: '/api/v1/chat', body: {}, signal: new AbortController().signal,
-      onEvent: vi.fn(), onError,
+      url: '/api/v1/chat',
+      body: {},
+      signal: new AbortController().signal,
+      onEvent: vi.fn(),
+      onError,
     })
     expect(onError).toHaveBeenCalledWith(new Error('问题不能为空'))
   })
@@ -108,17 +119,26 @@ describe('postSse', () => {
     const onError = vi.fn()
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')))
     await postSse({
-      url: '/api/v1/chat', body: {}, signal: new AbortController().signal,
-      onEvent: vi.fn(), onError,
+      url: '/api/v1/chat',
+      body: {},
+      signal: new AbortController().signal,
+      onEvent: vi.fn(),
+      onError,
     })
     expect(onError).toHaveBeenCalled()
 
     // AbortError 不应触发
     onError.mockClear()
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('abort'), { name: 'AbortError' })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(Object.assign(new Error('abort'), { name: 'AbortError' })),
+    )
     await postSse({
-      url: '/api/v1/chat', body: {}, signal: new AbortController().signal,
-      onEvent: vi.fn(), onError,
+      url: '/api/v1/chat',
+      body: {},
+      signal: new AbortController().signal,
+      onEvent: vi.fn(),
+      onError,
     })
     expect(onError).not.toHaveBeenCalled()
   })
@@ -127,8 +147,11 @@ describe('postSse', () => {
     const onError = vi.fn()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body: null }))
     await postSse({
-      url: '/api/v1/chat', body: {}, signal: new AbortController().signal,
-      onEvent: vi.fn(), onError,
+      url: '/api/v1/chat',
+      body: {},
+      signal: new AbortController().signal,
+      onEvent: vi.fn(),
+      onError,
     })
     expect(onError).toHaveBeenCalled()
   })

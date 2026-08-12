@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 
 from app.core.config import get_settings
+from app.parsers.base import SUPPORTED_EXTENSIONS
 from app.pipelines.ingest import run_ingest
 from app.schemas import DocumentOut, DocumentPage
 from app.store import qdrant as qdrant_store
@@ -27,7 +28,6 @@ from app.store.registry import (
     query_documents_page,
     update_document,
 )
-from app.parsers.base import SUPPORTED_EXTENSIONS
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 

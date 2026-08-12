@@ -32,12 +32,16 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "chunks"
     redis_url: str = "redis://localhost:6379"
+    redis_cache_url: str = ""  # 缓存/会话 Redis；空值回退 redis_url 保持兼容
 
     # 阶段四：异步任务后端（background=FastAPI BackgroundTasks 进程内线程池，
     # celery=独立 worker 进程，broker=redis_url；无 worker 环境/测试用 background）
     task_backend: str = "background"
-    # 阶段四：OTel 可观测（trace/metrics 本地导出——ConsoleSpanExporter + ConsoleMetricReader）
+    # OTel：console 适合本地，otlp 发送至 Collector/Phoenix/Tempo
     otel_enabled: bool = False
+    otel_exporter: str = "console"
+    otel_otlp_endpoint: str = "http://localhost:4318"
+    otel_sample_ratio: float = 0.1
 
     # 嵌入（百炼 API 默认 / bge-m3 本地）
     embedding_model: str = "qwen3.7-text-embedding"

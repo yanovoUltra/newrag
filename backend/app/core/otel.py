@@ -1,4 +1,4 @@
-"""OpenTelemetry 可观测（阶段四）：trace + metrics 本地导出。
+"""OpenTelemetry 可观测：trace + metrics 支持 console / OTLP 导出。
 
 - trace：TracerProvider + BatchSpanProcessor(ConsoleSpanExporter)——span 输出到标准错误，
   uvicorn 日志文件可捕获；FastAPI 自动 instrumentation（请求级 span）+ 手动 span（检索/入库链路）。
@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any, Iterator
 
@@ -25,6 +25,7 @@ from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExpo
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace import get_tracer_provider, set_tracer_provider
 
 from app.core.config import get_settings
@@ -40,14 +41,28 @@ def _build_providers() -> bool:
     if not settings.otel_enabled:
         return False
     resource = Resource.create({"service.name": SERVICE_NAME, "service.version": "0.1.0"})
-    tp = TracerProvider(resource=resource)
-    tp.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+    ratio = min(1.0, max(0.0, settings.otel_sample_ratio))
+    tp = TracerProvider(
+        resource=resource,
+        sampler=ParentBased(TraceIdRatioBased(ratio)),
+    )
+    if settings.otel_exporter.lower() == "otlp":
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        base = settings.otel_otlp_endpoint.rstrip("/")
+        span_exporter = OTLPSpanExporter(endpoint=f"{base}/v1/traces")
+        metric_exporter = OTLPMetricExporter(endpoint=f"{base}/v1/metrics")
+    else:
+        span_exporter = ConsoleSpanExporter()
+        metric_exporter = ConsoleMetricExporter()
+    tp.add_span_processor(BatchSpanProcessor(span_exporter))
     set_tracer_provider(tp)
     mp = MeterProvider(
         resource=resource,
         metric_readers=[
             PeriodicExportingMetricReader(
-                ConsoleMetricExporter(), export_interval_millis=METRIC_INTERVAL_S * 1000
+                metric_exporter, export_interval_millis=METRIC_INTERVAL_S * 1000
             )
         ],
     )

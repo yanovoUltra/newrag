@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
 from app.api.v1 import chat, config_public, documents, metrics, tasks
 from app.core.config import get_settings
 from app.core.logging import get_logger, set_trace_id, setup_logging

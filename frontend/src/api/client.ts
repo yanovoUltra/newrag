@@ -26,7 +26,10 @@ export async function extractDetail(res: Response): Promise<string> {
     const body = await res.json()
     if (typeof body?.detail === 'string') return body.detail
     if (Array.isArray(body?.detail))
-      return body.detail.map((d: { msg?: string }) => d?.msg ?? '').filter(Boolean).join('; ')
+      return body.detail
+        .map((d: { msg?: string }) => d?.msg ?? '')
+        .filter(Boolean)
+        .join('; ')
     if (body?.message) return String(body.message)
   } catch {
     /* 非 JSON 响应 */
