@@ -58,6 +58,20 @@ METRIC_CATALOG: list[dict] = [
                  "total profit", "income before income taxes",
                  "income before provision for income taxes",
                  "income before taxes", "pretax income", "pre-tax income"]},
+    # 银行业特色指标（2026-08-11 holdout 新增：工行 2025 年报指标题，relay 查询侧可识别）
+    {"key": "npl_ratio", "label": "不良贷款率",
+     "aliases": ["不良贷款率", "不良贷款比率", "non-performing loan ratio", "npl ratio"]},
+    {"key": "provision_coverage", "label": "拨备覆盖率",
+     "aliases": ["拨备覆盖率", "贷款拨备覆盖率", "拨备覆盖", "provision coverage ratio"]},
+    {"key": "capital_adequacy", "label": "资本充足率",
+     "aliases": ["资本充足率", "核心一级资本充足率", "一级资本充足率", "capital adequacy ratio"]},
+    {"key": "fee_income", "label": "手续费及佣金净收入",
+     "aliases": ["手续费及佣金净收入", "手续费及佣金收入", "手续费净收入",
+                 "fee and commission income", "fee income", "net fee and commission income"]},
+    # 分部收入（2026-08-11 holdout GE 修复：GECS/Power Systems segment revenues 无字段索引，
+    # relay 无法注入来源块 → 检索消歧失败；加入指标目录后字段索引可回填来源块）
+    {"key": "segment_revenues", "label": "分部收入",
+     "aliases": ["segment revenues", "gecs segment revenues", "gecs revenues"]},
 ]
 
 # key → 指标对象
@@ -95,7 +109,7 @@ def match_metric_aliases(text: str) -> dict | None:
 # 比率/每股收益类指标（ROE/ROA/毛利率/EPS 等）本身已是可读标度，不参与单位换算。
 MONETARY_METRICS = {
     "revenue", "net_profit", "gross_profit", "total_profit",
-    "operating_cashflow", "total_assets", "net_assets",
+    "operating_cashflow", "total_assets", "net_assets", "fee_income",
 }
 
 # 单位 → 相对"元"的倍数（未知/None 视为"元"）

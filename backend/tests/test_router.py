@@ -45,7 +45,17 @@ def test_parse_bad_intent_normalized():
 def test_sub_queries_limited_and_filtered():
     raw = '{"intent": "multi_hop", "sub_queries": ["a", "", "b", "c", "d", "e"], "needs_hyde": false}'
     plan = _parse_plan(raw)
-    assert len(plan.sub_queries) == 3
+    assert len(plan.sub_queries) == 5  # 2~5 个原子子查询（2026-08-11 DAG 拆解上限）
+
+
+def test_sub_queries_structured_dag():
+    raw = ('{"intent": "multi_hop", "sub_queries": ['
+           '{"step": 1, "question": "哪家国有行不良率最低", "dependency": null},'
+           '{"step": 2, "question": "该行的拨备覆盖率", "dependency": [0]}],'
+           '"needs_hyde": false}')
+    plan = _parse_plan(raw)
+    assert plan.sub_queries == ["哪家国有行不良率最低", "该行的拨备覆盖率"]
+    assert plan.sub_query_deps == {1: [0]}
 
 
 # ---------- query_type 关键词分类（IDF 动态开关） ----------
@@ -81,5 +91,9 @@ def test_summary_query_triggers():
     assert _is_summary_query("请概述公司2024年的经营情况")
     assert _is_summary_query("分析一下浦发银行的资产质量")
     assert _is_summary_query("Summarize the risk factors in MD&A")
+    # §15.5 P2：趋势/多跳/比较类也触发 HyDE
+    assert _is_summary_query("公司营业收入近三年的变化趋势如何？")
+    assert _is_summary_query("为什么公司2024年经营活动现金流量净额显著增加？")
+    assert _is_summary_query("对比2023年和2024年的净利润变化")
     assert not _is_summary_query("浦发银行2024年营业收入是多少？")
     assert not _is_summary_query("Apple的Mac和iPad净销售额在2024财年表现如何？")

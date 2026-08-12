@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     qdrant_collection: str = "chunks"
     redis_url: str = "redis://localhost:6379"
 
+    # 阶段四：异步任务后端（background=FastAPI BackgroundTasks 进程内线程池，
+    # celery=独立 worker 进程，broker=redis_url；无 worker 环境/测试用 background）
+    task_backend: str = "background"
+    # 阶段四：OTel 可观测（trace/metrics 本地导出——ConsoleSpanExporter + ConsoleMetricReader）
+    otel_enabled: bool = False
+
     # 嵌入（百炼 API 默认 / bge-m3 本地）
     embedding_model: str = "qwen3.7-text-embedding"
     embedding_backend: str = "api"  # api | flagembedding | mock
@@ -82,12 +88,54 @@ class Settings(BaseSettings):
     rerank_api_key: str = ""
     rerank_model: str = "qwen3-rerank"
     rerank_api_path: str = "/api/v1/services/rerank/text-rerank/text-rerank"
-    rerank_candidates: int = 50  # RRF 融合后送入 rerank 的候选数
+    rerank_candidates: int = 8  # RRF 融合后送入 rerank 的候选数（2026-08-11 消融：候选越少质量越高，8 最优，见 ablation §13）
     # 字段回填保底：relay 块（字段索引精确指路的答案块）rerank 分数加成，
     # 防止被语义打分挤出 top_k（字段确定性 > rerank 概率性，见 2026-08-10 消融）
-    field_relay_boost: float = 0.5
+    field_relay_boost: float = 0.35
     # 召回多样性：稠密路对近重复内容去重（同一表格/段落多块只保留最高分），提升候选覆盖
     retrieval_diversity_enabled: bool = True
+    # 精确短语路由到稀疏路（§17）：引号/书名号短语独立嵌入稀疏检索、并入 RRF——
+    # 对抗题"断言核实"里专有名词/制度名在整句稀疏向量中被稀释、相关块未召回，
+    # 短语独立成路可锚定召回（验证后决定生产默认开关）
+    phrase_route_enabled: bool = True
+    phrase_route_top_k: int = 10  # 短语路单短语稀疏检索 top_k
+    # 数字+单位短语精确索引硬插（离线构建 scripts/build_number_phrase_index.py）：
+    # query 短语精确命中后硬插候选集（embedding 对精确数字不敏感），最多插入条数
+    number_phrase_max_insert: int = 5
+    # 章节父块检索（§18）：综述/总结类问题额外召回 chunk_type=section 父块并入 RRF——
+    # 相关块分散多页时叶子单点命中率低，父块命中代表"章节整体相关"（叶子相关集
+    # 评测口径扩展：父块计入相关集）。池重构后 top_k=12：综述题相关集主体是父块
+    # （nParent 5~9 / nRel 6~19）。12 vs 10 的取舍：12+6 池下限更高（rerank 降级时
+    # 父块在第 7-8 槽直接进 top-8，no-rerank top8 相关块 0.35→0.96；10+8 仅池上限
+    # 微优 0.396 vs 0.385，且依赖完美排序假设）
+    parent_route_top_k: int = 12
+    # 综述题池重构（§18）：叶子 RRF 候选 8→6，槽位让给父块（父块12+叶子6=18 槽）。
+    # 探针实证：叶 8→6 仅损失 1 题相关叶入池，换来父块结构性进 top-8 的降级鲁棒性
+    summary_leaf_candidates: int = 6
+    # 父块 rerank 加分（§18.3）：父块 RRF 单路分低、进不了 rerank 候选——父块路命中
+    # 直接注入候选，rerank 后加该分保底（对齐 field_relay_boost 机制；实测候选外 100%）
+    parent_route_boost: float = 0.25
+    # 父块上下文治理：单块父块内容 token 上限（超长章节截锚点前后窗口；命中子块
+    # 锚点 <hit> 标记 + 同父块只附一份全文，见 _attach_parent_context）
+    parent_max_tokens: int = 2048
+    # HyDE 稠密融合权重（原查询 0.7 / HyDE 0.3）：仅当场景分流允许时生效
+    hyde_dense_weight: float = 0.3
+    # 数值范围约束（六）：解析"指标+比较符+阈值"，候选块同族数值满足度作为奖励分
+    numeric_range_enabled: bool = True
+    numeric_range_boost: float = 0.2
+    # 章节类型权重（七）：核心财务 1.2 / 业务分析 1.1 / 风险 1.0 / 目录释义 0.7（仅 rerank 路径）
+    section_weighting_enabled: bool = True
+    # 对比题实体均衡保活（八）：检测到 ≥2 核心实体时按实体分组各取 Top-M
+    comparison_balance_enabled: bool = True
+
+    # 召回不足分级降级兜底（十一）：top_k 内真实命中 < 阈值或候选池 < 下限时，
+    # 按 L1短语硬插→L2年份±1→L2无年份→L3实体→L4纯dense 逐级放宽，达标即停。
+    fallback_enabled: bool = True
+    fallback_real_hit_threshold: int = 2   # top_k 内真实命中（非 relay/硬插/父块）阈值
+    fallback_min_candidates: int = 6       # 返回条数下限（候选池过空辅助触发）
+    fallback_year_window: int = 1          # L2 年份前后放宽窗口（±1 年）
+    fallback_max_level: int = 4            # 最大降级级数（L1~L4）
+    fallback_stall_stop: bool = True       # 连续无改善熔断（防越放宽越偏）
 
     # 路由 / 查询重写 / HyDE
     intent_routing_enabled: bool = True

@@ -1,4 +1,4 @@
-"""重排序客户端：百炼原生 rerank API（默认 qwen3-vl-rerank）或 none（RRF 直出）。
+"""重排序客户端：api（百炼原生 rerank API，默认 qwen3-rerank）| none（RRF 直出）。
 
 实测备注（2026-08-07）：百炼 rerank 服务需在控制台开通，sk-ws 密钥未开通时
 返回 Access denied / url error；届时可切换 rerank_backend=none 降级，或开通后启用。
@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import Protocol
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.metrics import record_api_call
 
 logger = get_logger(__name__)
 
@@ -39,6 +41,7 @@ class ApiReranker:
     def rerank(self, query: str, documents: list[str]) -> list[float]:
         if not documents:
             return []
+        t0 = time.perf_counter()
         try:
             with self._sem:
                 for attempt in range(3):
@@ -54,8 +57,6 @@ class ApiReranker:
                             timeout=60,
                         )
                         if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:
-                            import time
-
                             time.sleep(0.5 * (attempt + 1))
                             continue
                         resp.raise_for_status()
@@ -64,13 +65,13 @@ class ApiReranker:
                     except Exception as e:
                         if attempt >= 2:
                             raise
-                        import time
-
                         time.sleep(0.5 * (attempt + 1))
         except Exception as e:
             # rerank 失败不阻断问答：返回全零分，调用方保持 RRF 顺序
             logger.warning("rerank 调用失败，跳过精排（保持 RRF 顺序）: %s", e)
+            record_api_call("rerank", time.perf_counter() - t0, error=True)
             return [0.0] * len(documents)
+        record_api_call("rerank", time.perf_counter() - t0)
         results = data.get("output", {}).get("results", [])
         scores = [0.0] * len(documents)
         for item in results:

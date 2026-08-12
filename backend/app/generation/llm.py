@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.metrics import record_api_call
 
 logger = get_logger(__name__)
 
@@ -90,14 +92,18 @@ class OpenAICompatClient(LLMClient):
     async def _create_with_retry(self, **kwargs: Any):
         """限流 + 重试的 create 调用；重试 3 次后抛出最后一次异常。"""
         async with self._sem:
+            t0 = time.perf_counter()
             for attempt in range(3):
                 try:
-                    return await self._client.chat.completions.create(**kwargs)
+                    resp = await self._client.chat.completions.create(**kwargs)
+                    record_api_call("llm", time.perf_counter() - t0)
+                    return resp
                 except Exception as e:
                     status = getattr(e, "status_code", None)
                     if status in (429, 500, 502, 503, 504) and attempt < 2:
                         await asyncio.sleep(0.5 * (attempt + 1))
                         continue
+                    record_api_call("llm", time.perf_counter() - t0, error=True)
                     raise
 
     async def stream_chat(self, messages: list[dict[str, str]], model: str | None = None) -> AsyncIterator[str]:

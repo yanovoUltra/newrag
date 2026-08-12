@@ -11,7 +11,16 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.fields.extract import FieldRecord
-from app.models.entities import Base, ChatRecord, Document, EvalResult, FinancialField, Task
+from app.models.entities import (
+    Base,
+    ChatRecord,
+    Document,
+    EvalResult,
+    FinancialField,
+    NumberPhraseIndex,
+    RetrievalFallbackLog,
+    Task,
+)
 
 logger = get_logger(__name__)
 
@@ -257,6 +266,58 @@ def list_field_companies(org_id: str, user_visibility: str) -> list[str]:
     return [c for c in rows if c]
 
 
+# ---------- NumberPhraseIndex（数字+单位短语倒排索引，离线构建） ----------
+
+def replace_number_phrase_index(rows: list[tuple]) -> int:
+    """整表重建数字短语倒排索引：先删全表，再写入 (phrase, chunk_id, doc_id, org_id, visibility, fiscal_year)。"""
+    with get_session() as s:
+        s.execute(delete(NumberPhraseIndex))
+        for phrase, chunk_id, doc_id, org_id, visibility, fiscal_year in rows:
+            s.add(
+                NumberPhraseIndex(
+                    phrase=phrase,
+                    chunk_id=chunk_id,
+                    doc_id=doc_id,
+                    org_id=org_id,
+                    visibility=visibility,
+                    fiscal_year=fiscal_year,
+                )
+            )
+        s.commit()
+        return len(rows)
+
+
+def query_number_phrase_index(
+    phrases: list[str],
+    org_id: str,
+    user_visibility: str,
+    fiscal_year: int | None = None,
+    doc_ids: list[str] | None = None,
+    limit: int = 50,
+) -> list[tuple[str, str]]:
+    """数字短语精确查询：短语 → [(chunk_id, doc_id)]，按权限/年份/文档过滤。"""
+    from app.store.qdrant import visible_levels
+
+    if not phrases:
+        return []
+    with get_session() as s:
+        stmt = (
+            select(NumberPhraseIndex.chunk_id, NumberPhraseIndex.doc_id)
+            .where(
+                NumberPhraseIndex.phrase.in_(list(phrases)),
+                NumberPhraseIndex.org_id == org_id,
+                NumberPhraseIndex.visibility.in_(visible_levels(user_visibility)),
+            )
+            .distinct()
+            .limit(limit)
+        )
+        if fiscal_year is not None:
+            stmt = stmt.where(NumberPhraseIndex.fiscal_year == fiscal_year)
+        if doc_ids:
+            stmt = stmt.where(NumberPhraseIndex.doc_id.in_(doc_ids))
+        return list(s.execute(stmt).all())
+
+
 # ---------- EvalResult（评测结果） ----------
 
 def save_eval_result(eval_name: str, scope: str, metrics: dict, payload: dict | None = None) -> EvalResult:
@@ -271,6 +332,36 @@ def save_eval_result(eval_name: str, scope: str, metrics: dict, payload: dict | 
         s.commit()
         s.refresh(rec)
         return rec
+
+
+# ---------- RetrievalFallbackLog（分级降级日志） ----------
+
+def log_fallback(
+    question: str,
+    level: str,
+    trigger_reason: str,
+    real_hits: int,
+    candidate_count: int,
+    params_json: str = "{}",
+    org_id: str = "default",
+) -> None:
+    """记录一次降级触发/每级执行的召回健康度（§11，供迭代优化词典与规则）。"""
+    try:
+        with get_session() as s:
+            s.add(
+                RetrievalFallbackLog(
+                    org_id=org_id,
+                    question=(question or "")[:500],
+                    level=level,
+                    trigger_reason=(trigger_reason or "")[:64],
+                    real_hits=int(real_hits),
+                    candidate_count=int(candidate_count),
+                    params_json=params_json[:2000],
+                )
+            )
+            s.commit()
+    except Exception as e:  # noqa: BLE001  日志失败不影响检索主流程
+        logger.warning("降级日志写入失败（忽略）: %s", e)
 
 
 # ---------- 串行持久化（断点续跑） ----------

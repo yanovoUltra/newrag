@@ -6,7 +6,8 @@ import time
 from pathlib import Path
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.logging import get_logger, set_trace_id
+from app.core.otel import enabled, get_tracer
 from app.embed.embedder import get_embedder
 from app.parsers.base import LayoutResult, parse_layout
 from app.parsers.ocr import ocr_page_images
@@ -21,6 +22,15 @@ logger = get_logger(__name__)
 
 class PipelineError(Exception):
     pass
+
+
+def _log_stage(doc_id: str, stage: str, t0: float, span=None) -> None:
+    """阶段耗时埋点（JSON 日志带 trace_id=doc:{doc_id}，可串起整条入库链路；
+    OTel 启用时同时记录 span attribute stage_{stage}_s，trace 内一眼看各阶段耗时）。"""
+    dur = time.monotonic() - t0
+    logger.info("doc %s stage %s done: %.1fs", doc_id, stage, dur)
+    if span is not None:
+        span.set_attribute(f"stage_{stage}_s", round(dur, 2))
 
 
 def _update_task_progress(task_id: str, stage: str, progress: int, message: str = "") -> None:
@@ -45,8 +55,18 @@ def run_ingest(
     """串行执行全流程；中间结果落盘 data/pipeline/{doc_id}/，可断点续跑。"""
     settings = get_settings()
     deadline = time.monotonic() + settings.ingest_timeout
+    # 后台任务独立链路：trace_id 固定为 doc:{doc_id}，入库各阶段日志可串联
+    set_trace_id(f"doc:{doc_id}")
+    t_start = time.monotonic()
+    span = None
+    if enabled():
+        span = get_tracer("ingest").start_span("ingest.run")
+        span.set_attribute("doc_id", doc_id)
+        span.set_attribute("file", str(file_path))
+        span.set_attribute("org_id", org_id)
     try:
         # ---- 阶段 1：解析（版式层）----
+        t0 = time.monotonic()
         if task_id:
             _update_task_progress(task_id, "parse", 15, "正在解析文档")
         update_document(doc_id, status="parsing")
@@ -76,8 +96,10 @@ def run_ingest(
             clean_layout(layout)
             save_stage(doc_id, "layout", layout.to_dict())
         _check_deadline(deadline, doc_id)
+        _log_stage(doc_id, "parse", t0, span)
 
         # ---- 阶段 2：章节树（结构层）----
+        t0 = time.monotonic()
         if task_id:
             _update_task_progress(task_id, "chunk", 40, "正在构建章节树")
         update_document(doc_id, status="chunking")
@@ -96,8 +118,10 @@ def run_ingest(
             field_records = extract_fields(doc_id, layout, sections)
             n_fields = replace_fields(doc_id, field_records, org_id, visibility)
             logger.info("doc %s fields extracted: %d", doc_id, n_fields)
+        _log_stage(doc_id, "sections", t0, span)
 
         # ---- 阶段 3：切分（Small-to-Big + 语义精切）----
+        t0 = time.monotonic()
         if not stage_done(doc_id, "chunks"):
             # 3a) 结构叶子（章节/表格边界 + 目标 token 聚合）
             leaves = build_leaves(doc_id, layout, sections, doc_title=file_path.stem)
@@ -112,6 +136,7 @@ def run_ingest(
         if not chunks:
             raise PipelineError("切分结果为空（文档无可检索内容）")
         _check_deadline(deadline, doc_id)
+        _log_stage(doc_id, "chunks", t0, span)
 
         # ---- 阶段 3.5：字段 source_chunk_id 回填（relay 强候选前提）----
         # 依赖阶段 3 的叶子块（内容含 指标标签+数值 才能定位），故必须在切分后执行；
@@ -128,6 +153,7 @@ def run_ingest(
         _check_deadline(deadline, doc_id)
 
         # ---- 阶段 4：向量化（稠密 + 稀疏）----
+        t0 = time.monotonic()
         if task_id:
             _update_task_progress(task_id, "embed", 65, f"正在向量化 {len(chunks)} 个分块")
         update_document(doc_id, status="embedding")
@@ -154,8 +180,10 @@ def run_ingest(
         if len(vectors) != len(chunks):
             raise PipelineError("向量数与分块数不一致，中止入库")
         _check_deadline(deadline, doc_id)
+        _log_stage(doc_id, "embed", t0, span)
 
         # ---- 阶段 5：入库 ----
+        t0 = time.monotonic()
         if task_id:
             _update_task_progress(task_id, "index", 85, "正在写入向量库")
         doc = get_document(doc_id)
@@ -175,11 +203,21 @@ def run_ingest(
         if task_id:
             _update_task_progress(task_id, "index", 100, "入库完成")
             update_task(task_id, status="success", progress=100, message=f"解析完成，共 {n} 个分块")
-        logger.info("doc %s indexed: %d chunks", doc_id, n)
+        _log_stage(doc_id, "index", t0, span)
+        logger.info("doc %s ingest total: %.1fs", doc_id, time.monotonic() - t_start)
+        if span is not None:
+            span.set_attribute("total_s", round(time.monotonic() - t_start, 2))
+            span.end()
         return {"doc_id": doc_id, "chunks": n}
 
     except Exception as e:
         logger.exception("ingest failed for doc %s", doc_id)
+        if span is not None:
+            from opentelemetry.trace import Status, StatusCode
+
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, str(e)[:200]))
+            span.end()
         # 三写补偿：Qdrant 写入失败/半写时，回滚该文档已写入的向量点，
         # 避免"向量库有孤儿点、registry 却标记 failed"的不一致（文件/阶段产物保留供断点续跑）。
         try:

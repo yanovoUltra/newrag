@@ -131,16 +131,25 @@ async def upload_document(
         fiscal_quarter=fiscal_quarter,
     )
     task = create_task(doc.id, type_="ingest")
-    background.add_task(
-        run_ingest,
-        doc.id,
-        stored_path,
-        org_id,
-        visibility,
-        fiscal_year,
-        fiscal_quarter,
-        task.id,
-    )
+    # 阶段四：任务后端可切换——celery 走独立 worker（broker=Redis），background 保持进程内线程池
+    settings = get_settings()
+    if settings.task_backend == "celery":
+        from app.tasks.ingest_task import ingest_document
+
+        ingest_document.delay(
+            doc.id, str(stored_path), org_id, visibility, fiscal_year, fiscal_quarter, task.id
+        )
+    else:
+        background.add_task(
+            run_ingest,
+            doc.id,
+            stored_path,
+            org_id,
+            visibility,
+            fiscal_year,
+            fiscal_quarter,
+            task.id,
+        )
     return {"task_id": task.id, "doc_id": doc.id, "status": "pending"}
 
 

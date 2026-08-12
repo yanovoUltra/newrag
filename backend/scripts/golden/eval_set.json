@@ -1,0 +1,4527 @@
+{
+ "_说明": "整合测试集（2026-08-11）：由 offline_277.json（299 题，157 指标 + 142 非指标）与 holdout_30.json（30 题）合并；删除生产真实路径 rerank 口径 NDCG@8<0.3 的低分题 90 道（offline 非指标 81 + holdout 9），指标题全保留（rerank 无低分）。语料 28424 块。",
+ "usage": "python scripts/eval_ablation.py（默认加载本文件）；--skip-metric 只测非指标题；--golden 指定其他文件",
+ "n": 239,
+ "questions": [
+  {
+   "question": "中芯国际2024年加权平均净资产收益率是多少？",
+   "snippet": "2.5",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "What was Tesla's total profit in fiscal year 2024?",
+   "snippet": "8,990",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "7c795751124849f199948a56ae081f5f",
+    "c4c356c1140c4655988bf072dccfd9c4",
+    "57190322ddf043a3934902cd56f7844a",
+    "9dd666057f5341adac77db15b0a8d939"
+   ],
+   "relevant_fingerprints": [
+    "e3bbb66915124a1fa9dcef4d489bc9afce82968a65b5192cfa3459746ab2950e",
+    "6d818c97d93b5eed5c5841b2d25483246b3ea68ead0703db95213f2ccb55441d",
+    "87d427fd6bf9776830723bace9bcb2414d98ebdfa8912f7926672398db053c98",
+    "4d12ddb600aa35299d0add60a8608c52a9cfbaa824be09d9d31b89bc4c71f03c"
+   ]
+  },
+  {
+   "question": "招商銀行2024年归属于母公司股东的净利润是多少？",
+   "snippet": "148,391",
+   "unit": "元",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "招商銀行",
+   "relevant_chunk_ids": [
+    "f28595e8de594635bc5f5d41cd7f26a1"
+   ],
+   "relevant_fingerprints": [
+    "a40a0096083e857196f34f8ab3b79b9c1453fae9bb47dc515a9dd2bd35c3ae84"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2024年利润总额是多少？",
+   "snippet": "61,258,945",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "2296800f367f4186a9138732a5ba0c27"
+   ],
+   "relevant_fingerprints": [
+    "dde185ec71cd7714debcee6af8c9065c2dfe02944d294ad52277d299c2e437ea"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2022年利润总额是多少？",
+   "snippet": "56,149",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2022,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2025年归属于母公司股东的净利润是多少？",
+   "snippet": "2,157,771,928.04",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "68e08e33f28347e697fa347c42b68fdb"
+   ],
+   "relevant_fingerprints": [
+    "4522657d0d30b2b7cd14edcdf58bceb1b08cbb6f52d87f84857f71ee0d61be8a"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2024年经营活动现金流量净额是多少？",
+   "snippet": "33,939,755,192.78",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "e7f98cce18e5499a952a481c974eb884",
+    "df3aa1fd272c45529016f9b4538b138e",
+    "d9ba030455674409828c303e3d1dfe42",
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2c8b0cde20ce5b513afd94e4e04e6c0755a133abacf889bbe00e930e7bffd1b1",
+    "d145876279538f0e1bfc2fcfb2eefb0fbd8a616917681d3bd9d45d292fed8d8d",
+    "ee3db6d6ae419a437f1e94cad1f6c6a8609db86b754b10b5f5c4ba3768054f30",
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年归属于母公司股东的净利润是多少？",
+   "snippet": "2,054,937,618.09",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "68e08e33f28347e697fa347c42b68fdb"
+   ],
+   "relevant_fingerprints": [
+    "4522657d0d30b2b7cd14edcdf58bceb1b08cbb6f52d87f84857f71ee0d61be8a"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年加权平均净资产收益率是多少？",
+   "snippet": "5.21",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "中芯国际2025年基本每股收益是多少？",
+   "snippet": "0.63",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5",
+    "2c36726da6ab449fbffb89242e020d7f",
+    "cf38420138864021b346964c6fc75fa7",
+    "3d96c500a90f426b97d29b540ef636a0"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435",
+    "10834df6732369ae55d4d72ceee567e100770336730da91ebfd4b340cbe0ab0b",
+    "173971a9e6800ebe30be3ab21be00743fa5af7bc6927eeac343bacf8d4291671",
+    "edde20119ed2ce27a54a6c539aa3481457c15c785ee8a83c95ecc95cc9acf805"
+   ]
+  },
+  {
+   "question": "贵州茅台2025年利润总额是多少？",
+   "snippet": "114,755,261,605.08",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2025,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da",
+    "b6ec05ff40c14a8084da15f921e78656",
+    "a31853370e574a97ab3f415e0803592d"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243",
+    "1500cb510d09b823d728d4002d15c3ca3488262766a03f17fa24c4a65ffd361e",
+    "359c3aa4d495dc0f3339b06fb1f44be48cb64e98df15a883249f5fb8c0264ffa"
+   ]
+  },
+  {
+   "question": "贵州茅台2023年净资产是多少？",
+   "snippet": "215,668,571,607.43",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2023,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "中芯国际2025年营业收入是多少？",
+   "snippet": "67,323,192",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "53928f334e2545a09f7538bb34d1e3de",
+    "f0e21abf9dff48fc85b6320b868269c7",
+    "671d1a133ae547c4851e73163c0378a8",
+    "279a6201d43647e8b322cca9d2f95965",
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "f9eb03df70fac05ce1f588e7a57fbf93d5130da4c7163f33d1d3f02ae2b5411b",
+    "51b4ef71d5ae369b1d3a762ee3ebcbbe366a0fee07adc807f88360df49b6d21b",
+    "7f65dad797a948d08d1c509e10df2c35f5209bb280e9d54e27d2b1efe01da176",
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "What was CXMT's basic earnings per share in fiscal year 2025?",
+   "snippet": "0.03",
+   "unit": "",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "9703b2ffeb024bf18bb32d05e4edd801",
+    "08c05bf1b44b48aa81c2330573942d63",
+    "4cc567136a954a28bfce81070acb4710",
+    "cacf1fa363ed420c916874ed3744bf9b"
+   ],
+   "relevant_fingerprints": [
+    "bc7d936c8e9f2927136368cbb6a6af5443f1c322dc4f03ba99f875663a3dd255",
+    "4178382277b2909ca31ca9d3eb58eafc65b74e9beda31ff4a04685bb5b92e452",
+    "a28990a461dcaf25c29f548d0351252eae509c90cf3eb90236fe12f119bcc7e8",
+    "d7547d0d4c0e2415197323f4cc8705dd9363ce1d9ccc28019a735d82d7a21cd3"
+   ]
+  },
+  {
+   "question": "比亚迪2025年加权平均净资产收益率是多少？",
+   "snippet": "15.31%",
+   "unit": "%",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2025,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2025年营业收入是多少？",
+   "snippet": "45,104,844,200.13",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1",
+    "eecbe0f572244039888704e7424fd477",
+    "793a590fff1641e4abcd56bbfbdd880f",
+    "5bc0ce0730c04e5e871e37194440c0c5",
+    "39d3dd7227cd4ef7ace2859f315e8f7b",
+    "d70b1cdcd88347358d359dbb2f106352"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "464247b67535138ee1dc4b9152b48b71c4bfc96ef6dfa9fd472025be50660f7c",
+    "be733794b6be0a635765fe4aebba59e80d2d16a2291c054d0fe72871f51b6401",
+    "c3791aaaa88c50a94aded1360a1bd75a33153515e326aac4275dbc03e25247f8",
+    "bf037e35685adbbdfe27f0abdd8921cd57c3f5e87903650ee29330dd59401cc7",
+    "de9f9afb688fbb76723740d52dcd4ace8026c4dacb184e9aa242feb0da67655d"
+   ]
+  },
+  {
+   "question": "比亚迪2024年加权平均净资产收益率是多少？",
+   "snippet": "26.05%",
+   "unit": "%",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2023年基本每股收益是多少？",
+   "snippet": "1.78",
+   "unit": "",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7"
+   ]
+  },
+  {
+   "question": "中芯国际2024年归属于母公司股东的净利润是多少？",
+   "snippet": "3,698,665",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "fef4e370185b49e9be881e5950072d86",
+    "3c04933e587e4eeca4315f42ef2e64dc",
+    "cab89d4c211d431aba2881b43c80f84c",
+    "279a6201d43647e8b322cca9d2f95965",
+    "70b4c5eeea0b4f8c9714e8f96c081a90",
+    "bf316e702b394ea997180d18015036d2"
+   ],
+   "relevant_fingerprints": [
+    "5e1094fd7e6fac962266b4d80e7c5e053981cb2483aba87b1f9cd29c059574db",
+    "c0e8d6f451eef00dce76ec01b9a8b4dc1f1cc037eb2a75592ed0fa3f3a47d6d0",
+    "dad5dd4abcd7b599b637c2bce8b16e7b4642d9a8b298d023889134a7c17f2079",
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d",
+    "17c0357cef57a9252126cf7c921e3628fef301957c27f57dd26fbe3bdc447534"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2024年总资产是多少？",
+   "snippet": "188,252,218,704.17",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "What was Tesla's total net sales in fiscal year 2024?",
+   "snippet": "97,690",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "5199c8e379b84124a25108da53989ec5",
+    "98dd48e611f248e8b87f96bc061669c5",
+    "ffcafaad87a045e0affe19878ecec942",
+    "8d4151e17b984956b9e2cf374b8583fa"
+   ],
+   "relevant_fingerprints": [
+    "34e3fff38aca6e1fef6de7aaa9b58082bfc7cc9840677dac159c19ace43f4886",
+    "7c3aed38f529debdb8dd9792acee7fb62ccd125bf4a9c6b670dda71cc58a4338",
+    "99d8b65a2d31240e3c956258376dc40dae825083fe68ecf63f67c9e4742d3a4b",
+    "76ea05c4da724730b993f1af77781f032fb7fbd0922b8e268f0bb8373ecdca54"
+   ]
+  },
+  {
+   "question": "中芯国际2025年净利率是多少？",
+   "snippet": "10.7",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_margin",
+   "metric_label": "净利率",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "比亚迪2025年经营活动现金流量净额是多少？",
+   "snippet": "59,135,544,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "e01f845e65ec4048bb0776ffdbc12e45",
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "fdf8cd6a560459a96cb3be2965c434cf31120eecf9e652956b9884f4414efe3f",
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "贵州茅台2025年总资产是多少？",
+   "snippet": "303,834,844,021.44",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2025年加权平均净资产收益率是多少？",
+   "snippet": "16.34%",
+   "unit": "%",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2025,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1",
+    "246c6561768f441dbecd560550d01065"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "18c607a988c56f5d15afb327d9bc034cd7dd82237df492a2b878585228314c6c"
+   ]
+  },
+  {
+   "question": "中芯国际2025年加权平均净资产收益率是多少？",
+   "snippet": "3.4",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5",
+    "3d96c500a90f426b97d29b540ef636a0"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435",
+    "edde20119ed2ce27a54a6c539aa3481457c15c785ee8a83c95ecc95cc9acf805"
+   ]
+  },
+  {
+   "question": "What was CXMT's total assets in fiscal year 2023?",
+   "snippet": "192,756,332,790.52",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "6e10096824d84d34a0fe896eb5924d26"
+   ],
+   "relevant_fingerprints": [
+    "83c79df8ef13faf4fa6707dfb396da9c3b8e7c81e489b8e4f069bea61a5d8919"
+   ]
+  },
+  {
+   "question": "贵州茅台2025年加权平均净资产收益率是多少？",
+   "snippet": "32.53",
+   "unit": "",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2025,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "30d7c72df5824ce29148e37d646900f8",
+    "e092c03770c54ba99517e5b0d3308eb7"
+   ],
+   "relevant_fingerprints": [
+    "61e68e0493550a4f7352d81d3e9ead66990ae86c54e15f3fab51d4e08ebd6574",
+    "741549305955581f532b777e9fdfb6ff1590a80e75acda95794ce6a32464e7fb"
+   ]
+  },
+  {
+   "question": "比亚迪2024年基本每股收益是多少？",
+   "snippet": "4.61",
+   "unit": "",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年营业利润是多少？",
+   "snippet": "2,134,949,360.67",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "68e08e33f28347e697fa347c42b68fdb"
+   ],
+   "relevant_fingerprints": [
+    "4522657d0d30b2b7cd14edcdf58bceb1b08cbb6f52d87f84857f71ee0d61be8a"
+   ]
+  },
+  {
+   "question": "中芯国际2023年营业收入是多少？",
+   "snippet": "45,250,425",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "中芯国际2024年净利率是多少？",
+   "snippet": "9.3",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_margin",
+   "metric_label": "净利率",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年归属于母公司股东的净利润是多少？",
+   "snippet": "14,107,726,276.26",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2025年利润总额是多少？",
+   "snippet": "12,198,853,038.23",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2025,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "d67dae1e53774d2996670679cd9b7725",
+    "03245656941742f9a8b9a3c67a9ca65e"
+   ],
+   "relevant_fingerprints": [
+    "c39790ef131a9d70f279ab62a617fbba3c469a7675d410b7b30d88a089087be0",
+    "685a5f9c6edcba2ca3600487f7bcb4018104f63d8ff9715e9abbd97e9886af49"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2025年加权平均净资产收益率是多少？",
+   "snippet": "6.89%",
+   "unit": "%",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2025,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350",
+    "485522eb8d0a44ed99716613c2d8d730"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71",
+    "feec9a40d61ec7cd5af9b979e0af132b111d8cede1b0382432b738ec9f190862"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年利润总额是多少？",
+   "snippet": "40,692",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年营业收入是多少？",
+   "snippet": "173,434",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "5850906fef4d4143a8ee39981b2e8632",
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "67c8671d4c5c7ac6abdea4f5c1402e785776e14332a923713b2bca6cf3def2d5",
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "贵州茅台2025年营业利润是多少？",
+   "snippet": "97,660,769,725.31",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2025,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "ea27d71bdd1f4e0ead4078dc73c8d585"
+   ],
+   "relevant_fingerprints": [
+    "600b56ee89aa3c0ee45f3583607eacce608588fd2f3ef3b42c3c72ec6727c2a4"
+   ]
+  },
+  {
+   "question": "What was CXMT's operating income in fiscal year 2024?",
+   "snippet": "-8,968,756,605.63",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2024,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "d9b780bfe27e4c5eacc08c5d6eca6928"
+   ],
+   "relevant_fingerprints": [
+    "c1055b75cd7f600b7b2497415def130eaad998a50c2c90b7314c422392b69162"
+   ]
+  },
+  {
+   "question": "中芯国际2024年毛利率是多少？",
+   "snippet": "18.6",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "gross_margin",
+   "metric_label": "毛利率",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2023年营业收入是多少？",
+   "snippet": "30,419,925,397.64",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年营业收入是多少？",
+   "snippet": "170,748",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "5850906fef4d4143a8ee39981b2e8632",
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "67c8671d4c5c7ac6abdea4f5c1402e785776e14332a923713b2bca6cf3def2d5",
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "What was CXMT's total profit in fiscal year 2024?",
+   "snippet": "-904,865.71",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "0d71b85490f44a6dbad0af919ce60198",
+    "9b899fa522134ddbb24c011a882f318d"
+   ],
+   "relevant_fingerprints": [
+    "50cc7185c7c662714b55e297a1148eb456d80aa7934baaf319f6ea0388bd34e3",
+    "7556b9c6fd839d72502d595db0aa5e98a530f69e9122851985b1e2f6bc8d62d0"
+   ]
+  },
+  {
+   "question": "What was Apple's net income in fiscal year 2022?",
+   "snippet": "99,803",
+   "unit": "元",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2022,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "2c7208e5bdb94add816b3c03b07bbe78",
+    "a4220bac61f84692a42d9711ec8a5cda",
+    "a37beb3785704d45b8f8949affd84473",
+    "557f2b2cee7a40ada0e8260a6241a838",
+    "5f2c116c4fa0485a89a8f2004ed0f55c"
+   ],
+   "relevant_fingerprints": [
+    "5990c33bf93bc33492d7b58a85e86d9eb54839f7bd750230cc8ca2bc9c9b07cf",
+    "c38a2af01ca58da2666f66cfe5bad327b469feebb427635005ad6e3b863a8d2c",
+    "34801e224aee772c3dc6151a3097f5f460904eec44eb05dcd7db7f645c2d31d9",
+    "79ac0e0faa78f2e1368afff70b15877d2bd3ef8f13a8e3c92681131066572cb6",
+    "981a5cf68338e6c3686eed971cc8d2f67075ca04bb1cef7661309b68bc5918cb"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年营业收入是多少？",
+   "snippet": "37,040,952,138.72",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1",
+    "2e276a66a0c3492a89450fc24213fcde",
+    "793a590fff1641e4abcd56bbfbdd880f",
+    "39d3dd7227cd4ef7ace2859f315e8f7b"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "06c043ad03f0fe36f71cbe2341fba4f3e224c5887fcfff9250c0fac953f43abe",
+    "be733794b6be0a635765fe4aebba59e80d2d16a2291c054d0fe72871f51b6401",
+    "bf037e35685adbbdfe27f0abdd8921cd57c3f5e87903650ee29330dd59401cc7"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2025年总资产是多少？",
+   "snippet": "71,314,393,635.15",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e7839925a18245ba999da3ca8f07e1a4",
+    "e304bc892e9249beb2329211d4d30bf1",
+    "3e60bff6e0b54aebb53a5d7ecf48a921"
+   ],
+   "relevant_fingerprints": [
+    "acb18fc30ad520f7d35fcc924686f9e627cc1e0f8dd5446ab318fbc4a2ae943b",
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "9e9fc8961a1d75d56a271c62a132ffa08c39211c1dbf50b8f51b53c2b9f85cb5"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2025年营业利润是多少？",
+   "snippet": "12,251,151,014.43",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2025,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "03245656941742f9a8b9a3c67a9ca65e"
+   ],
+   "relevant_fingerprints": [
+    "685a5f9c6edcba2ca3600487f7bcb4018104f63d8ff9715e9abbd97e9886af49"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年总资产收益率是多少？",
+   "snippet": "0.50",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "roa",
+   "metric_label": "总资产收益率",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "a3d4ab16fc834e0c8227159d8a185e3f",
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "3075acc7248cfe4f6ac04e61384bd37ca01972a87b6a477312ad7075139090de",
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "What was Apple's basic earnings per share in fiscal year 2023?",
+   "snippet": "6.16",
+   "unit": "",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "2c7208e5bdb94add816b3c03b07bbe78",
+    "a37beb3785704d45b8f8949affd84473"
+   ],
+   "relevant_fingerprints": [
+    "5990c33bf93bc33492d7b58a85e86d9eb54839f7bd750230cc8ca2bc9c9b07cf",
+    "34801e224aee772c3dc6151a3097f5f460904eec44eb05dcd7db7f645c2d31d9"
+   ]
+  },
+  {
+   "question": "贵州茅台2024年总资产是多少？",
+   "snippet": "298,944,579,918.70",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2025年基本每股收益是多少？",
+   "snippet": "16.14",
+   "unit": "",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "42b7be9047ae4260a8f0385ef3ba11a4",
+    "8db94cc2892d4b7b9d2d4361cc3b4360",
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "373ff022df123e7e5aeae0b0679ee0449ccab14f42570817c3e218128801f43d",
+    "d7c9a9c58a4f6c4db9bf4f5ec459c8c22dde4022599f15f416672e03e51b50bc",
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2024年总资产是多少？",
+   "snippet": "132,016,200,156.14",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年归属于母公司股东的净利润是多少？",
+   "snippet": "36,702",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "18d629549e084aebbebd2881b544e5f2",
+    "4b44ff4b27e145f89c280d74e83d4bde",
+    "bdd88f99d4d942179b658238bb5a86c0"
+   ],
+   "relevant_fingerprints": [
+    "b767b7ac654ff8867f9101db561d6bbdff893276a4282b57f41f4f1e0386da36",
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791",
+    "958e1b6bdb611b2e2ef54a8a203447ff6d74f2f48ee5a79c4745f7726f479d21"
+   ]
+  },
+  {
+   "question": "中芯国际2023年归属于母公司股东的净利润是多少？",
+   "snippet": "4,822,814",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2023,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年总资产是多少？",
+   "snippet": "138,858,122,879.55",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2025年总资产是多少？",
+   "snippet": "189,984,270,815.47",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年加权平均净资产收益率是多少？",
+   "snippet": "19.64%",
+   "unit": "%",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "比亚迪2023年加权平均净资产收益率是多少？",
+   "snippet": "24.40%",
+   "unit": "%",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2023,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "What was CXMT's basic earnings per share in fiscal year 2023?",
+   "snippet": "-0.30",
+   "unit": "",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "9703b2ffeb024bf18bb32d05e4edd801",
+    "4cc567136a954a28bfce81070acb4710",
+    "cacf1fa363ed420c916874ed3744bf9b"
+   ],
+   "relevant_fingerprints": [
+    "bc7d936c8e9f2927136368cbb6a6af5443f1c322dc4f03ba99f875663a3dd255",
+    "a28990a461dcaf25c29f548d0351252eae509c90cf3eb90236fe12f119bcc7e8",
+    "d7547d0d4c0e2415197323f4cc8705dd9363ce1d9ccc28019a735d82d7a21cd3"
+   ]
+  },
+  {
+   "question": "What was Apple's total assets in fiscal year 2023?",
+   "snippet": "352,583",
+   "unit": "元",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "8c09dea5fb084bd9b6c5954607ca320c"
+   ],
+   "relevant_fingerprints": [
+    "37b5f02efd740067835de013ab2a06e6ea52221cb86607db2ed0d8715fd82fed"
+   ]
+  },
+  {
+   "question": "中芯国际2025年毛利率是多少？",
+   "snippet": "21.6",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "gross_margin",
+   "metric_label": "毛利率",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2023年总资产是多少？",
+   "snippet": "165,432,981,684.75",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "What was Apple's basic earnings per share in fiscal year 2022?",
+   "snippet": "6.15",
+   "unit": "",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2022,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "2c7208e5bdb94add816b3c03b07bbe78",
+    "a37beb3785704d45b8f8949affd84473"
+   ],
+   "relevant_fingerprints": [
+    "5990c33bf93bc33492d7b58a85e86d9eb54839f7bd750230cc8ca2bc9c9b07cf",
+    "34801e224aee772c3dc6151a3097f5f460904eec44eb05dcd7db7f645c2d31d9"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2024年利润总额是多少？",
+   "snippet": "44,163,325,242.01",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "03245656941742f9a8b9a3c67a9ca65e"
+   ],
+   "relevant_fingerprints": [
+    "685a5f9c6edcba2ca3600487f7bcb4018104f63d8ff9715e9abbd97e9886af49"
+   ]
+  },
+  {
+   "question": "What was Tesla's gross margin in fiscal year 2024?",
+   "snippet": "18.4",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "gross_margin",
+   "metric_label": "毛利率",
+   "year": 2024,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "7182a7fd8ee84c4d89c3a9af5412cd8b",
+    "9e6343920c0f41ada1ee15432f54f50b"
+   ],
+   "relevant_fingerprints": [
+    "97034f145a86a8fc1fce767771c1d973344e27761e79a479e25315841c40386b",
+    "69dc310cbc8382a573272023c86b3a8b00d5353bd7d1488fb924e62fde1e305c"
+   ]
+  },
+  {
+   "question": "比亚迪2024年总资产是多少？",
+   "snippet": "783,355,855,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "What was CXMT's net income in fiscal year 2025?",
+   "snippet": "-282,524.37",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "2eaf9f58f732443bbe46b3bd757169dd",
+    "f0101d84dd8c4f3fb3929cb1a9378be3"
+   ],
+   "relevant_fingerprints": [
+    "de56000ee9307ae500d908a9b78d0a3030a7d4fc5a2e2e7be68db32c37d7acab",
+    "840f618bfbd1e9cd6ef42ba20100d51bcb584abba5ae34a569d2942e8c3e0616"
+   ]
+  },
+  {
+   "question": "贵州茅台2024年基本每股收益是多少？",
+   "snippet": "68.64",
+   "unit": "",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "a435769d56e94d4fada921a57e0d1095",
+    "e092c03770c54ba99517e5b0d3308eb7"
+   ],
+   "relevant_fingerprints": [
+    "0464028cf5c4ef537077f35fd6beb1d9a82e4427d9f062f8e148384b9642aaa5",
+    "741549305955581f532b777e9fdfb6ff1590a80e75acda95794ce6a32464e7fb"
+   ]
+  },
+  {
+   "question": "What was Tesla's total assets in fiscal year 2025?",
+   "snippet": "137,806",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "09d8e4d4ea6e4d11a9ad35411a27e2e9",
+    "ff04023e0fa546db9c8d244fd5f98e0a"
+   ],
+   "relevant_fingerprints": [
+    "4be324751bb9e118817cf01e52decd78c40c93228b8b28299dd29e24ce0d3b92",
+    "b10ee7311c0c57f4b4d94348582255352aef328fd03299c19530be8307bf3e97"
+   ]
+  },
+  {
+   "question": "中芯国际2024年营业收入是多少？",
+   "snippet": "57,795,570",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "53928f334e2545a09f7538bb34d1e3de",
+    "279a6201d43647e8b322cca9d2f95965",
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "f9eb03df70fac05ce1f588e7a57fbf93d5130da4c7163f33d1d3f02ae2b5411b",
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "中芯国际2025年总资产是多少？",
+   "snippet": "367,718,196",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2023年基本每股收益是多少？",
+   "snippet": "7.7830",
+   "unit": "",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "中芯国际2023年净利率是多少？",
+   "snippet": "14.1",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_margin",
+   "metric_label": "净利率",
+   "year": 2023,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "比亚迪2023年经营活动现金流量净额是多少？",
+   "snippet": "169,725,025,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2023,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "比亚迪2024年营业收入是多少？",
+   "snippet": "777,102,455,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "62a86368f44d451a9e8a20d1414365de",
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d6e57c8953c4437b79489c2ec51ce8f62d5973c422b54cf35daf5cda9f1670fa",
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "中芯国际2024年营业利润是多少？",
+   "snippet": "6,298,647",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "279a6201d43647e8b322cca9d2f95965"
+   ],
+   "relevant_fingerprints": [
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2024年营业利润是多少？",
+   "snippet": "44,200,075,710.37",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2024,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "03245656941742f9a8b9a3c67a9ca65e"
+   ],
+   "relevant_fingerprints": [
+    "685a5f9c6edcba2ca3600487f7bcb4018104f63d8ff9715e9abbd97e9886af49"
+   ]
+  },
+  {
+   "question": "What was CXMT's net cash from operating activities in fiscal year 2024?",
+   "snippet": "689,745.85",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "3cb65eb36b80497f88e8eb643822789e",
+    "6f2ba8a9752344508afc79f0c847ba30"
+   ],
+   "relevant_fingerprints": [
+    "80a3eec10a7882e2877aa63866145fb81bdc562348926ab8b6e0cd19961b40e1",
+    "e7c84dfba6fb7ae786317e5dfcd32257177ad1b8a0c44fcde1b0e0b4587b25eb"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2025年基本每股收益是多少？",
+   "snippet": "1.546",
+   "unit": "",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "a80801355ff2498eaa0cdad97df0d3fd",
+    "0ee1a17f904449929d521a690762ce7b",
+    "951cd59f50af4c54b0efc1422c6dd047"
+   ],
+   "relevant_fingerprints": [
+    "2a61d8a2c512a1d3495565fae101fc4a126b70ad16d7ebc8c44edc5e5c9bb823",
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08",
+    "b171225c47f1aa33c27a9c8a1d38d89d5a87a77946bb9fa9b4bd8d23d91a7173"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2025年营业收入是多少？",
+   "snippet": "423,701,834",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "1df184d4e7584c5dab36324b3082f13d",
+    "c99b99d55e70468ca26a09207d47aa00",
+    "f0303cfd6a6b45abb5b4945f0ca70cf0",
+    "a4c605a84afd497281b658baa3f4faa3",
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "9efd4eb9f687b1d3793af7eaf5e415b92be35ae70e0a599ceec5137d645fd892",
+    "012baad6fedaf27b60e278c5a6e51bdcf6c1254a9c0caf70dec9a22f9f73d804",
+    "84429d57e4a4dd1f2de4740b2d10df4da979273d94bee3082df9c85f8b85658d",
+    "08f8eedaed64a22528e54288ed0c2c01942c60ff978fc58f6d0e2b02f822c889",
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "贵州茅台2025年经营活动现金流量净额是多少？",
+   "snippet": "61,522,204,989.35",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da",
+    "192565d2042c40fa9979a41cee9835e8",
+    "1f376a23a7b5424ab675369a6613a138",
+    "b9914d0e18e043dc94b781a2e4e91701"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243",
+    "f995a1528a1b384a606bf15def0faa858bab7d680ecf973825a9aff56399b5b7",
+    "3979999768818545fd27e0a4936b0492add7ae16edf0f678166b8c9af9fee3c8",
+    "ad5d39e25d4d1687324e3e10bb6cccb53d2fc489ca073070f059206cf9cf9de0"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2025年利润总额是多少？",
+   "snippet": "78,630,378",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2025,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "2296800f367f4186a9138732a5ba0c27"
+   ],
+   "relevant_fingerprints": [
+    "dde185ec71cd7714debcee6af8c9065c2dfe02944d294ad52277d299c2e437ea"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2024年基本每股收益是多少？",
+   "snippet": "11.58",
+   "unit": "",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "8db94cc2892d4b7b9d2d4361cc3b4360",
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "d7c9a9c58a4f6c4db9bf4f5ec459c8c22dde4022599f15f416672e03e51b50bc",
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2023年总资产是多少？",
+   "snippet": "717,168,041",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "What was Apple's basic earnings per share in fiscal year 2024?",
+   "snippet": "6.11",
+   "unit": "",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "2c7208e5bdb94add816b3c03b07bbe78",
+    "a37beb3785704d45b8f8949affd84473"
+   ],
+   "relevant_fingerprints": [
+    "5990c33bf93bc33492d7b58a85e86d9eb54839f7bd750230cc8ca2bc9c9b07cf",
+    "34801e224aee772c3dc6151a3097f5f460904eec44eb05dcd7db7f645c2d31d9"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年基本每股收益是多少？",
+   "snippet": "1.60",
+   "unit": "",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "f3c9ab17167e4c3e8a9d91cf72685595",
+    "e304bc892e9249beb2329211d4d30bf1"
+   ],
+   "relevant_fingerprints": [
+    "2be8eb57bb790b52f5b09c96880d5e9c62fe2787ae5b53d9c274b9dadb8ec607",
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7"
+   ]
+  },
+  {
+   "question": "中芯国际2024年经营活动现金流量净额是多少？",
+   "snippet": "22,658,629",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "53928f334e2545a09f7538bb34d1e3de",
+    "bbaeb18cfed8477ab84d0e806583bcda",
+    "99a60214cfe8464385466f85decedf98",
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "f9eb03df70fac05ce1f588e7a57fbf93d5130da4c7163f33d1d3f02ae2b5411b",
+    "1990802db22e886847251575cecc124e225df1c2fbf6009f69d07a7c588e04ba",
+    "8b3b6968f5de0cfb6804bc185a5d0084b92df6ca27f7c5fc6849ebc8cc2d0b9e",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2025年利润总额是多少？",
+   "snippet": "185,590",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2025,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "b9b1ceb7291b41d9879b957615f0676a"
+   ],
+   "relevant_fingerprints": [
+    "d07f02b172a960d472a130863bd10cf9c1543e03c29741477e7cf89d3b5b9abc"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年净资产是多少？",
+   "snippet": "76,354,265,540.14",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年加权平均净资产收益率是多少？",
+   "snippet": "16.52%",
+   "unit": "%",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7"
+   ]
+  },
+  {
+   "question": "What was Apple's total assets in fiscal year 2024?",
+   "snippet": "364,980",
+   "unit": "元",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "8c09dea5fb084bd9b6c5954607ca320c"
+   ],
+   "relevant_fingerprints": [
+    "37b5f02efd740067835de013ab2a06e6ea52221cb86607db2ed0d8715fd82fed"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2024年加权平均净资产收益率是多少？",
+   "snippet": "23.35%",
+   "unit": "%",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年总资产收益率是多少？",
+   "snippet": "0.42",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "roa",
+   "metric_label": "总资产收益率",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "What was CXMT's total net sales in fiscal year 2025?",
+   "snippet": "620,169.05",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "2eaf9f58f732443bbe46b3bd757169dd",
+    "f0101d84dd8c4f3fb3929cb1a9378be3"
+   ],
+   "relevant_fingerprints": [
+    "de56000ee9307ae500d908a9b78d0a3030a7d4fc5a2e2e7be68db32c37d7acab",
+    "840f618bfbd1e9cd6ef42ba20100d51bcb584abba5ae34a569d2942e8c3e0616"
+   ]
+  },
+  {
+   "question": "中芯国际2024年利润总额是多少？",
+   "snippet": "6,292,022",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "279a6201d43647e8b322cca9d2f95965",
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "What was Tesla's net income in fiscal year 2024?",
+   "snippet": "7,153",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "4b99c65686064d18a1d332c298344d09",
+    "1ddc3e99ca504ecc811ebef738a0794b",
+    "fad9d8168fa240c79e9e9b3577207da9",
+    "9dd666057f5341adac77db15b0a8d939"
+   ],
+   "relevant_fingerprints": [
+    "4a371bef116188c13fa3ea3ae2243b417a9f5d82c09e9a029c85e331ab6ff5f4",
+    "b6153a3b09c440d8a65f569a4d30be51fcb5df542ebae131cff58d779c103deb",
+    "e20eeabc0b8a1a90e984e69642b3c99ef10076cda2a198c81847b832264c0573",
+    "4d12ddb600aa35299d0add60a8608c52a9cfbaa824be09d9d31b89bc4c71f03c"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2025年归属于母公司股东的净利润是多少？",
+   "snippet": "14,195,371,894.42",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "f99f1e90a27449f8a37e3203fc8d4fc1",
+    "0ee1a17f904449929d521a690762ce7b",
+    "951cd59f50af4c54b0efc1422c6dd047"
+   ],
+   "relevant_fingerprints": [
+    "8b8d8a382e9a9511dcc645470bb7343a0eb72ab6966402cecdd2cbd36b06b49a",
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08",
+    "b171225c47f1aa33c27a9c8a1d38d89d5a87a77946bb9fa9b4bd8d23d91a7173"
+   ]
+  },
+  {
+   "question": "贵州茅台2023年基本每股收益是多少？",
+   "snippet": "59.49",
+   "unit": "",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e092c03770c54ba99517e5b0d3308eb7"
+   ],
+   "relevant_fingerprints": [
+    "741549305955581f532b777e9fdfb6ff1590a80e75acda95794ce6a32464e7fb"
+   ]
+  },
+  {
+   "question": "中芯国际2023年总资产是多少？",
+   "snippet": "338,463,197",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2025年营业收入是多少？",
+   "snippet": "1,050,506",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "9dc7d2a36f874e4ab39b5714f22579b6"
+   ],
+   "relevant_fingerprints": [
+    "c4d3f04ee9de964b3ce182f796093a245ec687053e03ff5316597b0dcf3e633a"
+   ]
+  },
+  {
+   "question": "What was Tesla's total profit in fiscal year 2025?",
+   "snippet": "5,278",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2025,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "7c795751124849f199948a56ae081f5f",
+    "c4c356c1140c4655988bf072dccfd9c4",
+    "57190322ddf043a3934902cd56f7844a",
+    "9dd666057f5341adac77db15b0a8d939"
+   ],
+   "relevant_fingerprints": [
+    "e3bbb66915124a1fa9dcef4d489bc9afce82968a65b5192cfa3459746ab2950e",
+    "6d818c97d93b5eed5c5841b2d25483246b3ea68ead0703db95213f2ccb55441d",
+    "87d427fd6bf9776830723bace9bcb2414d98ebdfa8912f7926672398db053c98",
+    "4d12ddb600aa35299d0add60a8608c52a9cfbaa824be09d9d31b89bc4c71f03c"
+   ]
+  },
+  {
+   "question": "招商銀行2024年经营活动现金流量净额是多少？",
+   "snippet": "447,023",
+   "unit": "元",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "招商銀行",
+   "relevant_chunk_ids": [
+    "d05e4d0a8e8e4bb0b937d7a85972a1b3",
+    "7bf1a568244d4af5aca3b92a65b17ec9"
+   ],
+   "relevant_fingerprints": [
+    "4bac4504e0c8e660a7dd79ee0cf30f01d83ad31159aec0d9fd5bd04092ca21a0",
+    "40959a0239e6861740b3e477744e993f77f6016a71b7c7ea18bd97d8ae328e03"
+   ]
+  },
+  {
+   "question": "What was Apple's total net sales in fiscal year 2023?",
+   "snippet": "383,285",
+   "unit": "元",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "6791f35b72eb4a32b15562f63051b097",
+    "a37beb3785704d45b8f8949affd84473",
+    "f193ceb1034842319a9a95f1b7f4db68",
+    "4c2f246bd4854d61a6bcb6fcc270abcb",
+    "3c801fbd400a480a9c4ac460549857be"
+   ],
+   "relevant_fingerprints": [
+    "4bb2a7b7545435710fa7d21edbba0925fc177b38857cf13ec9edabba25fe09bf",
+    "34801e224aee772c3dc6151a3097f5f460904eec44eb05dcd7db7f645c2d31d9",
+    "44b3430abb0277710f97668bdce879c377981e40e80bc2af66a7121252f4653e",
+    "96291802fa4975c8fe20c31866f9d0ed2a8190e4f47eb40746cb4e4d4cfd279b",
+    "9b4db97f6bfded7da0db1e3fae6fcdea778180a816b8a75d245b5fc6e973d65c"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年总资产是多少？",
+   "snippet": "57,178,824,244.41",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e7839925a18245ba999da3ca8f07e1a4",
+    "e304bc892e9249beb2329211d4d30bf1",
+    "3e60bff6e0b54aebb53a5d7ecf48a921"
+   ],
+   "relevant_fingerprints": [
+    "acb18fc30ad520f7d35fcc924686f9e627cc1e0f8dd5446ab318fbc4a2ae943b",
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "9e9fc8961a1d75d56a271c62a132ffa08c39211c1dbf50b8f51b53c2b9f85cb5"
+   ]
+  },
+  {
+   "question": "What was Tesla's total profit in fiscal year 2023?",
+   "snippet": "9,973",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2023,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "7c795751124849f199948a56ae081f5f",
+    "c4c356c1140c4655988bf072dccfd9c4",
+    "57190322ddf043a3934902cd56f7844a",
+    "9dd666057f5341adac77db15b0a8d939"
+   ],
+   "relevant_fingerprints": [
+    "e3bbb66915124a1fa9dcef4d489bc9afce82968a65b5192cfa3459746ab2950e",
+    "6d818c97d93b5eed5c5841b2d25483246b3ea68ead0703db95213f2ccb55441d",
+    "87d427fd6bf9776830723bace9bcb2414d98ebdfa8912f7926672398db053c98",
+    "4d12ddb600aa35299d0add60a8608c52a9cfbaa824be09d9d31b89bc4c71f03c"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2025年经营活动现金流量净额是多少？",
+   "snippet": "25,339,411,083.10",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "ca4a65885b6a4598b588de7ce18605f6",
+    "0ee1a17f904449929d521a690762ce7b",
+    "5f97920aeab24712abb6f41d4c9319fc",
+    "07ba59a471ed4fe3962afe620fce5076"
+   ],
+   "relevant_fingerprints": [
+    "159654c00752c41d6717fe0cbb5a3e9124d228494ff40bfaa45a424f2696f0cd",
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08",
+    "cab566b67ce6579de0a412889e2aed44c456c4b25dbc6df3c4c013caf71347c8",
+    "64c7ebd4479bd274b18ac8a90874de45e9d81e55af7e3ed4092b643716e9b11f"
+   ]
+  },
+  {
+   "question": "中芯国际2024年总资产是多少？",
+   "snippet": "353,415,296",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "What was Apple's operating income in fiscal year 2022?",
+   "snippet": "62,683",
+   "unit": "元",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2022,
+   "company": "Apple",
+   "relevant_chunk_ids": [
+    "0c80b169a23b42fd8b6314d3bab7c858"
+   ],
+   "relevant_fingerprints": [
+    "6a75f884668b2f036b79376786ec26cdb3a804c66540d3a9f357acd84b299fa0"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2025年营业利润是多少？",
+   "snippet": "78,456,610",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2025,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "2296800f367f4186a9138732a5ba0c27"
+   ],
+   "relevant_fingerprints": [
+    "dde185ec71cd7714debcee6af8c9065c2dfe02944d294ad52277d299c2e437ea"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2025年总资产是多少？",
+   "snippet": "13,898,471",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "e5c38469b2c544848fa4d83abec5e874",
+    "877032c316f1424aba709f1c33703159"
+   ],
+   "relevant_fingerprints": [
+    "965164180ef0995ab333283b16d380311b5aeb1879af72a99170fd739faad073",
+    "713d593b179777f7cc71132cc9a195173ad50ac35cc93eefbb73d936b2575a0f"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年利润总额是多少？",
+   "snippet": "48,366",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2022年归属于母公司股东的净利润是多少？",
+   "snippet": "51,171",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2022,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "What was CXMT's operating income in fiscal year 2023?",
+   "snippet": "-19,341,000,268.85",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2023,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "d9b780bfe27e4c5eacc08c5d6eca6928"
+   ],
+   "relevant_fingerprints": [
+    "c1055b75cd7f600b7b2497415def130eaad998a50c2c90b7314c422392b69162"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2025年经营活动现金流量净额是多少？",
+   "snippet": "658,632",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "bce23916996a43808d7b9d6fa3773b21"
+   ],
+   "relevant_fingerprints": [
+    "a25438cba4b52c46ac8ede187f21ca3a356ed4ca3f3e558110f6ddc87b4a66b9"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年总资产是多少？",
+   "snippet": "9,461,880",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "贵州茅台2024年净资产是多少？",
+   "snippet": "233,105,984,399.47",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2024,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年经营活动现金流量净额是多少？",
+   "snippet": "7,200,440,164.32",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1",
+    "f618cfe463bb4ff6903602479cdca241",
+    "fb664d497d8b40a4b04a471d7bf376cc",
+    "d4c2ccc98dc243f7ae09dac2d7512bab"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "42feb6607c79f3ff7c2a5f8c68080dfed13da6eac6cfd7e0f7d6b9ca23305a4d",
+    "54116792cae7b491bd41015e5c6eae4881df1726050c28d093167f64c5441901",
+    "b465dd2e81185b7b8ad86096855e35e4bf06c595ee0f4dbd1753ac3da90f86e6"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2025年基本每股收益是多少？",
+   "snippet": "1.87",
+   "unit": "",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "f3c9ab17167e4c3e8a9d91cf72685595",
+    "e304bc892e9249beb2329211d4d30bf1",
+    "246c6561768f441dbecd560550d01065",
+    "7c3ee5235e2e4c1f81c6f9ddbca8dc3f",
+    "45d6d7279ef44dd29d5fd38e36987d45"
+   ],
+   "relevant_fingerprints": [
+    "2be8eb57bb790b52f5b09c96880d5e9c62fe2787ae5b53d9c274b9dadb8ec607",
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7",
+    "18c607a988c56f5d15afb327d9bc034cd7dd82237df492a2b878585228314c6c",
+    "285f862b11179218512240c9512d690b70749ebd2377302a13383d1734c200a6",
+    "15392659c1c96235437d24731a58aad8278b26c5b857c0259025ea3a7a6bfdd7"
+   ]
+  },
+  {
+   "question": "贵州茅台2024年利润总额是多少？",
+   "snippet": "119,638,578,194.46",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da",
+    "b6ec05ff40c14a8084da15f921e78656"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243",
+    "1500cb510d09b823d728d4002d15c3ca3488262766a03f17fa24c4a65ffd361e"
+   ]
+  },
+  {
+   "question": "比亚迪2023年基本每股收益是多少？",
+   "snippet": "3.44",
+   "unit": "",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "贵州茅台2023年经营活动现金流量净额是多少？",
+   "snippet": "66,593,247,721.09",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2023,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "中芯国际2023年基本每股收益是多少？",
+   "snippet": "0.61",
+   "unit": "",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "e79ee9ee9b654cc9a6b894a8fd3257e5"
+   ],
+   "relevant_fingerprints": [
+    "9b8140c8af3a3671c818f94f15a4b9f1b5d95e3beb6898c289a6057bac394435"
+   ]
+  },
+  {
+   "question": "What was CXMT's total profit in fiscal year 2025?",
+   "snippet": "-282,466.50",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2025,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "2eaf9f58f732443bbe46b3bd757169dd",
+    "f0101d84dd8c4f3fb3929cb1a9378be3"
+   ],
+   "relevant_fingerprints": [
+    "de56000ee9307ae500d908a9b78d0a3030a7d4fc5a2e2e7be68db32c37d7acab",
+    "840f618bfbd1e9cd6ef42ba20100d51bcb584abba5ae34a569d2942e8c3e0616"
+   ]
+  },
+  {
+   "question": "中芯国际2025年营业利润是多少？",
+   "snippet": "8,303,809",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "279a6201d43647e8b322cca9d2f95965"
+   ],
+   "relevant_fingerprints": [
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2025年经营活动现金流量净额是多少？",
+   "snippet": "29,706,259,919.13",
+   "unit": "元",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "e7f98cce18e5499a952a481c974eb884",
+    "df3aa1fd272c45529016f9b4538b138e",
+    "d9ba030455674409828c303e3d1dfe42",
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2c8b0cde20ce5b513afd94e4e04e6c0755a133abacf889bbe00e930e7bffd1b1",
+    "d145876279538f0e1bfc2fcfb2eefb0fbd8a616917681d3bd9d45d292fed8d8d",
+    "ee3db6d6ae419a437f1e94cad1f6c6a8609db86b754b10b5f5c4ba3768054f30",
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "中芯国际2025年经营活动现金流量净额是多少？",
+   "snippet": "20,080,979",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "53928f334e2545a09f7538bb34d1e3de",
+    "bbaeb18cfed8477ab84d0e806583bcda",
+    "99a60214cfe8464385466f85decedf98",
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "f9eb03df70fac05ce1f588e7a57fbf93d5130da4c7163f33d1d3f02ae2b5411b",
+    "1990802db22e886847251575cecc124e225df1c2fbf6009f69d07a7c588e04ba",
+    "8b3b6968f5de0cfb6804bc185a5d0084b92df6ca27f7c5fc6849ebc8cc2d0b9e",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2024年营业收入是多少？",
+   "snippet": "362,012,554",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "1df184d4e7584c5dab36324b3082f13d",
+    "a4c605a84afd497281b658baa3f4faa3",
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "9efd4eb9f687b1d3793af7eaf5e415b92be35ae70e0a599ceec5137d645fd892",
+    "08f8eedaed64a22528e54288ed0c2c01942c60ff978fc58f6d0e2b02f822c889",
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "比亚迪2024年经营活动现金流量净额是多少？",
+   "snippet": "133,453,873,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "e01f845e65ec4048bb0776ffdbc12e45",
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "fdf8cd6a560459a96cb3be2965c434cf31120eecf9e652956b9884f4414efe3f",
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2022年基本每股收益是多少？",
+   "snippet": "1.56",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2022,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "What was Tesla's operating income in fiscal year 2025?",
+   "snippet": "4,355",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2025,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "b48f84989cd145cb8131067ce782d02a",
+    "c4c356c1140c4655988bf072dccfd9c4"
+   ],
+   "relevant_fingerprints": [
+    "23eb95e10e2edac3e8b92ec9a3e700f7f169f2a5155fa7e5deb7e4a1a5ea5b2d",
+    "6d818c97d93b5eed5c5841b2d25483246b3ea68ead0703db95213f2ccb55441d"
+   ]
+  },
+  {
+   "question": "What was CXMT's gross margin in fiscal year 2023?",
+   "snippet": "-112.71%",
+   "unit": "%",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "gross_margin",
+   "metric_label": "毛利率",
+   "year": 2023,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "2b3a43ed869a45469385531584f9cdba",
+    "5a227ffc94ab4c40a807acfbcc51bbf9",
+    "cd70c74c2ae043f9b38a0942641e2a8a",
+    "b32b7080bdd040118b8cdbd41d0a58b9",
+    "5d904348762e4484b622e7f0f1a79d3a"
+   ],
+   "relevant_fingerprints": [
+    "d6555cd3fe06dd05cb11bd984341558f94ebe89882a807c6ff6ddee99647b406",
+    "18cb310cccd89056ffb339bbb124017db4cc2e90c92de9e02ba5cb050d558dd6",
+    "24892e02ffd89bad37c3fbd8977aa310f822eb76a6ea22601db0cffcd1b10155",
+    "aac769e8ef06943ce72213bb31ea3753699f118a573716950eec6a1e45ad819e",
+    "8324718a71241d7a1cdf43a42cb72040e84c42bdbc36673a8c909ab849b7517c"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2025年基本每股收益是多少？",
+   "snippet": "7.68",
+   "unit": "",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "b9b1ceb7291b41d9879b957615f0676a"
+   ],
+   "relevant_fingerprints": [
+    "d07f02b172a960d472a130863bd10cf9c1543e03c29741477e7cf89d3b5b9abc"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2024年归属于母公司股东的净利润是多少？",
+   "snippet": "11,977,327,023.54",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "f99f1e90a27449f8a37e3203fc8d4fc1",
+    "0ee1a17f904449929d521a690762ce7b",
+    "951cd59f50af4c54b0efc1422c6dd047"
+   ],
+   "relevant_fingerprints": [
+    "8b8d8a382e9a9511dcc645470bb7343a0eb72ab6966402cecdd2cbd36b06b49a",
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08",
+    "b171225c47f1aa33c27a9c8a1d38d89d5a87a77946bb9fa9b4bd8d23d91a7173"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年经营活动现金流量净额是多少？",
+   "snippet": "16,622,209,721.05",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "What was Tesla's net income in fiscal year 2025?",
+   "snippet": "3,855",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "4b99c65686064d18a1d332c298344d09",
+    "fad9d8168fa240c79e9e9b3577207da9",
+    "9dd666057f5341adac77db15b0a8d939"
+   ],
+   "relevant_fingerprints": [
+    "4a371bef116188c13fa3ea3ae2243b417a9f5d82c09e9a029c85e331ab6ff5f4",
+    "e20eeabc0b8a1a90e984e69642b3c99ef10076cda2a198c81847b832264c0573",
+    "4d12ddb600aa35299d0add60a8608c52a9cfbaa824be09d9d31b89bc4c71f03c"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年基本每股收益是多少？",
+   "snippet": "1.520",
+   "unit": "",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "What was Tesla's total net sales in fiscal year 2023?",
+   "snippet": "96,773",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "5199c8e379b84124a25108da53989ec5",
+    "98dd48e611f248e8b87f96bc061669c5",
+    "ffcafaad87a045e0affe19878ecec942",
+    "8cfc2f6e95134d6f91602c93c1c19bf3",
+    "8d4151e17b984956b9e2cf374b8583fa"
+   ],
+   "relevant_fingerprints": [
+    "34e3fff38aca6e1fef6de7aaa9b58082bfc7cc9840677dac159c19ace43f4886",
+    "7c3aed38f529debdb8dd9792acee7fb62ccd125bf4a9c6b670dda71cc58a4338",
+    "99d8b65a2d31240e3c956258376dc40dae825083fe68ecf63f67c9e4742d3a4b",
+    "2a2e896e4756fcd4eec7adeb76adb19af92951fba95212afd45f5c1a3434aa1d",
+    "76ea05c4da724730b993f1af77781f032fb7fbd0922b8e268f0bb8373ecdca54"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2024年营业收入是多少？",
+   "snippet": "92,495,525,118.30",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2024,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b",
+    "ffbb1d13249640dba630ececd96f259b",
+    "951cd59f50af4c54b0efc1422c6dd047"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08",
+    "6daef66e16c5e7c7ed2da284b24c3e6557380e37647934c16e8bdce2eb5f8145",
+    "b171225c47f1aa33c27a9c8a1d38d89d5a87a77946bb9fa9b4bd8d23d91a7173"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年归属于母公司股东的净利润是多少？",
+   "snippet": "45,257",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "01698e184004431ea0851bffc836d5fe",
+    "4b44ff4b27e145f89c280d74e83d4bde",
+    "bdd88f99d4d942179b658238bb5a86c0"
+   ],
+   "relevant_fingerprints": [
+    "e9bfbf1c7e5b4a071c90ac7eab6b15b6a251721a7890fbe8d2ab4d7fe19fcae9",
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791",
+    "958e1b6bdb611b2e2ef54a8a203447ff6d74f2f48ee5a79c4745f7726f479d21"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2025年总资产是多少？",
+   "snippet": "974,827,544",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "90710485429e47e1a657fdba5308c0cc",
+    "0ee30d644b1146afb6566dac2d752f99",
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "1f338e2dab03c38ab7fc690f3025aca7e21e19efee7d6bef21a4def3af75be24",
+    "f020103472c5add3755442ad09cb223620a4e86e3bb3c48002d72deb60c9d504",
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "What was CXMT's net income in fiscal year 2024?",
+   "snippet": "-9,051,000,437.19",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2024,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "d9b780bfe27e4c5eacc08c5d6eca6928"
+   ],
+   "relevant_fingerprints": [
+    "c1055b75cd7f600b7b2497415def130eaad998a50c2c90b7314c422392b69162"
+   ]
+  },
+  {
+   "question": "贵州茅台2023年加权平均净资产收益率是多少？",
+   "snippet": "34.19",
+   "unit": "",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2023,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e092c03770c54ba99517e5b0d3308eb7"
+   ],
+   "relevant_fingerprints": [
+    "741549305955581f532b777e9fdfb6ff1590a80e75acda95794ce6a32464e7fb"
+   ]
+  },
+  {
+   "question": "贵州茅台2024年加权平均净资产收益率是多少？",
+   "snippet": "36.02",
+   "unit": "",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e092c03770c54ba99517e5b0d3308eb7"
+   ],
+   "relevant_fingerprints": [
+    "741549305955581f532b777e9fdfb6ff1590a80e75acda95794ce6a32464e7fb"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2024年净资产是多少？",
+   "snippet": "80,668,661,062.88",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2024,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "比亚迪2025年净资产是多少？",
+   "snippet": "246,274,606,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2025,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2024年利润总额是多少？",
+   "snippet": "170,495",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "b9b1ceb7291b41d9879b957615f0676a"
+   ],
+   "relevant_fingerprints": [
+    "d07f02b172a960d472a130863bd10cf9c1543e03c29741477e7cf89d3b5b9abc"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年总资产是多少？",
+   "snippet": "9,007,247",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "比亚迪2024年净资产是多少？",
+   "snippet": "185,251,104,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2024,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2024年基本每股收益是多少？",
+   "snippet": "7.16",
+   "unit": "",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "b9b1ceb7291b41d9879b957615f0676a"
+   ],
+   "relevant_fingerprints": [
+    "d07f02b172a960d472a130863bd10cf9c1543e03c29741477e7cf89d3b5b9abc"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年净资产是多少？",
+   "snippet": "724,749",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "中芯国际2025年归属于母公司股东的净利润是多少？",
+   "snippet": "5,040,734",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "fef4e370185b49e9be881e5950072d86",
+    "3c04933e587e4eeca4315f42ef2e64dc",
+    "a6cd05c1dd2d4a8f9ae1f67ff38325dd",
+    "cab89d4c211d431aba2881b43c80f84c",
+    "279a6201d43647e8b322cca9d2f95965",
+    "70b4c5eeea0b4f8c9714e8f96c081a90",
+    "bf316e702b394ea997180d18015036d2"
+   ],
+   "relevant_fingerprints": [
+    "5e1094fd7e6fac962266b4d80e7c5e053981cb2483aba87b1f9cd29c059574db",
+    "c0e8d6f451eef00dce76ec01b9a8b4dc1f1cc037eb2a75592ed0fa3f3a47d6d0",
+    "cdeba89111338846a3de68452169d9c285746b346e87a561a05b552ae3a7dc06",
+    "dad5dd4abcd7b599b637c2bce8b16e7b4642d9a8b298d023889134a7c17f2079",
+    "2af345ec0f7b0efc84c366c6f63f9b47470bdcbee58d7146d987c5bd2d0fdded",
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d",
+    "17c0357cef57a9252126cf7c921e3628fef301957c27f57dd26fbe3bdc447534"
+   ]
+  },
+  {
+   "question": "招商銀行2025年经营活动现金流量净额是多少？",
+   "snippet": "451,457",
+   "unit": "元",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "招商銀行",
+   "relevant_chunk_ids": [
+    "69727a1059c64dfaac963888a376e791",
+    "d05e4d0a8e8e4bb0b937d7a85972a1b3",
+    "7bf1a568244d4af5aca3b92a65b17ec9"
+   ],
+   "relevant_fingerprints": [
+    "3b8364573f8ff71199ade8e9e75aa03c545c4b447b03cc372e5beab75c9d7b67",
+    "4bac4504e0c8e660a7dd79ee0cf30f01d83ad31159aec0d9fd5bd04092ca21a0",
+    "40959a0239e6861740b3e477744e993f77f6016a71b7c7ea18bd97d8ae328e03"
+   ]
+  },
+  {
+   "question": "What was CXMT's total shareholders' equity in fiscal year 2025?",
+   "snippet": "154,099,939,422.08",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2025,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "6e10096824d84d34a0fe896eb5924d26"
+   ],
+   "relevant_fingerprints": [
+    "83c79df8ef13faf4fa6707dfb396da9c3b8e7c81e489b8e4f069bea61a5d8919"
+   ]
+  },
+  {
+   "question": "What was CXMT's total shareholders' equity in fiscal year 2024?",
+   "snippet": "104,256,877,472.58",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2024,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "6e10096824d84d34a0fe896eb5924d26"
+   ],
+   "relevant_fingerprints": [
+    "83c79df8ef13faf4fa6707dfb396da9c3b8e7c81e489b8e4f069bea61a5d8919"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2022年总资产是多少？",
+   "snippet": "8,704,651",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2022,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年基本每股收益是多少？",
+   "snippet": "1.36",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "e8dc3ff555144c81b9fa0f1191e1855b",
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "0b3bd894c4ee3078c4f6cc3fe8536bc4f47e6e6275e8e50353fdab5b342bd03d",
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "比亚迪2025年营业收入是多少？",
+   "snippet": "803,964,958,000.00",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "62a86368f44d451a9e8a20d1414365de",
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d6e57c8953c4437b79489c2ec51ce8f62d5973c422b54cf35daf5cda9f1670fa",
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "根据招商銀行年报，分析本集团2025年相比2024年在资产质量和资本充足方面的变化趋势，并说明两者是否呈现同步变化？",
+   "type": "趋势",
+   "company": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "answer": "根据片段，本集团不良贷款率较上年末下降0.01个百分点，拨备覆盖率和贷款拨备率均有所下降；同时核心一级资本充足率、一级资本充足率和资本充足率均较上年末下降。资产质量指标与资本充足指标均呈下降趋势，但方向不同：不良率下降表明资产质量改善，而拨备覆盖率和资本充足率下降表明风险抵补能力和资本水平减弱，两者并非同步改善。",
+   "relevant_chunk_ids": [
+    "4be340bd57c8432a93e7d79bba884959",
+    "9b391f2eef5e4193aec47dcf3406bbf6"
+   ],
+   "snippet": "根据片段，本集团不良贷款率较上年末下降0.01个百分点，拨备覆盖率和贷款拨备率均有所下降；同时核心一级资本充足率、一级资本充足率和资本充足率均较上年末下降。资产质量指标与资本充足指标均呈下降趋势，但方向不同：不良率下降表明资产质量改善，而拨",
+   "relevant_fingerprints": [
+    "23aa9305a3b56c5c986a5acc802a18bcd21750004f634a3587f25c7354737a60",
+    "f4fa49b5d4b55d1463b0c31e93737c65441c2064d450cbd2453fc09d2644add7"
+   ]
+  },
+  {
+   "question": "结合片段，分析招商银行在数智化转型和私人银行/财富管理方面的主要举措及成效。",
+   "type": "综述",
+   "company": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "answer": "招商银行在数智化转型方面，坚持“AI First”理念，加快打造智能银行，扩大AI应用广度深度，探索智能体应用，提升数据治理和知识管理能力，构建数智化能力管理体系，推动“人+数智化”向纵深发展（片段4）。在财富管理方面，深化“招商银行TREE资产配置服务体系”，推动多资产、多策略配置，深化客户陪伴，截至报告期末在该体系下进行资产配置的客户达1,175.68万户，较上年末增长13.31%（片段31）。私人银行方面，强化专业引领与公私协同，通过加强投资研究与资产配置能力，提供专属综合服务，私人银行客户达199,326户，较上年末增长17.87%（片段20）。整体体现了数智化与财富管理业务的融合和客户增长。",
+   "relevant_chunk_ids": [
+    "3ac4cec6ee4c4a85aab7086750bdc7db",
+    "91d20c2408d54e1a99d1d67adf533c96",
+    "d0b81e8bd1a74a62b861fa8b068fd07a"
+   ],
+   "snippet": "招商银行在数智化转型方面，坚持“AI First”理念，加快打造智能银行，扩大AI应用广度深度，探索智能体应用，提升数据治理和知识管理能力，构建数智化能力管理体系，推动“人+数智化”向纵深发展（片段4）。在财富管理方面，深化“招商银行TRE",
+   "relevant_fingerprints": [
+    "fa35cf50ad99af6fe958e30c4baca70c5217877025bf1ff6194e9d0f29e561f0",
+    "536b66d998bb8379bbe4b0d31d8ee308c6c055d5a9eef53d07b3fb26638df6e7",
+    "fd3aef8e0828a064d510ff7d19ed06a50a87766d8c33859e4dbb37137508a5c9"
+   ]
+  },
+  {
+   "question": "根据招商銀行年报，根据片段，本集团净利息收益率未来趋势如何？请结合压力与积极因素进行分析。",
+   "type": "趋势",
+   "company": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "answer": "当前各类资产利率处于低位，有效融资需求恢复待时，净利息收益率面临下行压力；展望2026年预计仍将承压，但存在积极因素，例如核心存款稳定增长（同比增长9.69%）等。",
+   "relevant_chunk_ids": [
+    "3fa1afeb0ae647309b95a1ff1ec76ea3",
+    "f5369de26f6249adb8f7cb1c472b84c5"
+   ],
+   "snippet": "当前各类资产利率处于低位，有效融资需求恢复待时，净利息收益率面临下行压力；展望2026年预计仍将承压，但存在积极因素，例如核心存款稳定增长（同比增长9.69%）等。",
+   "relevant_fingerprints": [
+    "868aa1c3d1da014405f08ceb8f94d620d564e9878c5bb8ba7098408eff0dd7b1",
+    "cbb198e3309b98b4630ea004b8518c0233ebb6dd1d029f5533b10f80b5c97fec"
+   ]
+  },
+  {
+   "question": "根据宜宾五粮液年报，片段4提到“本报告期内，公司及其控股股东、实际控制人诚信状况良好”，但片段7显示公司董事长于2026年2月被立案调查。请结合片段说明这两段信息是否矛盾？为什么？",
+   "type": "多跳",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "不矛盾。片段4中的“本报告期内”指的是2025年度报告期，而片段7明确表述董事长被立案调查的时间是2026年2月，属于报告期之后发生的事件，因此不影响报告期内的诚信状况评价。片段7还指出该董事长现任公司党委书记、董事长，但被调查发生在报告期后，所以与报告期内的诚信良好陈述不冲突。",
+   "relevant_chunk_ids": [
+    "1726642dd55847a7a27bd0ef48b479d7",
+    "4b4080cc1b864cef9a5134fc1df0bdb0"
+   ],
+   "snippet": "不矛盾。片段4中的“本报告期内”指的是2025年度报告期，而片段7明确表述董事长被立案调查的时间是2026年2月，属于报告期之后发生的事件，因此不影响报告期内的诚信状况评价。片段7还指出该董事长现任公司党委书记、董事长，但被调查发生在报告期",
+   "relevant_fingerprints": [
+    "87066c78d11998bde1a950c30efd71fa9d83e3a3936517cbb789606d28b76164",
+    "53acf2cd95f6226127ce5a128f01f2a35bae58bc78a88b741e28395ec1384dfa"
+   ]
+  },
+  {
+   "question": "根据宜宾五粮液年报，有分析师根据季度数据提出“2025年公司业绩下滑主要因为第四季度营业收入和净利润大幅低于第一季度”，请判断该说法是否合理，并说明理由。",
+   "type": "对抗",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "不合理。虽然第四季度营收（98.91亿元）和净利润（24.80亿元）低于第一季度（170.86亿元、44.16亿元），但第四季度显著高于第二季度（64.24亿元、2.08亿元）和第三季度（71.28亿元、18.51亿元），且全年业绩下滑主要受第二季度拖累。因此该说法具有误导性。",
+   "relevant_chunk_ids": [
+    "05bfa0cde37a4d549a0efe9cb1b98a32",
+    "c3dd81c0edce4e509e485536e65fdab4"
+   ],
+   "snippet": "不合理。虽然第四季度营收（98.91亿元）和净利润（24.80亿元）低于第一季度（170.86亿元、44.16亿元），但第四季度显著高于第二季度（64.24亿元、2.08亿元）和第三季度（71.28亿元、18.51亿元），且全年业绩下滑主要",
+   "relevant_fingerprints": [
+    "5d767e693745ec2e7ec5d006ce19f50828f4bab6073706761499ade5ebca568a",
+    "f9d6600168739919e32deefbb124b07e6c53b9ddfe25a142a0fe171c0f970ab5"
+   ]
+  },
+  {
+   "question": "根据宜宾五粮液年报，比较公司在理塘县和越西县的帮扶举措有何异同？",
+   "type": "比较",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "相同点：两县均属于托底性帮扶对象，且公司均成立了五粮液文旅分公司。不同点：对理塘县更侧重通过品牌赞助方式聚焦传统体育赛事，投入100万元；对越西县则将其纳入“五粮液文化宣传推广活动”线路，导入优质客群资源，并已组织20批次客户前往越西体验大凉山文旅活动。",
+   "relevant_chunk_ids": [
+    "ec1b41c82e6a425399045219db86fb69",
+    "ef38028cab8e4ebeab3ba1f576fa3b13"
+   ],
+   "snippet": "相同点：两县均属于托底性帮扶对象，且公司均成立了五粮液文旅分公司。不同点：对理塘县更侧重通过品牌赞助方式聚焦传统体育赛事，投入100万元；对越西县则将其纳入“五粮液文化宣传推广活动”线路，导入优质客群资源，并已组织20批次客户前往越西体验大",
+   "relevant_fingerprints": [
+    "630dc41ebbdae15700a1483df2bd03187ea009f9476921ef78f6e00fa880ac51",
+    "50b3893dbcdf897522c27750ed73c0642742f6c28f164f9eb67dfad6fd6ae09d"
+   ]
+  },
+  {
+   "question": "根据宜宾五粮液年报，根据公司2025年度中期和年度利润分配方案，分析公司现金分红政策的特点和趋势。",
+   "type": "趋势",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "公司2025年实施了中期和年度两次分红，两次方案均为每10股派现金25.78元（含税），年度现金分红总额为10,006,785,436.89元，现金分红占利润分配总额比例为100%，且不送红股、不转增。这表明公司倾向于采用高比例现金分红，并且通过中期与年度相结合的方式平滑分配，体现了稳定且持续回报股东的趋势。",
+   "relevant_chunk_ids": [
+    "68c486e5d16f4a4aa2ebf461a90a9cb9",
+    "6b261033d43245e9bd4184aca2d0a6ba"
+   ],
+   "snippet": "公司2025年实施了中期和年度两次分红，两次方案均为每10股派现金25.78元（含税），年度现金分红总额为10,006,785,436.89元，现金分红占利润分配总额比例为100%，且不送红股、不转增。这表明公司倾向于采用高比例现金分红，并",
+   "relevant_fingerprints": [
+    "fa171c888b505074a5bc3421574c268e42d8cd301780f42a8a45db1067ee3faf",
+    "96d2356176916c4d2b9b446ec61b57d07ddd2523f32b4cdf4613b7afcbf120fd"
+   ]
+  },
+  {
+   "question": "根据宜宾五粮液年报，根据现金流量表，公司2025年度经营活动现金流入与上年度相比呈现何种变化趋势？这可能反映了公司销售回款或销售规模方面的什么动向？",
+   "type": "趋势",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "2025年度经营活动现金流入（包括销售商品、提供劳务收到的现金）较上年度呈现下降趋势，整体现金流入规模有所收缩，可能反映出公司当期销售回款减少或销售规模出现一定收缩。",
+   "relevant_chunk_ids": [
+    "fc3755b232374dcda9c44d1dd272b0e5"
+   ],
+   "snippet": "2025年度经营活动现金流入（包括销售商品、提供劳务收到的现金）较上年度呈现下降趋势，整体现金流入规模有所收缩，可能反映出公司当期销售回款减少或销售规模出现一定收缩。",
+   "relevant_fingerprints": [
+    "546a7743a9af970e4df2608f6e8a7ce206f1e54b1f03d5efd64b972b1f6cdbcd"
+   ]
+  },
+  {
+   "question": "根据深圳市汇川技术年报，结合年度报告中的其他收益明细，比较2025年度与上一年度公司在增值税退税款、政府补助、进项税加计抵减等主要其他收益来源上的变化，并分析其可能反映的经营趋势。",
+   "type": "比较",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "根据片段[id=5]，2025年度增值税退税款为474,306,198.64元，上期为446,002,235.34元，同比增长约6.3%；政府补助本期为207,053,869.06元，上期为148,078,300.31元，同比增长约39.8%；而进项税加计抵减本期为17,440,603.82元，上期为92,560,544.90元，大幅下降。其他收益合计本期714,375,038.02元，上期696,703,988.61元，总体略有增长。增值税退税款和政府补助的增加可能表明公司出口或研发相关活动增强，而进项税加计抵减的减少则可能与税率政策或采购结构变化有关。",
+   "relevant_chunk_ids": [
+    "5ee00669a29d46e989a4e344a04af047"
+   ],
+   "snippet": "根据片段[id=5]，2025年度增值税退税款为474,306,198.64元，上期为446,002,235.34元，同比增长约6.3%；政府补助本期为207,053,869.06元，上期为148,078,300.31元，同比增长约39.8",
+   "relevant_fingerprints": [
+    "da120f2005ce4e8cac3299cea8c19b215b51d5c525dd9eadbc1bf0816bbeee66"
+   ]
+  },
+  {
+   "question": "根据深圳市汇川技术年报，结合公司第五期至第七期股权激励计划的实施情况，分析公司股权激励政策在授予价格调整和归属进度方面的演变趋势。",
+   "type": "趋势",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "公司股权激励计划呈现出持续滚动推进、动态调整的特征：第五期股权激励计划（2020年实施）的首次授予及预留授予部分已全部完成归属，且因权益分派调整后的归属价格显著低于原授予价格（如从38.42元/股调整至23.85元/股），体现了公司对激励对象的让利；第七期股权激励计划因2024年年度权益分派而调整第一类、第二类限制性股票及股票期权的授予价格，说明公司会根据分红情况及时修正行权成本，保障激励效果。整体趋势是：股权激励覆盖面广、工具多样（限制性股票+期权），且价格调整机制常态化，以维持激励有效性。",
+   "relevant_chunk_ids": [
+    "2037a7af2f664fae8ec3be0acb5cb420",
+    "257b9573e3ef4f73b88508404016b4c5",
+    "dfa51077ac424337b8c048179e73bddb"
+   ],
+   "snippet": "公司股权激励计划呈现出持续滚动推进、动态调整的特征：第五期股权激励计划（2020年实施）的首次授予及预留授予部分已全部完成归属，且因权益分派调整后的归属价格显著低于原授予价格（如从38.42元/股调整至23.85元/股），体现了公司对激励对",
+   "relevant_fingerprints": [
+    "5a4c22857539ad99532739b3678d6e6c606495e975665e702f7ccd07e6353d01",
+    "b69670cfc83f7eb949d6d01c280257d8c2b28f0bedb4aeacab2630aba43d414f",
+    "dd231e87cb472b6266b4c690e7972b46fcdb8f0360afaf552e00fcb69a6f1357"
+   ]
+  },
+  {
+   "question": "根据深圳市汇川技术年报，结合公司2025年业绩增长原因和2026年经营计划，分析公司在工业自动化与数字化业务上的增长动力与未来战略方向有何关联？",
+   "type": "多跳",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "2025年业绩增长原因之一为工业自动化与数字化业务（含电梯）收入同比增长约19%，主要受下游行业结构性增长、公司多产品解决方案与“上顶下沉”市场策略持续深化等因素影响（[id=19]）。2026年公司全面拥抱人工智能，将AI技术深度融入战略，通用自动化等业务计划推进国际化、数字化、智能机器人、数字能源等战略落地，并对外赋能客户、对内赋能研发制造运营全链路（[id=12]）。两者关联在于：2025年的市场策略（多产品、上顶下沉）已推动增长，2026年进一步借助AI技术深化数字化与智能化，延续并升级原有策略，以巩固工业自动化领域的竞争力。",
+   "relevant_chunk_ids": [
+    "0aee05b552f241d69334156ede906358",
+    "67010190f09441008e0cd11ee30fcca7"
+   ],
+   "snippet": "2025年业绩增长原因之一为工业自动化与数字化业务（含电梯）收入同比增长约19%，主要受下游行业结构性增长、公司多产品解决方案与“上顶下沉”市场策略持续深化等因素影响（[id=19]）。2026年公司全面拥抱人工智能，将AI技术深度融入战略",
+   "relevant_fingerprints": [
+    "4dee72da45cb4962d9930334b43d7091eec1ed8f9cc955537bf4cdade9ad8a73",
+    "3b312027f94656acdb247a9ad0ab7ca3037287e4d8e0f5ab0a210b374fa848f1"
+   ]
+  },
+  {
+   "question": "根据深圳市汇川技术年报，根据片段37，联合动力与苏州汇川在盈利能力上存在哪些差异？请从净利润、营业利润等角度进行比较分析，并说明哪家子公司的盈利能力更强。",
+   "type": "比较",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "联合动力的净利润为1,133,360,665.85元，营业利润为1,154,491,803.32元；苏州汇川的净利润为457,818,876.56元，营业利润为332,838,863.24元。联合动力的净利润和营业利润均显著高于苏州汇川，表明联合动力盈利能力更强，且其营业利润与净利润差额较小，显示其主营盈利能力更为突出。",
+   "relevant_chunk_ids": [
+    "e4cac0647f574522a47a3204432b9d9b"
+   ],
+   "snippet": "联合动力的净利润为1,133,360,665.85元，营业利润为1,154,491,803.32元；苏州汇川的净利润为457,818,876.56元，营业利润为332,838,863.24元。联合动力的净利润和营业利润均显著高于苏州汇川，表",
+   "relevant_fingerprints": [
+    "490652fab6162f041d6f5d9667acf7adb39ffd93fc8f1962cd3b27f61ac3ebd0"
+   ]
+  },
+  {
+   "question": "根据深圳市汇川技术年报，根据公司应交税费的期初与期末数据，分析主要税种余额的变动趋势，并指出哪些税种增长明显、哪些可能出现下降，这可能反映了公司怎样的经营变化？",
+   "type": "趋势",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "从期末与期初对比看，增值税、企业所得税、个人所得税、城市维护建设税、教育费附加、地方教育费附加、印花税等多数税种余额均有所增加，其中增值税和企业所得税增长规模较大；房产税余额则出现下降。整体应交税费合计增加，可能反映公司业务规模扩大、收入及利润增长，而房产税下降可能与房产购置或使用情况变化有关。",
+   "relevant_chunk_ids": [
+    "8abace2582324affa8fc396c52206539"
+   ],
+   "snippet": "从期末与期初对比看，增值税、企业所得税、个人所得税、城市维护建设税、教育费附加、地方教育费附加、印花税等多数税种余额均有所增加，其中增值税和企业所得税增长规模较大；房产税余额则出现下降。整体应交税费合计增加，可能反映公司业务规模扩大、收入及",
+   "relevant_fingerprints": [
+    "f30b9dbc25cc0c6a22948a36be301fc00f273c2526412f9ad9419f7526bb48f8"
+   ]
+  },
+  {
+   "question": "根据上海浦东发展银行年报，比较本集团对设定受益计划（补充退休福利）与设定提存计划（企业年金）在会计处理上的核心差异，并说明这些差异对当期损益和后续期间的影响有何不同？",
+   "type": "比较",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "本集团对离退休员工的补充退休福利属于设定受益计划，根据精算结果确认负债，精算利得或损失计入其他综合收益，且后续会计期间不转回至损益；而企业年金属于设定提存计划，本集团按固定金额供款，供款在发生时计入当期损益，若年金基金不足支付未来福利，本集团无义务再注入资金。因此，设定受益计划的精算变动不影响当期损益但影响其他综合收益，且不可转回；设定提存计划的供款直接计入当期损益。",
+   "relevant_chunk_ids": [
+    "3a0ee587d1554d08b1b011fcd69e6050",
+    "4a87509edf7c4dc3b4a95c0cd9529c3a"
+   ],
+   "snippet": "本集团对离退休员工的补充退休福利属于设定受益计划，根据精算结果确认负债，精算利得或损失计入其他综合收益，且后续会计期间不转回至损益；而企业年金属于设定提存计划，本集团按固定金额供款，供款在发生时计入当期损益，若年金基金不足支付未来福利，本集",
+   "relevant_fingerprints": [
+    "fc0c79073cd1c31ba15c9eb88befba9423adc8ed36250b7c15a8e584636487e5",
+    "64aefd9b07d50232ed22346f0435e87b0df263ddfa290076171a3fd1f8670667"
+   ]
+  },
+  {
+   "question": "根据上海浦东发展银行年报，结合片段内容，概述该公司在绿色金融、节能减排以及环境治理方面的具体举措和制度建设情况。",
+   "type": "综述",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "公司在绿色金融方面，董事会定期审议包含绿色金融业务开展情况在内的经营报告、绿色信贷战略执行情况，并加大对绿色、低碳、循环经济的支持，防范环境、社会和治理风险，助力生态文明建设（片段7）。在节能减排方面，公司建立健全节能减排管理制度，明确目标和责任，加强预算管控、考核及监督，常态化开展监测分析，细化能耗数据统计，推行无纸化办公，推广新能源办公用车，加强环保网点建设，利用大楼智控系统提升能效，并通过网点改造加装智能设备实现空调、照明等负荷的‘可观、可测、可调、可控’（片段5）。",
+   "relevant_chunk_ids": [
+    "1722609414cd4ba5a8f740313e0fc6cc",
+    "ceea77d4ab724820ae6bd4e273fb1be1"
+   ],
+   "snippet": "公司在绿色金融方面，董事会定期审议包含绿色金融业务开展情况在内的经营报告、绿色信贷战略执行情况，并加大对绿色、低碳、循环经济的支持，防范环境、社会和治理风险，助力生态文明建设（片段7）。在节能减排方面，公司建立健全节能减排管理制度，明确目标",
+   "relevant_fingerprints": [
+    "120e97a25b2de3aa74f385c73dea3b0c22baae31de4715b56685e6b436afea78",
+    "c4741526a23b94aec84c1301e57935214be5550dd48fad9f41a0466bf67404d1"
+   ]
+  },
+  {
+   "question": "根据上海浦东发展银行年报，根据片段，概述公司在数智化战略推进方面的主要趋势。",
+   "type": "趋势",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "公司确立了数智化战略体系（1-5-5-5-4-3），积极推进内蒙古和林格尔新区新数据中心建设，同时建立模型风险管理三道防线并实现模型全生命周期线上化管理，并强化数据生态与科技生态建设，体现出从战略规划到基础设施、风险管理及生态构建的全面数智化转型趋势。",
+   "relevant_chunk_ids": [
+    "2d8dce0235ae44fd91435b0a95d28ee1",
+    "7c8454d61b2f4b138e9b333993188457",
+    "ad80550e57ba46aeabd9e09eb3821627",
+    "f46c3e7a974c4afe96d2b9f810e28eaa"
+   ],
+   "snippet": "公司确立了数智化战略体系（1-5-5-5-4-3），积极推进内蒙古和林格尔新区新数据中心建设，同时建立模型风险管理三道防线并实现模型全生命周期线上化管理，并强化数据生态与科技生态建设，体现出从战略规划到基础设施、风险管理及生态构建的全面数智",
+   "relevant_fingerprints": [
+    "fbf782162bc113ad142d17b5b9763a8e45a89e62360dabd89342c288ca588c48",
+    "d0a36e9e9653fb671ef94b6f55e6153891e9b69c6c5ebaad8de835d756719afa",
+    "719ac6b9676de488cdb80380d05a50567e21fda0148518a4d39bd7270fecad69",
+    "ca14775756c4d347355999d2ba67217b4b0eb37e6f149ff87d0795abba3b93cd"
+   ]
+  },
+  {
+   "question": "根据上海浦东发展银行年报，根据片段，公司核心系统日终批量处理效率呈现出怎样的变化趋势？",
+   "type": "趋势",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "从原来的2小时缩减至0.5小时，实现零时日切，处理效率显著提升。",
+   "relevant_chunk_ids": [
+    "1c50cc64812f44b9ba063dae2800f408"
+   ],
+   "snippet": "从原来的2小时缩减至0.5小时，实现零时日切，处理效率显著提升。",
+   "relevant_fingerprints": [
+    "f0c99ef00fbe1845e66a9c06417731b6b87d97137729192bc5347802a6f67098"
+   ]
+  },
+  {
+   "question": "根据杭州海康威视数字技术年报，根据年报描述，公司在可持续发展（ESG）治理机制和与控股股东独立性方面分别采取了哪些措施？请综合说明。",
+   "type": "多跳",
+   "company": "002415_海康威视：2025年年度报告.pdf",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "answer": "公司确立了由董事会决策、管理层统筹、专业工作组执行的ESG治理机制，持续推进可持续发展战略与业务深度融合；同时，公司治理结构完善，已形成与控股股东在业务、人员、资产、机构和财务等维度的独立运营体系，业务经营不依赖控股股东，与控股股东及其关联方之间不存在同业竞争关系。",
+   "relevant_chunk_ids": [
+    "6052362008bd41e491d1d18aa9ba2111",
+    "beb8494565814e1b8c957fd2e37e18d6"
+   ],
+   "snippet": "公司确立了由董事会决策、管理层统筹、专业工作组执行的ESG治理机制，持续推进可持续发展战略与业务深度融合；同时，公司治理结构完善，已形成与控股股东在业务、人员、资产、机构和财务等维度的独立运营体系，业务经营不依赖控股股东，与控股股东及其关联",
+   "relevant_fingerprints": [
+    "94b9d3cf2b66e59d2070be8a7c3d3f9a41b759ba848bdc1e7ff30ddc6c30a654",
+    "e7732ca35077ed229f3a0226a4c256ac52424190f4e428614ea7b3acc5700afb"
+   ]
+  },
+  {
+   "question": "根据杭州海康威视数字技术年报，请比较公司创新业务中机器人业务与汽车电子业务在2025年的发展态势差异，并说明判断依据。",
+   "type": "比较",
+   "company": "002415_海康威视：2025年年度报告.pdf",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "answer": "从创新业务各子业务的收入变化看，汽车电子业务增长更为显著，其本年发生额从上年约39.19亿元增至约52.89亿元，增幅明显；而机器人业务本年发生额从上年约59.29亿元增至约64.52亿元，增幅相对温和。这表明汽车电子业务处于更快的扩张轨道，而机器人业务保持稳健增长。",
+   "relevant_chunk_ids": [
+    "ab4a7150b6044fcf956f4c4d6eb5bf64"
+   ],
+   "snippet": "从创新业务各子业务的收入变化看，汽车电子业务增长更为显著，其本年发生额从上年约39.19亿元增至约52.89亿元，增幅明显；而机器人业务本年发生额从上年约59.29亿元增至约64.52亿元，增幅相对温和。这表明汽车电子业务处于更快的扩张轨道",
+   "relevant_fingerprints": [
+    "db1adcfb2720a0410fe8673735a0f9e5182a1498375956c97840250e0b68b0e7"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，比较公司报告期各期综合毛利率与剔除存货跌价准备转销因素后的毛利率，分析两者差异及其变化趋势，并说明差异的主要原因。",
+   "type": "比较",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "报告期内，公司综合毛利率分别为-1.93%、5.58%和40.99%，而剔除存货跌价准备转销影响后的毛利率分别为-112.71%、-4.03%和37.81%。两者差异在2023年和2024年尤为显著，主要原因是存货跌价准备转销对毛利率的正面影响较大；随着公司经营改善，2025年两者差异大幅缩小，说明存货跌价准备转销的影响逐步减弱，毛利率提升主要来源于自身经营能力的改善。",
+   "relevant_chunk_ids": [
+    "5a227ffc94ab4c40a807acfbcc51bbf9"
+   ],
+   "snippet": "报告期内，公司综合毛利率分别为-1.93%、5.58%和40.99%，而剔除存货跌价准备转销影响后的毛利率分别为-112.71%、-4.03%和37.81%。两者差异在2023年和2024年尤为显著，主要原因是存货跌价准备转销对毛利率的正面",
+   "relevant_fingerprints": [
+    "18cb310cccd89056ffb339bbb124017db4cc2e90c92de9e02ba5cb050d558dd6"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，有观点认为“长鑫新桥2025年度已实现累计税务盈利，因此公司已享受集成电路企业所得税优惠政策”。请结合片段判断该说法是否正确，并说明理由。",
+   "type": "对抗",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "该说法不正确。尽管长鑫新桥于2025年度已实现累计税务盈利，但片段明确指出，由于相关国家部委尚未完成2025年度享受税收优惠政策的集成电路企业清单的审批，2025年尚未享受上述的所得税优惠政策。同时，发行人及子公司长鑫存储、长鑫集电因处于累计亏损状态，报告期内也未享受该优惠。因此“已享受优惠”的说法与事实不符。",
+   "relevant_chunk_ids": [
+    "e761590ae3964d3cb8d5f6f7fe0e00f2"
+   ],
+   "snippet": "该说法不正确。尽管长鑫新桥于2025年度已实现累计税务盈利，但片段明确指出，由于相关国家部委尚未完成2025年度享受税收优惠政策的集成电路企业清单的审批，2025年尚未享受上述的所得税优惠政策。同时，发行人及子公司长鑫存储、长鑫集电因处于累",
+   "relevant_fingerprints": [
+    "c7cd60dfa4ac1a3685a45dcc5ab30908760e6eecbf714f214b9db6ad9f18117c"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，请根据片段综述公司在研发投入与无形资产方面的会计处理特征及其对经营风险的影响。",
+   "type": "综述",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "公司高度重视核心技术自主研发，报告期内累计研发投入占营业收入比例较高（21.67%），且无形资产摊销额逐年上升。研发支出按项目区分研究阶段与开发阶段，开发阶段符合资本化条件的支出予以资本化，例如2024年第四代工艺技术平台研发完成时将开发支出188,400.79万元转入无形资产。无形资产中技术账面价值占比最高，主要系内部制程工艺研发项目资本化形成的专有技术。由于研发投入大、摊销金额大且可能面临减值风险，公司需关注相关资产减值测试及对利润的持续影响。",
+   "relevant_chunk_ids": [
+    "0bc6ad7e32bd40aeab8da0605ffc7723",
+    "2c3ba0938fe64c83bc2ab97da86499b8",
+    "47d9bdb730194f28a9a76fd5378e469a",
+    "8aaf8d647ed246a983916b88c5438740"
+   ],
+   "snippet": "公司高度重视核心技术自主研发，报告期内累计研发投入占营业收入比例较高（21.67%），且无形资产摊销额逐年上升。研发支出按项目区分研究阶段与开发阶段，开发阶段符合资本化条件的支出予以资本化，例如2024年第四代工艺技术平台研发完成时将开发支",
+   "relevant_fingerprints": [
+    "e709cc88886adf6e8ed267e1a9e779137418658ed1b79261cb3b6887de13be03",
+    "cd9ccc831bd904d205d5c59ab646d06e5902df7480cf1c9d7d2ddd42d4e32dee",
+    "e01a31b8292f0c3a099500790095ed9b5cdd8f4ab2b43f34aade9353d913e755",
+    "4b901cb1c4c904b3ca660dfa0df25b6a411c047e0afa7f12cff69a43fc134aa1"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，请比较长鑫科技与南亚科技在LPDDR5/5X产品线上的量产进度差异。",
+   "type": "比较",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "根据片段，长鑫科技在LPDDR5/5X的所有容量区间（16GB以下、16GB、16GB以上）均已实现量产，而南亚科技在LPDDR5/5X产品线上仍处于“开发中”状态，尚未实现量产。",
+   "relevant_chunk_ids": [
+    "85fd9b9a5858430791eabf4d35be08c9"
+   ],
+   "snippet": "根据片段，长鑫科技在LPDDR5/5X的所有容量区间（16GB以下、16GB、16GB以上）均已实现量产，而南亚科技在LPDDR5/5X产品线上仍处于“开发中”状态，尚未实现量产。",
+   "relevant_fingerprints": [
+    "7e78eb5d642057692d797dc1bb603ae9b4c37f0b709b3b67ef1a0211a9fc73b3"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，根据片段25中2023年至2025年各季度收入占比数据，分析公司收入季度分布的变化趋势，并指出2025年第四季度占比与往年相比有何显著特征？",
+   "type": "趋势",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "2023年和2024年各季度收入占比均呈现逐季上升的趋势，第四季度占比最高，分别为43.82%和32.88%；2025年同样逐季上升，但第四季度占比高达48.23%，显著高于前两年同期，且全年收入规模大幅增长（2025年合计6,127,537.21万元，远高于2024年的2,392,875.14万元），表明收入季节性集中度在2025年进一步增强，年末翘尾效应更加明显。",
+   "relevant_chunk_ids": [
+    "2e33abb4b7c946808c09cf4cb2ef0cc2"
+   ],
+   "snippet": "2023年和2024年各季度收入占比均呈现逐季上升的趋势，第四季度占比最高，分别为43.82%和32.88%；2025年同样逐季上升，但第四季度占比高达48.23%，显著高于前两年同期，且全年收入规模大幅增长（2025年合计6,127,53",
+   "relevant_fingerprints": [
+    "65952848b23a8b5576af53a84d94a8a61f43b28cec1dfc7e521a414de0359bc7"
+   ]
+  },
+  {
+   "question": "根据比亚迪年报，根据片段12，2025年确认的股份支付费用中不同员工持股计划的构成与2024年总额相比，呈现怎样的变化趋势？",
+   "type": "趋势",
+   "company": "002594_比亚迪：2025年年度报告.pdf",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "answer": "2025年确认的股份支付费用中，2022年员工持股计划确认694千元，2025年员工持股计划确认882千元，合计1576千元；而2024年确认为2069千元，整体费用呈现下降趋势。",
+   "relevant_chunk_ids": [
+    "fc935fb9363241408851c53009274ed8"
+   ],
+   "snippet": "2025年确认的股份支付费用中，2022年员工持股计划确认694千元，2025年员工持股计划确认882千元，合计1576千元；而2024年确认为2069千元，整体费用呈现下降趋势。",
+   "relevant_fingerprints": [
+    "dc0488f91b978b2b56a43438b61f77a7a55b8834e96e2ed683bba5e974915b15"
+   ]
+  },
+  {
+   "question": "报告称“二零二五年中国自主品牌乘用车市场份额达到69.5%”，这是否为比亚迪公司自身的市场份额？请说明依据。",
+   "type": "对抗",
+   "company": "002594_比亚迪：2025年年度报告.pdf",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "answer": "不是。该数据来源于工业协会，指中国自主品牌乘用车整体市场份额，而非比亚迪公司自身的市场份额。报告原文明确表述为“中国自主品牌乘用车市场份额达到69.5%”，并未将其归属为比亚迪公司。",
+   "relevant_chunk_ids": [
+    "544025d1e79d40e8a363d0f436652317"
+   ],
+   "snippet": "不是。该数据来源于工业协会，指中国自主品牌乘用车整体市场份额，而非比亚迪公司自身的市场份额。报告原文明确表述为“中国自主品牌乘用车市场份额达到69.5%”，并未将其归属为比亚迪公司。",
+   "relevant_fingerprints": [
+    "ab8d1b05c208d51fbd93f205ae36ef3fecda17f73994ec535a546610b07740f4"
+   ]
+  },
+  {
+   "question": "根据宁德时代新能源年报，根据片段中分地区收入数据，分析公司2025年境内和境外收入的变化趋势及结构变化。",
+   "type": "趋势",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "境内和境外收入均同比增长，其中境外收入增速（17.50%）略高于境内（16.84%），导致境外收入占比较期初（30.48%）微升至期末（30.60%），境内占比相应略降，显示公司国际化业务增长略快于境内，结构呈缓慢向境外倾斜的趋势。",
+   "relevant_chunk_ids": [
+    "ce6a4255809a47779c211f198d52620f"
+   ],
+   "snippet": "境内和境外收入均同比增长，其中境外收入增速（17.50%）略高于境内（16.84%），导致境外收入占比较期初（30.48%）微升至期末（30.60%），境内占比相应略降，显示公司国际化业务增长略快于境内，结构呈缓慢向境外倾斜的趋势。",
+   "relevant_fingerprints": [
+    "2f84e297342f52234050a251c8574fca8504dbbf3a2fb8e66d7c36052a845dc7"
+   ]
+  },
+  {
+   "question": "根据宁德时代新能源年报，比较以公允价值计量且其变动计入当期损益的金融资产与以公允价值计量且其变动计入其他综合收益的金融资产在后续计量上的主要区别。",
+   "type": "比较",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "根据片段[2]，以公允价值计量且其变动计入当期损益的金融资产，其产生的利得或损失（包括利息和股利收入）计入当期损益；根据片段[27]，以公允价值计量且其变动计入其他综合收益的金融资产，采用实际利率法计算的利息、减值损失或利得及汇兑损益计入当期损益，其他利得或损失计入其他综合收益，终止确认时将累计利得或损失转出计入当期损益。",
+   "relevant_chunk_ids": [
+    "2de366597d8c41988109f485043e9fb1",
+    "8f624b3850c84498b0b82ecfa79f4dd8"
+   ],
+   "snippet": "根据片段[2]，以公允价值计量且其变动计入当期损益的金融资产，其产生的利得或损失（包括利息和股利收入）计入当期损益；根据片段[27]，以公允价值计量且其变动计入其他综合收益的金融资产，采用实际利率法计算的利息、减值损失或利得及汇兑损益计入当",
+   "relevant_fingerprints": [
+    "449412dc33ab78ffdf46af06eca07c537615138d47482612a5f47bead8dacd67",
+    "2a9a9955828315c7ad4fc9c9ac639c048c3fa9a94382ea8d6c1a04d1f3b9270d"
+   ]
+  },
+  {
+   "question": "根据宜宾五粮液年报，有市场观点称白酒行业进入深度调整期后公司已全面收缩营销投入以转向保守防御，请结合披露的费用结构变化与宏观产业演进趋势，辨析该观点的合理性，并总结公司基于长期视角的战略应对趋势。",
+   "type": "趋势",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "该观点属于偷换概念的片面解读。财报显示，尽管行业消费场景收缩导致相对市场投入有所下降，但2025年公司实际仍保持线上1.78亿元、线下8.25亿元及电视5.02亿元的巨额全渠道广告投放，并未出现实质性的全面收缩。支撑此策略及判断长期向好的趋势依据在于：一是政策导向发生历史性转折，酒业获“历史经典产业”地位且部委已印发2026-2030提质升级指导文件；二是宏观消费底层逻辑升级，人均GDP突破1.4万美元正向高收入国家迈进，消费升级趋势不可逆转；三是公司产品矩阵层次清晰，能够持续匹配不同圈层的多元化需求。公司正顺应政策红利与消费迭代的长周期趋势，进行结构性营销优化而非盲目防御。",
+   "relevant_chunk_ids": [
+    "2c5486fd8c0f4cea89147aac74345578",
+    "3f10d4ad21754a54b5b1125665b54c08",
+    "aba09bebf524466283ebb3362487e014",
+    "bcff9612fc20431cb23dd11bd56f81f2"
+   ],
+   "snippet": "该观点属于偷换概念的片面解读。财报显示，尽管行业消费场景收缩导致相对市场投入有所下降，但2025年公司实际仍保持线上1.78亿元、线下8.25亿元及电视5.02亿元的巨额全渠道广告投放，并未出现实质性的全面收缩。支撑此策略及判断长期向好的趋",
+   "relevant_fingerprints": [
+    "10cdb9c7553d6184e6513495f46ebe1e3ba1d34d43e4becd7fe34ba3660d2490",
+    "f0b11ca472d2ea935f9268654e1464fbbe220b018eb54599196df9502da95902",
+    "e66d722c8a82c5d596582b9d6c6cbab6eb10d65c8c6080fcf72889bd36b4b5d7",
+    "2344c2452f05835b2e72a0fab9c1d8aa0b20eef97318c310d2af08b13d086978"
+   ]
+  },
+  {
+   "question": "根据深圳市汇川技术年报，结合报告中关于机器人业务的规划与全球市场拓展的描述，分析该公司在人形机器人及核心零部件领域的技术突破是如何支撑其整体国际化战略落地的？",
+   "type": "多跳",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "公司在人形机器人领域实现了从预研到商业化的跨越，构建了无框力矩电机等核心部件的全栈能力，并推动泛人形机器人解决方案向工业场景落地（片段17）。该技术底座直接赋能了其国际化布局：一方面，公司依托大负载关节机器人、智能视觉融合等代差级产品创新，加速拓展国际一流客户并培育本地生态伙伴（片段5）；另一方面，公司将技术优势嵌入“解决方案出海”与“借船出海”双轨策略中，既向欧美发达市场提供定制化方案，又伴随国内头部企业出海浪潮稳步提升海外收入占比（片段10）。综上，公司的硬件全栈研发与商业化突破为其全球化渠道建设、多产品定点及海外份额扩张提供了核心竞争力支撑。",
+   "relevant_chunk_ids": [
+    "0f2ce1d9c3694d98a6df102a224e8bf3",
+    "7f0253361c784ca9bfe3efd9c3a16854",
+    "da93aa98f00541008fc733a0ef3f950f"
+   ],
+   "snippet": "公司在人形机器人领域实现了从预研到商业化的跨越，构建了无框力矩电机等核心部件的全栈能力，并推动泛人形机器人解决方案向工业场景落地（片段17）。该技术底座直接赋能了其国际化布局：一方面，公司依托大负载关节机器人、智能视觉融合等代差级产品创新，",
+   "relevant_fingerprints": [
+    "fd8717f3ba83758b7636d4f1b3d57d4c1c9bf337f9704972dd4bd60a46b04129",
+    "92b598c1372ec28657b4a298ef83ea52a162719fa1dd3174e3e609a3cd5780e3",
+    "e718ea2c4399555872f51921d8c9d68446650bf3c6c9e94cd3e914c79bad506d"
+   ]
+  },
+  {
+   "question": "根据上海浦东发展银行年报，结合所给内容，分析该行在绿色金融领域的业务推进路径呈现出怎样的演进趋势？",
+   "type": "趋势",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "根据片段[9]与[19]，该行绿色金融业务呈现出从“平台生态搭建与同业合作拓展”向“深耕产业场景与落地首创性转型金融产品”深化的趋势。早期阶段主要致力于战略层面的“朋友圈”建设，通过加入碳中和行动联盟、深化与国家级产业基金及专业机构的合作来拓宽服务边界；随着实践深入，业务重心加速向实体经济绿色低碳转型倾斜，相继推出全国首单数据中心绿色算力指数可持续发展挂钩贷款、深圳市首笔CCER挂钩贷款以及山西焦化行业转型金融业务等标志性项目，表明其绿色金融已从基础合作网络构建迈入利用结构化创新工具精准支持传统行业降碳与新兴产业发展的实质性攻坚阶段。",
+   "relevant_chunk_ids": [
+    "3e64fa946c6e4bde986752dfbdd052e5",
+    "cc51e5623fe541c58c87fd6f3d0a7c19"
+   ],
+   "snippet": "根据片段[9]与[19]，该行绿色金融业务呈现出从“平台生态搭建与同业合作拓展”向“深耕产业场景与落地首创性转型金融产品”深化的趋势。早期阶段主要致力于战略层面的“朋友圈”建设，通过加入碳中和行动联盟、深化与国家级产业基金及专业机构的合作来",
+   "relevant_fingerprints": [
+    "ec7fe0f553252e910e3d5a3cd73e6de6bb77d69ee1453c82eebfa8c0333d7f2c",
+    "985f2f2c5230a7038c7075464d1305867e14adea954cdc9a0b8743d690698a28"
+   ]
+  },
+  {
+   "question": "根据上海浦东发展银行年报，有市场观点认为，为增强负债管理的主动性，浦发银行于2024年8月面向银行间市场发行的二级资本债券全面采用了挂钩基准利差的浮动利率定价机制。请结合年报披露内容，核查该行当期新发二级资本债的实际利率属性、分层期限设计及对应发行规模。",
+   "type": "对抗",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "该表述存在明显误导。根据片段[15]与[23]，该行当期发行的“2024年第一期二级资本债券”实际采用的是**固定利率**而非浮动利率机制。产品按期限与规模划分为两个品种：品种一（24浦发银行二级资本债01A）设定为5+5年期，发行规模350亿元，票面利率2.17%；品种二（24浦发银行二级资本债01B）设定为10+5年期，发行规模50亿元，票面利率2.30%。年报事实表明该行系以不同久期的固定利率工具优化资本结构，而非运用浮动定价策略。",
+   "relevant_chunk_ids": [
+    "3102a8de62244d1597722db08e8dd537",
+    "75935c5cfeab4d2188f27f52e75b39f3"
+   ],
+   "snippet": "该表述存在明显误导。根据片段[15]与[23]，该行当期发行的“2024年第一期二级资本债券”实际采用的是**固定利率**而非浮动利率机制。产品按期限与规模划分为两个品种：品种一（24浦发银行二级资本债01A）设定为5+5年期，发行规模35",
+   "relevant_fingerprints": [
+    "e640aa0fda1b79b7aac227694c9926b3d4a114c912217eee5383efe207ea2e44",
+    "d8f5384e66e2eca62c7ac500527c0cb1713cbdb715c36f002272fd650db1dd75"
+   ]
+  },
+  {
+   "question": "根据杭州海康威视数字技术年报，结合财报披露信息，比较“海康互联”与“海康云商”两大数字化平台的战略定位差异及其服务的核心客群，并阐述两者在构建公司智能物联生态中的互补逻辑。",
+   "type": "比较",
+   "company": "002415_海康威视：2025年年度报告.pdf",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "answer": "“海康互联”定位为面向中小企业用户的智能物联管理云平台，核心功能在于集成视频、门禁、消防等通用物联能力，侧重为终端用户提供设备管理与场景化解决方案；而“海康云商”定位为面向经销商、安装商等渠道伙伴的营销服务数字化赋能平台，侧重通过APP、小程序及AI智能营销工具，协助伙伴在售前、交易、交付等环节实现提效。两者在客群上形成“终端用户/中小企业”与“渠道合作伙伴”的分层覆盖，在功能上实现“物联资产管理运维”与“商机转化营销赋能”的深度互补，共同打通了从渠道赋能到终端应用落地的完整数字化生态闭环。",
+   "relevant_chunk_ids": [
+    "3088f003c8ff49308515a0aa77f2ed83",
+    "7ad750c0666b48088ef99bbd480e1720"
+   ],
+   "snippet": "“海康互联”定位为面向中小企业用户的智能物联管理云平台，核心功能在于集成视频、门禁、消防等通用物联能力，侧重为终端用户提供设备管理与场景化解决方案；而“海康云商”定位为面向经销商、安装商等渠道伙伴的营销服务数字化赋能平台，侧重通过APP、小",
+   "relevant_fingerprints": [
+    "c60ffad21de294d3bbd308713bf2a529c09a651ec347e5462dbee3326534adff",
+    "baf2b4cf3b50be26e26660bfc17b1376e7e47fcce9aecf346dcd95d76dca9bab"
+   ]
+  },
+  {
+   "question": "根据杭州海康威视数字技术年报，结合公司历史技术积淀与近期产品布局，分析海康威视在人工智能领域的演进路径如何支撑其“智能物联”核心战略的落地？",
+   "type": "多跳",
+   "company": "002415_海康威视：2025年年度报告.pdf",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "answer": "该演进路径呈现清晰的“底层算法奠基—中枢大模型迭代—平台语义化升级—全栈场景闭环”逻辑。首先，公司早在2006年即组建智能算法团队，并于2023年发布“观澜大模型”，累计推出数百款模型实现云边端全覆盖，完成了从传统安防向AI驱动的技术底座切换（见[id=18]、[id=9]）。其次，在应用中枢层面，2025年公司管理平台引入多模态大模型，实现从机械规则匹配到自然语言语义理解的跨越，大幅提升了数据关联与调度能力（见[id=25]）。最后，该平台能力向下深度赋能具体业务：在硬件侧支撑L3辅助决策向L4自主控制跃升，在垂直工业场景中实现高精度自动化检测与海量设备秒级检索。这种“算法-模型-平台-终端”的纵向打通，使AI能够精准理解复杂场景动态并自动处理任务，直接推动了安防主业升级与千行百业数字化转型，为“智能物联”战略提供了可规模化复制的商业与技术双轮驱动引擎。",
+   "relevant_chunk_ids": [
+    "5582d101058243b5a845ff5b85f5ad79",
+    "64097a89f78e4f089a1cd2cb16c14fe0",
+    "f14d9c3b0f50415bb14b8192caa63b03"
+   ],
+   "snippet": "该演进路径呈现清晰的“底层算法奠基—中枢大模型迭代—平台语义化升级—全栈场景闭环”逻辑。首先，公司早在2006年即组建智能算法团队，并于2023年发布“观澜大模型”，累计推出数百款模型实现云边端全覆盖，完成了从传统安防向AI驱动的技术底座切",
+   "relevant_fingerprints": [
+    "b62c86dd9c36072b5d6c923f334de01913cc856cdd9f1db8ea64a2d70e129099",
+    "9d8e31b693675856cc4ded33b4e586057b95bc0aa097f238040a92f7af536db8",
+    "a3a238c4c67446709e1aacd2a6c782b8148c4f09f8794046974587d7212cac28"
+   ]
+  },
+  {
+   "question": "根据杭州海康威视数字技术年报，某市场研报称：“海康威视之所以在2025年将海视华跃纳入合并报表范围，根本原因是其主导召开了子公司董事会并成功通过了调整董事会表决机制的决议，将重大事项由二分之一表决权通过变更为三分之一。”请评估该说法的准确性，并依据年报事实还原控制权获取的真实治理逻辑。",
+   "type": "对抗",
+   "company": "002415_海康威视：2025年年度报告.pdf",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "answer": "该说法存在严重的事实混淆与陷阱设计。根据[id=20]披露，实际情形恰恰相反且主体有误：第一，决策机构并非“董事会”，而是子公司的“股东会”；第二，表决门槛的变更方向与比例均被颠倒，真实情况是将决定发展战略等重大事项的表决权要求，由原先严格的“三分之二以上”**下调**为“二分之一以上”。这一股东会层面的章程修订打破了原有的共同控制或否决权僵局，使得本集团得以实质性单方面控制该公司的财务和经营决策，符合企业会计准则关于“实质控制权”的认定标准，从而依法将其纳入合并财务报表范围。研报错误地替换了公司治理层级并篡改了关键的股权表决阈值。",
+   "relevant_chunk_ids": [
+    "8c22437385834599864e21a4579892d2"
+   ],
+   "snippet": "该说法存在严重的事实混淆与陷阱设计。根据[id=20]披露，实际情形恰恰相反且主体有误：第一，决策机构并非“董事会”，而是子公司的“股东会”；第二，表决门槛的变更方向与比例均被颠倒，真实情况是将决定发展战略等重大事项的表决权要求，由原先严格",
+   "relevant_fingerprints": [
+    "f4be08459e0d44c0f5180d515fbe8b15103e493c6c1877aeed042e16231e241d"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，报告期内，公司销售费用连续两年大幅增长的底层驱动因素是否存在结构性差异？请结合具体动因与整体费用构成进行对比分析。",
+   "type": "比较",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "存在显著差异。2024年的费用增长主要受股权激励带来的股份支付费用持续增加，以及随业务扩张而上升的平台认证费驱动；而2025年的大幅增长则转而由业绩兑现后销售人员业绩奖金（职工薪酬）的激增所主导，同时平台认证费与样品费维持高位。结合整体费用结构数据可见，股份支付在该类费用中的占比呈现快速攀升态势，表明前期的股权激励成本是基础推力，而后期营收放量后的绩效奖金兑现则构成了当期费用跃升的核心动能。",
+   "relevant_chunk_ids": [
+    "3382ccc4a3ce4eac910e3313ea6f10c9",
+    "4a60812207e54e01bdefd7cade7bf5b2"
+   ],
+   "snippet": "存在显著差异。2024年的费用增长主要受股权激励带来的股份支付费用持续增加，以及随业务扩张而上升的平台认证费驱动；而2025年的大幅增长则转而由业绩兑现后销售人员业绩奖金（职工薪酬）的激增所主导，同时平台认证费与样品费维持高位。结合整体费用",
+   "relevant_fingerprints": [
+    "1619a806aaec1cfa1e08be23669ae284aa8312753c717d898675f0a094841f98",
+    "f00828fbeb8e2f104ef0178781001710fdfc2c051df6c915f2482f6ac6581a27"
+   ]
+  },
+  {
+   "question": "根据CXMT年报，有市场观点认为，面对2023年DRAM行业罕见的深度下行周期及价格腰斩，该公司为规避存货跌价风险，在2023年度果断采取了‘减产保利润’的去库存策略。请基于年报披露信息，对该市场观点进行辨析。",
+   "type": "对抗",
+   "company": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "answer": "该观点存在严重的事实错误，与披露情况完全相反。根据年报明确记载，公司在2023年行业深度下行且国际巨头普遍亏损的背景下，并未采取减产措施，反而实施了‘坚定扩产策略’以抢占市场。这一逆周期扩产的决策直接反映在运营数据中：报告期内公司产能利用率不仅未降，反而稳步攀升至95.73%的高位，同时保证了收入规模与市场份额的双增长。不过，该策略也确实带来了阵痛，导致公司当年盈利能力受行业周期冲击较大，并计提了相应的存货减值，而非所谓的‘减产保利润’。",
+   "relevant_chunk_ids": [
+    "53db16b7a425428eb5273558292bf5cd",
+    "5b3fc9a569404699b4246ac2dfa67078"
+   ],
+   "snippet": "该观点存在严重的事实错误，与披露情况完全相反。根据年报明确记载，公司在2023年行业深度下行且国际巨头普遍亏损的背景下，并未采取减产措施，反而实施了‘坚定扩产策略’以抢占市场。这一逆周期扩产的决策直接反映在运营数据中：报告期内公司产能利用率",
+   "relevant_fingerprints": [
+    "bac18465e5acd45f58b2c7af4cae3b134879d67e1d4a58d5c3be2c31a60219f2",
+    "6ef8d1fc1b5b4397b63586fe3628d696a730d9d0c7f75e6afa2ae95dd6b27e85"
+   ]
+  },
+  {
+   "question": "结合报告披露，比亚迪在推进华南、华东、华中等多个区域工业园的建设过程中，主要依赖何种资金安排？集团又是如何运用核心财务工具来实质性支持各子公司完成这些重资产投资布局的？",
+   "type": "多跳",
+   "company": "002594_比亚迪：2025年年度报告.pdf",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "answer": "各新园区的建设资金主要规划为“自筹资金”。集团通过大幅提升对子公司的债务融资担保额度为其提供强有力的信用背书与流动性支持。数据显示，仅为子公司实际提供的担保额已从2024年末的约378亿元大幅跃升至2025年末的超848亿元，这种密集的集团化担保机制有效降低了子公司的外部融资门槛，保障了各地自建产能项目的顺利落地。",
+   "relevant_chunk_ids": [
+    "1f24706c7576494d924455ebe7ab4a3e",
+    "89ae43f93f3646719e727b0bbddfe719"
+   ],
+   "snippet": "各新园区的建设资金主要规划为“自筹资金”。集团通过大幅提升对子公司的债务融资担保额度为其提供强有力的信用背书与流动性支持。数据显示，仅为子公司实际提供的担保额已从2024年末的约378亿元大幅跃升至2025年末的超848亿元，这种密集的集团",
+   "relevant_fingerprints": [
+    "290d085e0c16d667014bedc4772935a21f782786465b192a075d9a3793cfff06",
+    "2c5562abf9170fbdcb4568ba0be154e9d24318ba933fe4be4424222539e6e3a8"
+   ]
+  },
+  {
+   "question": "根据比亚迪年报，有投资者在阅读财报后质疑：公司在2025年下半年紧急修订了《内部审计制度》等重大治理规则，反映出内部管理已出现重大漏洞，且这一内控缺陷直接导致会计师事务所未能通过审计，最终出具了非标准意见的内部控制审计报告。请依据报告原文事实对该说法进行逐条辟谣与还原。",
+   "type": "对抗",
+   "company": "002594_比亚迪：2025年年度报告.pdf",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "answer": "该说法完全曲解了报告披露信息。首先，《内部审计制度》的修订是公司常态化治理优化举措（于2025年10月30日董事会审议通过），旨在进一步健全合规体系，并非应对管理危机的补救措施；其次，报告在“内部控制审计报告”专项中明确勾选“否”（即会计师事务所未出具非标准意见），证明公司报告期内的内控体系完整有效，各项制度修订不仅未引发运营风险，反而进一步夯实了规范管理基础。",
+   "relevant_chunk_ids": [
+    "5879e7cc37c1428cae0d7c3eb4f0cb1f",
+    "6679eda86f704bf083a45ad44e85be62"
+   ],
+   "snippet": "该说法完全曲解了报告披露信息。首先，《内部审计制度》的修订是公司常态化治理优化举措（于2025年10月30日董事会审议通过），旨在进一步健全合规体系，并非应对管理危机的补救措施；其次，报告在“内部控制审计报告”专项中明确勾选“否”（即会计师",
+   "relevant_fingerprints": [
+    "9c671db567d9033f0ec8d4cf957dd43432fc389ef980a295aa5a6fc7ad9c4b95",
+    "0696d7551997379451a1f3531cb533f4de6949e3f260757a5ccc70cf9a9cadf1"
+   ]
+  },
+  {
+   "question": "根据宁德时代新能源年报，依据报告内容，请比较公司在“员工股权激励计划未达标回购”与“年度现金利润分配”两种权益回报安排上的资金处理逻辑与决策程序差异。公司如何通过这两种不同的机制分别实现对核心员工约束与全体股东回报的保障？",
+   "type": "比较",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "针对股权激励未达标情形（[id=30][id=6]），公司采用协议约定的固定价格强制回购注销股份，财务上在授予日即预提库存股与其他应付款，体现的是带有契约刚性约束的员工绑定与考核淘汰机制。针对现金利润分配（[id=15][id=36]），公司严格遵循章程明确的分配标准与比例，必须经董事会及股东大会按完备程序审议表决后方可实施，且报告期内政策未发生变更，体现的是依赖法定治理流程的普惠性股东即时回报机制。两者差异在于：前者依赖事前协议与财务预提形成激励闭环，侧重核心人才长期绑定与考核兑现；后者依赖股东会决议与明确分红政策，侧重全体股东利益的制度化保障。",
+   "relevant_chunk_ids": [
+    "06b349d3ed254b14a04ca04d2527f477",
+    "3427517e517d4f5e9dded7889e68b578",
+    "4db816580ebb4f50a5c668d2a765f3ff",
+    "9e9a08a97a734f86804e2015113fd6d9"
+   ],
+   "snippet": "针对股权激励未达标情形（[id=30][id=6]），公司采用协议约定的固定价格强制回购注销股份，财务上在授予日即预提库存股与其他应付款，体现的是带有契约刚性约束的员工绑定与考核淘汰机制。针对现金利润分配（[id=15][id=36]），公",
+   "relevant_fingerprints": [
+    "88ed1d682e269104aa9b34398fe75da059fe05410e865777b3b0f65fbb6d21d3",
+    "998b654451ce409cd83144f63f00d36a5ba30689091a41982f82108e9f56a968",
+    "6e740502723a730662883b668f64840abb21a85292685fb2496a64fc8f9fed31",
+    "ee4ef6cbd27754b42252906659a2b55e0b3b317a643cf9167fd58aae1ec0c686"
+   ]
+  },
+  {
+   "question": "根据宁德时代新能源年报，基于报告披露，宁德时代在储能系统与换电等新兴业务领域的布局与发展趋势呈现出什么特征？",
+   "type": "趋势",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "宁德时代储能业务呈现显著的高速扩张趋势，系统集成全球交付项目稳步增长，且出货规模实现超过160%的同比大幅增长；在新兴领域方面，公司正依托零碳战略与工厂能效优化推进产业链绿色低碳转型，其中换电产业生态已初步显现发展势能。整体呈现出在巩固核心制造优势的同时，加速向高增长潜力的储能市场及多元化新能源应用场景渗透的趋势。",
+   "relevant_chunk_ids": [
+    "4971f6bd9c8e44bbbade8bf652f1e187",
+    "4fecc3f2fad74475a1059f0753ca83ab"
+   ],
+   "snippet": "宁德时代储能业务呈现显著的高速扩张趋势，系统集成全球交付项目稳步增长，且出货规模实现超过160%的同比大幅增长；在新兴领域方面，公司正依托零碳战略与工厂能效优化推进产业链绿色低碳转型，其中换电产业生态已初步显现发展势能。整体呈现出在巩固核心",
+   "relevant_fingerprints": [
+    "7ac6316000e49285cb8c1b3f68f1083626b261d79f630657c44976b80cf1d197",
+    "7803abdfa259565f3dc5582ced07136ab8b4f63990d1fa843c778e8adc41ddc2"
+   ]
+  },
+  {
+   "question": "根据宁德时代新能源年报，有市场观点认为，鉴于宁德时代在报告期内频繁开展应收票据贴现与背书业务，该操作实质上构成了变相融资行为，因此公司出于财务谨慎性原则，并未在账面终止确认这些已转移的票据，而是继续将其保留在资产科目中并承担后续风险。请结合公司对该类业务的会计政策认定及实际执行标准，判断上述观点是否成立，并准确还原公司在贴现或背书日的真实账务处理方式。",
+   "type": "对抗",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "上述观点不成立，属于对准则应用的误解。根据公司对应收票据业务的专项披露，尽管开展了贴现或背书支付等操作，但集团经评估认定相关票据在转移时已实质让渡了几乎所有的风险与报酬。因此，该情形完全符合金融资产终止确认条件，公司在实际操作中于贴现日或背书日已按账面价值全部终止确认了相关应收票据，而非观点所称的继续资产化列报或确认为融资负债。",
+   "relevant_chunk_ids": [
+    "84b79d4a3552452381a0cb95b3e75299",
+    "952b3c00756446acae02085647e34077"
+   ],
+   "snippet": "上述观点不成立，属于对准则应用的误解。根据公司对应收票据业务的专项披露，尽管开展了贴现或背书支付等操作，但集团经评估认定相关票据在转移时已实质让渡了几乎所有的风险与报酬。因此，该情形完全符合金融资产终止确认条件，公司在实际操作中于贴现日或背",
+   "relevant_fingerprints": [
+    "49a5527574d1e70a7e31b940caecfc0b6aed6709add56cfccea1f6621032b4d3",
+    "df6e123e047cf44dcc47630f1a02726d0a9915bd7e77c4b53372903de32eeb0b"
+   ]
+  },
+  {
+   "question": "根据中国平安人寿保险年报，该集团在股东回报及资金配置策略上呈现出怎样的发展趋势？请结合分红表现与资本管理机制进行阐述。",
+   "type": "趋势",
+   "company": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "answer": "呈现连续增长且机制保障明确的稳健上升趋势。从分红表现看，集团现金分红总额已连续多年保持上涨态势，2025年全年股息水平实现同比增长，显示出向股东返还现金的持续意愿；从资金配置看，集团内部已构建起‘子公司按需申报-集团统筹规划-董事会最终决议’的闭环资本管理决策机制。这种将阶段性业绩成果转化为稳定分红，并依托制度化资本规划进行资源分配的模式，共同推动了股东回报体系的长期向好趋势。",
+   "relevant_chunk_ids": [
+    "2f28a75700f04ebb947924a2de4c0005",
+    "f2e640c216e64e688c504d741e1ca799"
+   ],
+   "snippet": "呈现连续增长且机制保障明确的稳健上升趋势。从分红表现看，集团现金分红总额已连续多年保持上涨态势，2025年全年股息水平实现同比增长，显示出向股东返还现金的持续意愿；从资金配置看，集团内部已构建起‘子公司按需申报-集团统筹规划-董事会最终决议",
+   "relevant_fingerprints": [
+    "90cab60ee3e11b7a1060912a8c8b0371b8faab07dc6ac1afae9a8b259fc840f3",
+    "e085bb258d4adc3f38b297339597f4b71eb1ef4f3392f65423e2693a4457d2f7"
+   ]
+  },
+  {
+   "question": "根据中国平安人寿保险年报，综合内部投资管理、客户服务渠道及前沿技术应用的相关描述，该集团数字化转型的具体实施路径与业务联动成效是怎样的？",
+   "type": "多跳",
+   "company": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "answer": "集团采取了“风控数字化+服务线上化+场景智能化”的纵深推进路径。首先，在投资端，利用科技手段赋能投后管理并搭建风险监控预警平台，实现对资产组合与市场波动的全面扫描与并表监测；其次，在服务端，整合热线、官网及微信等全渠道建立全天候数字服务体系，大幅提升咨询响应效率与服务覆盖面；最后，这两项底层数字化能力向外延伸并融合至医疗养老等核心生态场景中，催生了大规模应用的AI医疗与居家服务矩阵。整体而言，其转型路径已从单点的系统建设跃升为贯穿投研风控、客户经营到产业生态的全链路数字化联动体系。",
+   "relevant_chunk_ids": [
+    "51ea5ff199424ef8a812a38a7fd06bc2",
+    "ac51e03e9a594dae9acca50e4b9d850b",
+    "c64860234ef144b4be5a4624066a3579"
+   ],
+   "snippet": "集团采取了“风控数字化+服务线上化+场景智能化”的纵深推进路径。首先，在投资端，利用科技手段赋能投后管理并搭建风险监控预警平台，实现对资产组合与市场波动的全面扫描与并表监测；其次，在服务端，整合热线、官网及微信等全渠道建立全天候数字服务体系",
+   "relevant_fingerprints": [
+    "326324a22167efe5983ac71ca43b80669edc99c80caa2a7612724381910db79a",
+    "6f66454469420c6b1e2f94414ffd525de80ebabca6ae7a1bd3c7accafa587f2a",
+    "fae75da3c5a345e0931e6bae2f3c64a34244bde1cb53eb8082389007e760fda6"
+   ]
+  },
+  {
+   "question": "根据中国平安人寿保险年报，平安集团是如何将可持续发展（ESG）理念与其全面风险管理体系及高管绩效考核相融合的？结合外部权威评级结果，这种融合策略为公司在行业内树立了怎样的标杆地位？",
+   "type": "多跳",
+   "company": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "answer": "根据年报披露，平安集团已将ESG的核心理念与标准全面融入整体风险管理框架中，以此保障各项业务发展行稳致远；同时，集团将ESG相关关键绩效指标正式纳入高级管理层考核方案，并接受定期的达成检视。在外部认可方面，该深度融合策略成效显著：公司连续三年入选央视“中国ESG上市公司先锋100”榜单，获得恒生指数可持续发展评级A级，更在万得可持续发展评级中斩获最高等级AAA级，成为A股和港股同行业中唯一获此顶格评级的企业，确立了其在绿色金融与高质量可持续发展领域的行业领军地位。",
+   "relevant_chunk_ids": [
+    "09edf082563345f686f659b30ff04f38",
+    "4d14c6a3c8e641159be1a9fa8b49d2b0",
+    "5083440cb72c4e72b5f76de257f887c0",
+    "e4ea9622f0ac49f087e57b8dec7739f1"
+   ],
+   "snippet": "根据年报披露，平安集团已将ESG的核心理念与标准全面融入整体风险管理框架中，以此保障各项业务发展行稳致远；同时，集团将ESG相关关键绩效指标正式纳入高级管理层考核方案，并接受定期的达成检视。在外部认可方面，该深度融合策略成效显著：公司连续三",
+   "relevant_fingerprints": [
+    "34833c65bfa2768d6dd27ab2848ee416f035058bb0d72d1a5b691eaff1c3df99",
+    "a197d5933ef557fa551cf519442f4c11e609941dcb943bf1b979d1e10756ea95",
+    "a5ad441b982ed18ca74b3645b2ef3446148b40755ac34194a07b472b30964ca2",
+    "dcee6aead20a38c9b196b5d836a2509c54eead0925bdf0377e895cdf489e49f3"
+   ]
+  },
+  {
+   "question": "根据中国平安人寿保险年报，市场传闻称，平安健康实现的“AI+真人医生服务覆盖100%集团个人客户”这一里程碑是在2024年度完成的，且该智能化医疗布局直接推动了中国平安市值突破万亿人民币。请结合年报原文辨析该说法的准确性，并说明相关业务数据的真实统计区间及带来的实际经营成效。",
+   "type": "对抗",
+   "company": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "answer": "该说法存在双重事实误导。首先，年报明确指出相关AI医疗服务数据系“2025年经营成果”，而非2024年取得。其次，集团市值突破万亿是综合金融生态与市场长期认可的结果，并非由单一健康板块的智能化升级直接驱动。事实上，2025年平安健康通过构建医院医生库、疾病目录库等底层设施，配合AI家庭医生与名医数字分身，确实实现了对全量个人客户的全天候覆盖。其带来的真实经营成效聚焦于降本增效与服务提质：AI辅助的复杂疾病多学科会诊方案准确率达近90%，且第四季度单次问诊成本同比大幅压降近1200万元，有效支撑了“金融为民”与健康养老服务的战略落地。",
+   "relevant_chunk_ids": [
+    "3291c1e682cf4964827d15c748047a4e",
+    "8a6c39af5ea0441193026e364b5d6870"
+   ],
+   "snippet": "该说法存在双重事实误导。首先，年报明确指出相关AI医疗服务数据系“2025年经营成果”，而非2024年取得。其次，集团市值突破万亿是综合金融生态与市场长期认可的结果，并非由单一健康板块的智能化升级直接驱动。事实上，2025年平安健康通过构建",
+   "relevant_fingerprints": [
+    "787f78427f0af1b3d5961d4d3d074c215d04ce14e4bb2a365bab0f7626c23326",
+    "5f60f1c00f55954ef04b475b06929e3bfeb87627f1d22a56d7166c01edb39636"
+   ]
+  },
+  {
+   "question": "根据中芯国际年报，结合报告内容，比较公司在关连交易审议标准上适用境内A股规范与《香港上市规则》的核心差异，并分析这种差异如何反映公司在多重资本市场环境下的差异化治理安排？",
+   "type": "比较",
+   "company": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "answer": "依据[id=23]，公司在关连交易提交股东大会审议的财务/业务标准上存在境内外差异，明确主要参照《香港上市规则》执行，而非完全等同于一股通用的境内A股安排。结合[id=8]中关于持续完善法人治理与内控制度的目标，以及[id=25]强调需严格遵循联交所与上交所双重要求的背景，可见该差异并非合规冲突，而是公司采取的“两地监管适配”策略。公司在坚守境内法律底线的基础上，通过引入港股更侧重实质股东批准的披露与审议标准，实现了跨境运营效率与两地中小股东权益保护的平衡。",
+   "relevant_chunk_ids": [
+    "8545f44d6d3346479d4e64992935c13a",
+    "c2df016dc3424d99846a277734978888",
+    "d5efd8da667f4274b445058d7aad879a"
+   ],
+   "snippet": "依据[id=23]，公司在关连交易提交股东大会审议的财务/业务标准上存在境内外差异，明确主要参照《香港上市规则》执行，而非完全等同于一股通用的境内A股安排。结合[id=8]中关于持续完善法人治理与内控制度的目标，以及[id=25]强调需严格",
+   "relevant_fingerprints": [
+    "21533e5e63c671a6879ae877d3d984ce87d5ca946065da0013671e99899046af",
+    "cac90141da3ea361d72a45a5742b54b4102ffef8da62148924d3b8375d7f3774",
+    "cc99ca26ed7ddfde1db8b0c6101e78492e0a8a7464e21db729a02d40c4b9efac"
+   ]
+  },
+  {
+   "question": "根据中芯国际年报，鉴于集成电路产业链涵盖设计、制造与销售等多个环节，管理层是否已按照业务属性将本集团划分为不同的报告分部，以便更精准地配置资源并评价各板块业绩？",
+   "type": "对抗",
+   "company": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "answer": "否，该提问隐含的分部划分前提与年报披露事实不符。根据[id=32]明确规定，出于管理目的，本集团整体仅被视为一个业务单元，管理层直接将“本集团整体作为一个报告分部”进行统一管理与业绩评价，并未按制造或销售等环节拆分为多个分部。同时，[id=10]指出公司无实际控制人且无法单方面决定下属公司经营决策，进一步印证了集团层面采取高度统筹而非分板块割裂管理的决策架构。",
+   "relevant_chunk_ids": [
+    "3ed2ead329734be78ea2f6a27c869cb9",
+    "d1a85902fa0b4f3caf2461a9e91d4600"
+   ],
+   "snippet": "否，该提问隐含的分部划分前提与年报披露事实不符。根据[id=32]明确规定，出于管理目的，本集团整体仅被视为一个业务单元，管理层直接将“本集团整体作为一个报告分部”进行统一管理与业绩评价，并未按制造或销售等环节拆分为多个分部。同时，[id=",
+   "relevant_fingerprints": [
+    "1661242960cbc305081fa75d899ddf71b62673f7fdcf5a752413b4ed29632b9c",
+    "72d457e377ad7cb35fc201518ecaddf2ad185b5f67a76d5afe89ea39bc0e8f03"
+   ]
+  },
+  {
+   "question": "根据Tesla年报，在特斯拉的汽车商业租赁合作模式中，公司与银行伙伴完成车辆权属交割后，该项业务在收入确认逻辑、风险隔离机制以及后续担保负债的动态计量上是如何闭环管理的？",
+   "type": "多跳",
+   "company": "TSLA_10-K.docx",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "answer": "该模式的财务闭环始于前端确权：依据ASC 606准则，公司与银行伙伴的租赁流转被认定为即时销售，公司据此全额确认交易对价并提前收回车辆款项([id=2])。进入存续期后实行严格的风险隔离：租赁期内的车辆意外毁损风险及终端客户信用风险均由银行方承担，公司实现风险彻底出表([id=5])。针对期末可能触发的残值补偿义务，公司并非一次性计提固定准备，而是建立动态计量机制：一方面严格适用ASC 460确认担保负债并将其列报于其他负债；另一方面通过按季度跟踪同类二手车实际市场价值的走势变化，实时校准并增减该笔担保负债的账面预期金额，从而实现风险敞口的精细化滚动管理([id=5])。",
+   "relevant_chunk_ids": [
+    "6147e91f52094487aaa22f10f7ad5f6b",
+    "c54b823ccf9d4d01bd86d16aad4a79bd"
+   ],
+   "snippet": "该模式的财务闭环始于前端确权：依据ASC 606准则，公司与银行伙伴的租赁流转被认定为即时销售，公司据此全额确认交易对价并提前收回车辆款项([id=2])。进入存续期后实行严格的风险隔离：租赁期内的车辆意外毁损风险及终端客户信用风险均由银行",
+   "relevant_fingerprints": [
+    "3f9d330ebe3562b155a7843670a255bcbe6cebe1128ac8d03bbe4e45b4701886",
+    "76bd992bb541307475a7e3f60627fda6d0b4f647d8d50ecdee980ed9c42ac143"
+   ]
+  },
+  {
+   "question": "根据贵州茅台年报，报告期内，公司“茅台酒”与“其他系列酒”两大业务板块在产销表现与营收转化上呈现出何种结构性差异？结合公司的质量管控理念，分析管理层应如何差异化应对这两种不同的业务发展态势？",
+   "type": "比较",
+   "company": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "answer": "从片段8的数据脉络可看出，两大板块呈现显著的“量价分化”特征：“茅台酒”保持产量与销量的温和微增，销售收入实现同步正向增长，体现出极强的产品韧性、定价权及健康的供需关系；反观“其他系列酒”，虽然产量大幅攀升且销量稳步扩大，但销售收入却出现逆势下滑，反映出该板块可能正处于渠道去库存、促销让利或产品结构调整的阵痛期。结合片段2与16强调的“质量是生命之魂”及“不卖新酒”等核心质量观，管理层在应对时需采取差异化策略：对茅台酒须严守传统工艺与限量供应底线，依托稳定的品质预期巩固高端品牌溢价；对系列酒则需在加速产能释放的同时，重点落实片段13所述的包装质量管理升级与现代采购协同机制，通过优化终端价格体系与渠道动销效率来修复盈利模型，避免因盲目追求规模扩张而透支品牌信誉。",
+   "relevant_chunk_ids": [
+    "0207f5a42fd94492a426881c7edc456c",
+    "1c133537eb104dd2b60480713dc9a87b",
+    "4e6831678b10456baf38acbb08a93101",
+    "88b51a46eb0344c5973cd0f34591855b"
+   ],
+   "snippet": "从片段8的数据脉络可看出，两大板块呈现显著的“量价分化”特征：“茅台酒”保持产量与销量的温和微增，销售收入实现同步正向增长，体现出极强的产品韧性、定价权及健康的供需关系；反观“其他系列酒”，虽然产量大幅攀升且销量稳步扩大，但销售收入却出现逆",
+   "relevant_fingerprints": [
+    "2b8769fc608e7d6655249eab3b01c1708b0cfbd412708c8973a8f423bf42f88b",
+    "9d5962121f1f2e9d812cd53c745de8b02061368976d673cee27bb003891b1cc0",
+    "56ca1fc0cc76023458ae1c25b8b9c5705fc984d780562ff8ed6abb47bc527774",
+    "9efff06f4d50b04d27675f438ea620e33f58373f42f8916262a5afe21d76c171"
+   ]
+  },
+  {
+   "question": "根据贵州茅台年报，根据年报“重大事项说明”部分的提示，公司控股股东及实际控制人已在报告期内因涉嫌违法违规被实施留置，这是否意味着公司实际控制权已动摇或面临重大治理危机？请结合报告原文细节予以核实。",
+   "type": "对抗",
+   "company": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "answer": "该推论不成立，问题中存在关键主体的偷换概念。查阅片段[id=36]可知，年报实际披露的主体为“高级管理人员”而非“控股股东及实际控制人”。虽然该消息被收录于“股东、实际控制人涉嫌违法违规……情况说明”的标准化信披板块下，但具体指向的是一份针对公司高管个人的留置公告（临2026-004号），与公司实控人无关。此外，结合片段[id=23]（公司治理严格按法规运行）及[id=15]（董事会及股东会程序正常召开履职），可印证公司核心治理架构依然稳固，实际控制权并未发生变更，亦未引发治理危机。",
+   "relevant_chunk_ids": [
+    "35fe83373f904a2ca272a3e38097aebf",
+    "477eeead97f74e7f95c878f3ac008b94",
+    "d63f4b72eaca41ae8e04370d0a22ecc9"
+   ],
+   "snippet": "该推论不成立，问题中存在关键主体的偷换概念。查阅片段[id=36]可知，年报实际披露的主体为“高级管理人员”而非“控股股东及实际控制人”。虽然该消息被收录于“股东、实际控制人涉嫌违法违规……情况说明”的标准化信披板块下，但具体指向的是一份针",
+   "relevant_fingerprints": [
+    "8dae176d58e1ad0e7c378909a8a10a1caa75bace23fe2a721daf43dcb271d767",
+    "2c97c68902fbcd3bb5585c41ac30f2485b6e6a9327c29ae5ac1fe97d8390587d",
+    "12294565f5777c7a376562dd266019ad4424051ed64bc6cee216efcab65220a6"
+   ]
+  },
+  {
+   "question": "结合报告内容，比较“季节性需求波动”与“新产品发布周期”对Apple Inc.间接分销渠道库存结构及管理层财务预期的影响逻辑有何本质差异？",
+   "type": "比较",
+   "company": "AAPL_10-K_2024-11-01.docx",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "answer": "依据片段[2]与[8]的综合分析，两者影响逻辑存在显著差异：季节性波动主要体现为周期性流量特征，即第一季度受假日消费拉动形成需求峰值，渠道库存会随新品上市临近而自然回落至旧款去化状态，其对财务的影响相对可预期且呈规律性循环；而新产品发布周期则属于战略性供给驱动，深度依赖片段[8]所述的持续研发投入与技术迭代，其推出会通过制造渠道备货潮与消费者持币待购心理，引发旧款库存的快速出清与新款渠道铺货的结构性切换，从而对当期净销售额、销货成本及运营费用产生更为剧烈的单向冲击。前者侧重于需求端的时间分布平滑，后者侧重于供给端的产品代际更替。",
+   "relevant_chunk_ids": [
+    "28216b26cab141ff9e33fe97dc896e72",
+    "871f4a20e338402b8721ef489bb08b1a"
+   ],
+   "snippet": "依据片段[2]与[8]的综合分析，两者影响逻辑存在显著差异：季节性波动主要体现为周期性流量特征，即第一季度受假日消费拉动形成需求峰值，渠道库存会随新品上市临近而自然回落至旧款去化状态，其对财务的影响相对可预期且呈规律性循环；而新产品发布周期",
+   "relevant_fingerprints": [
+    "642eb29ad905aec53692f45d6fec470cf196deaa0a70907c3d2119898da886bd",
+    "a94eaf5b5fdda21acdc3c70eda4931ca35fddcbd31856880f03ec1f892ba4226"
+   ]
+  },
+  {
+   "question": "综合报告关于不确定税务立场与法律诉讼备抵的规定，当Apple Inc.此前基于职业判断预留的资金最终因外部裁决或审查完结而发生实际支付时，其财务确认路径与前期管理机制有何内在关联？请以欧盟国家援助税案为例说明。",
+   "type": "多跳",
+   "company": "AAPL_10-K_2024-11-01.docx",
+   "doc_id": "fe5ef9e37cad41529e1704de2d98f71a",
+   "doc_name": "AAPL_10-K_2024-11-01.docx",
+   "answer": "报告规定，针对不确定税务立场与法律或有事项，Apple Inc.需依赖管理层进行重大判断并计提准备金，且明确提示最终结果可能与准备金存在差异，准备金会随审查进展和事实变化进行动态调整（[id=2]、[id=3]）。这构成了前期的“预估与缓冲”机制。以欧盟国家援助税案为例，该案历经数年司法博弈，直至2024年9月欧洲法院最终裁定确认原处罚决定，才打破原有的不确定性状态。此时，公司严格遵循前期设定的或有事项确认逻辑，在第四季度将其转化为实际的财务记录，确认了一笔净额所得税费用，并通过释放爱尔兰托管账户资金、叠加美国境外税收抵免及冲减未确认税收优惠等方式完成结算（[id=8]、[id=13]）。这表明，前期的职业判断准备金机制实质上是为后续司法/税务实质裁决提供的会计缓冲，确保了从“不确定性预估”到“实质性资产流出”的财务确认路径具备连贯性与合规性。",
+   "relevant_chunk_ids": [
+    "2e7abf00a8ef4fdb92dd10ffd0fe10d3",
+    "336b4fab275145f485ad398a91787014",
+    "45e44c2791f44619b297dcde0de6374f",
+    "c68112dc0c53467b872f673777984e3d"
+   ],
+   "snippet": "报告规定，针对不确定税务立场与法律或有事项，Apple Inc.需依赖管理层进行重大判断并计提准备金，且明确提示最终结果可能与准备金存在差异，准备金会随审查进展和事实变化进行动态调整（[id=2]、[id=3]）。这构成了前期的“预估与缓冲",
+   "relevant_fingerprints": [
+    "8e64cf51133c42e91dfe9c29e72454d64ee019352db18f5896d136b795383b2e",
+    "93a18694ae359688d49c25e95519e9e7663d8660e9e653260b4d5d1ea4e81143",
+    "c07bea5eb99401d56982f1e780515028ff2dcbd25c3f7e6e85af84d6271a6d60",
+    "ca0a57e4afe7cfdb386359405026950f84b0445ad739b9f09f35be3b14f8d91e"
+   ]
+  },
+  {
+   "question": "请综合梳理招商银行在2025年年度报告中体现的公司治理与董事会履职监督机制的主要安排及其运行情况。",
+   "type": "综述",
+   "company": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "doc_id": "3a4240a0a3584bc4897f69f7479c4e0c",
+   "doc_name": "600036_招商银行：招商银行股份有限公司2025年度报告.pdf",
+   "answer": "根据片段内容，招商银行的公司治理架构涵盖股东会、董事会、资产负债管理委员会、风险与合规管理委员会、行长室、反洗钱与制裁合规管理委员会、信息技术管理委员会、业务连续性管理委员会以及多个审计分部等机构，形成较为完整的治理与合规管理体系。董事会薪酬与考核委员会在2025年召开了5次会议，负责审议薪酬管理制度和政策、评估执行董事表现、批准执行董事服务协议条款，并处理董事会授权及法律法规赋予的其他职权。监事会对董事、监事履行职务情况进行日常监督，通过履职访谈、查阅年度履职记录、分析董事和监事填写的履职情况自我评价问卷等方式，对董事、监事年度履职情况进行评价并向股东报告。审计相关委员会还负责指导和监督内部审计工作，评价内部审计部门的工作程序和工作效果，协调内部审计与外部审计沟通，审查内控制度，并就完善内部控制和披露内部控制评价报告向董事会提出建议。此外，独立非执行董事对利润分配方案、中期利润分配、董事及高管提名与选聘、会计师事务所聘请、关联交易等重大事项发表了独立意见，报告期内未对董事会议案及其他非董事会议案事项提出反对意见。",
+   "snippet": "根据片段内容，招商银行的公司治理架构涵盖股东会、董事会、资产负债管理委员会、风险与合规管理委员会、行长室、反洗钱与制裁合规管理委员会、信息技术管理委员会、业务连续性管理委员会以及多个审计分部等机构，形成较为完整的治理与合规管理体系。董事会薪",
+   "relevant_chunk_ids": [
+    "277deb1d7b7a4d989a20a47d16770d9f",
+    "43d1422a389945ff9c3706191e348258",
+    "68e008140094469ca598e4f6a66597c4",
+    "70059205b1eb4e8f85904ce8bebaa7da",
+    "b4036abdd4b8429f91004b93ea99f17d"
+   ],
+   "relevant_fingerprints": [
+    "b8fb33c9a2e671edfbea906d90358ad190ebe1eec361f3d11bcf0b4fae268df0",
+    "4518da7740949de08b27ead90f65469f4d0dcb24f3f86e742bd1d929c7009350",
+    "c4a6661feb91a80e179552cb4ba7fb171655560419e9643babb50cfc04c6bf45",
+    "bd343ba0456fbbcb530113437d9f715ecfd541a1bf87dfa230d155da194953b1",
+    "252b9bb28138a83aac58dee20f6c6b9bccb85b1e0fe96df6a646a16ba347dab1"
+   ]
+  },
+  {
+   "question": "请综合梳理本章节中体现的五粮液公司治理完善、品牌建设与帮扶举措，并说明其对公司的影响。",
+   "type": "综述",
+   "company": "000858_五 粮 液：2025年年度报告.pdf",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "answer": "本章节显示，五粮液在公司治理方面持续优化治理体系，报告期内完成了《股东会议事规则》等15项制度修订，进一步夯实公司治理基础，并围绕重大事项决策不断完善事前评审机制，严格落实党委会前置研究程序；同时系统修订《公司章程》《股东大会议事规则》《董事会议事规则》及各专门委员会工作制度等治理文件，健全权责清晰、制衡有效、运行规范的现代公司治理机制，并规范召开独立董事专门会议，保障独立董事独立履职和事前监督。品牌建设与文化塑造方面，公司系统梳理“五粮六脉文化谱系”，提升品牌文化价值，持续占位央视总台、新华社、人民日报社等主流媒体平台，深入绑定博鳌亚洲论坛、APEC、金熊猫奖等高端政商和文化平台，并实施和美文化节、和美全球行、幸福等活动；同时发布自然人谱系、传承人谱系，出版文化典籍《五粮液酒典》，实现质量领域多项奖项，显示品牌影响力和质量水平进一步提升。帮扶与社会责任方面，公司发挥产业链带动作用，依托酿酒原料供应链在省内建设涵盖欠发达县域在内的酿酒专用粮基地153万亩，带动23.47万农户实现户均收入超8000元；支持越西县建设集白酒酿造、储存和灌装于一体的生产基地，推动其白酒生产由作坊式向产业化转变；支持江安县四面山镇创建“省四星级现代农业园区”，打造酿酒专用粮定制基地，并在受扶地区加强职业技能培训、开展助学活动。整体来看，这些举措有利于提升公司治理规范化水平与合规管理能力，增强品牌文化价值和市场影响力，同时通过产业链协同和帮扶项目促进区域发展，巩固和强化公司龙头企业地位。",
+   "snippet": "本章节显示，五粮液在公司治理方面持续优化治理体系，报告期内完成了《股东会议事规则》等15项制度修订，进一步夯实公司治理基础，并围绕重大事项决策不断完善事前评审机制，严格落实党委会前置研究程序；同时系统修订《公司章程》《股东大会议事规则》《董",
+   "relevant_chunk_ids": [
+    "02512d561bf7484386a72b9402550060",
+    "25e9e5013dd540a9ac31dc9c3864d082",
+    "381de26a0ee54ca292a6e713a4a5acae",
+    "52d846a44e8447668552e7b0688b3a13",
+    "a4c2b36604f14358afe17c6c2a7a2971",
+    "a8fb2558ae984782a260693cb0d97d2f",
+    "d637cc114c124d6ba1dd278210ddb699"
+   ],
+   "relevant_fingerprints": [
+    "2690c5e5c01fcf45c5b71470d7a87260e97ee7bda87c37394104efc8b6bc5a3c",
+    "32ba510a7180483b1508a7de761ae12d55648ed52c4631a4f654194666083d26",
+    "baa82295076f3c30277c0134cb372e7f81cb00b5780d848db9ca1382c614c88d",
+    "ce4fc7cdf1a09dea4504a6656551d83456fe4ce8df003518fc48cd4ee05063dd",
+    "d92fa2da1e1457b7d45db78b89f9ec18e635ad84c8b74879948f6ebbfc4eb69f",
+    "519092726783e3c6a67f6326a203bf50ddda1df65af3f639c1850e1c5877439e",
+    "145848945d3cae1ae43b783b0c479f86285868df68e113dab8c1132adcee8f5a"
+   ]
+  },
+  {
+   "question": "请综合概述深圳市汇川技术股份有限公司在本年度报告片段中围绕业务独立性、核心竞争力及未来数字化业务方向所披露的核心内容、举措与影响。",
+   "type": "综述",
+   "company": "300124_汇川技术：2025年年度报告.pdf",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "answer": "公司在业务、人员、资产等方面保持独立，具备独立完整的业务及自主经营能力。公司聚焦工业领域的自动化、数字化、智能化，专注“信息层、控制层、驱动层、执行层、传感层”核心技术，独立从事工业自动化与数字化业务、新能源汽车动力系统业务及其他新兴产业业务。公司治理方面，董事会由企业管理、研发、销售、财务、投资等相关行业专业人士组成，强化规范运作、依法运营，坚持集体讨论决策。公司高级管理人员专职在公司工作并领取报酬，未在控股股东及实际控制人控制的其他企业中兼任除董事、监事以外的其他职务，财务人员亦未在相关方兼职，体现人员独立性。核心竞争力方面，公司作为中国龙头品牌，拥有多领域的市场领导地位，并持续推进创新能力与持续增长动能。战略举措上，公司持续推进高端产品矩阵延伸，积极布局CNC、高性能电机、精密机械、气动元件、传感器、工业视觉等具有“百亿级”市场潜力的新产品；同时深化高端市场渗透，拓展新的高端制造领域，加大已覆盖行业的全生产流程渗透，重点发力机床、半导体等行业，并拓宽后服务市场增长空间。在家用梯市场，公司持续引领行业向智能化、家居化方向升级，丰富产品品类以满足多元化消费需求。未来数字化业务方面，公司将继续聚焦工业装备智能化、工厂数字化及企业数字化转型等核心方向，以4A架构为引领，推动业务持续发展。此外，公司还实施股权激励计划，因年度权益分派调整限制性股票授予价格及行权价格，体现对核心人才的长期激励机制。",
+   "snippet": "公司在业务、人员、资产等方面保持独立，具备独立完整的业务及自主经营能力。公司聚焦工业领域的自动化、数字化、智能化，专注“信息层、控制层、驱动层、执行层、传感层”核心技术，独立从事工业自动化与数字化业务、新能源汽车动力系统业务及其他新兴产业业",
+   "relevant_chunk_ids": [
+    "0ca47f9195224a959e25ad621de292ac",
+    "29daab0363b443ef8d25b8cb1f1fac6b",
+    "70e83dff4b7140289ec137f74d804c98",
+    "8b31e63348ab4a288aacb03e32ba0458",
+    "9b579a986bf940baaed8b24f3dbdbaac",
+    "b9aee5f14cba4a27897e85488f031e47"
+   ],
+   "relevant_fingerprints": [
+    "be63f70559ab98fd0cd6896669214595bbfe48131d13f804f747765f28441eac",
+    "af438e52a9ea8895866ee3c46cd45618308337eda0d1cebeb4a2c68df3ac0741",
+    "5a4534a3fb308f3654e571eac5df12c0b3da966d164cdbd015adeb4053d6f5cc",
+    "4375343052e09d92824700173a833de05f4cf665f4449cc93ce0e1d7ca73c34d",
+    "30e4f3fc79400b592a899c4b2efd9deb7e194f2928a84c8e5cde6d9de8b49219",
+    "ea8c5ae3b4b3d49bebba7076a89238a1e4088d7987530472a85aa16c4d17838b"
+   ]
+  },
+  {
+   "question": "综合分析上海浦东发展银行股份有限公司在投资者关系管理与国别风险管理方面的机制建设情况。",
+   "type": "综述",
+   "company": "600000_2024年报.pdf",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "answer": "在投资者关系管理方面，公司创新打造“数智化、精益化”投关管理模式。在集团层面持续优化自上而下的“董事会-经营层-投关团队”管理体系，进一步完善“内部高效协同+外部交流反馈”的闭环工作机制，注重投资者意见收集、数据分析应用，辅助提高投关沟通针对性，助推培育长期耐心资本。在国别风险管理方面，报告期内公司全面优化国别风险管理体系，形成集团层面“1+2+1”国别风险制度框架，提供国家评级、限额管控、逐户限额管控与监测，不断夯实集团层面国别风险抵御能力及外部事件突发应对能力；国别风险限额有效引导集团。",
+   "snippet": "在投资者关系管理方面，公司创新打造“数智化、精益化”投关管理模式。在集团层面持续优化自上而下的“董事会-经营层-投关团队”管理体系，进一步完善“内部高效协同+外部交流反馈”的闭环工作机制，注重投资者意见收集、数据分析应用，辅助提高投关沟通针",
+   "relevant_chunk_ids": [
+    "9ffbf8d719d54d8983655dc4500e7d4a",
+    "ebe000fbf09f4c8eb4021c100edcc5e7"
+   ],
+   "relevant_fingerprints": [
+    "7facf8af080b84a615235010ed75e83e9f091651ecddbc8869ef6d7296e6d291",
+    "5a40b0c76e60c367336c735867b798d68fa564cd6c159e1efcd947cb558146bb"
+   ]
+  },
+  {
+   "question": "请综合梳理海康威视在智能物联（AIoT）业务方面的战略定位、核心布局举措以及未来经营重心。",
+   "type": "综述",
+   "company": "002415_海康威视：2025年年度报告.pdf",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "answer": "海康威视的战略定位是持续巩固视频类主营业务，并以人工智能技术、多维感知技术及图像技术为核心，积极拓展第二增长曲线，不断完善符合海外需求的AIoT产品家族。公司已完成智能物联AIoT领域的业务布局并取得一定成效，经营重心从追求收入规模增长逐步转向提升经营质量。未来计划用三到五年时间把现有智能物联AIoT业务做实做强。在具体举措上，公司持续夯实智能物联技术根基，加速大模型场景落地，保持高水平研发投入；打造智能物联算力基座，提供高安全性的智算支持；同时通过人才与组织体系高效响应市场需求，巩固行业领先优势，赋能千行百业数字化转型升级。",
+   "snippet": "海康威视的战略定位是持续巩固视频类主营业务，并以人工智能技术、多维感知技术及图像技术为核心，积极拓展第二增长曲线，不断完善符合海外需求的AIoT产品家族。公司已完成智能物联AIoT领域的业务布局并取得一定成效，经营重心从追求收入规模增长逐步",
+   "relevant_chunk_ids": [
+    "9162580527be4eb5bc2cfb05621f9e30",
+    "adb487c4901b48669f72ccf5944f5a29",
+    "dee690d08dc94c09af3ad799fc9c09a4",
+    "e2d39eeb0a8041a58657b85422b5e20c"
+   ],
+   "relevant_fingerprints": [
+    "5923212eb638b90086242b19e5d1fc001dae79c07c98304e71976a04bc5b1623",
+    "e9ac4170f603ac80381c3c712f7426e87eb8f7d7fa93fb339891f2169e65f9eb",
+    "23f910b0efb5108d5b0f85bc733b373e2ad3e356626046c9d0c754512a1f8a75",
+    "147e70d7dd250c9d09cc6c4f873233102678182b4248654272fac950f325a5e4"
+   ]
+  },
+  {
+   "question": "请概述宁德时代新能源科技股份有限公司2025年年度报告中，关于电池产业链主营业务经营、内部控制建设以及募集资金使用合规性的核心内容。",
+   "type": "综述",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "报告期内，宁德时代的主要业务聚焦于电池产业链相关业务，致力于满足不同客户的多元化、跨场景需求，以引领全球零碳新经济发展，其主要产品包括动力电池系统；经营数据显示，公司电池系统产能规模较大，产能利用率保持在较高水平，且前五名客户合计销售金额占年度销售总额比例接近四成，其中无关联方销售额。在内部控制方面，公司严格依照《公司法》《企业内部控制基本规范》及其配套指引，并结合中国证监会、深交所及香港联交所等监管要求与公司实际情况，制定了涵盖公司运营的内部控制制度，同时聘请致同会计师事务所作为内部控制审计机构。在募集资金方面，保荐人中信建投证券经核查认为，公司2025年度募集资金的存放和使用符合《上市公司募集资金监管规则》《深圳证券交易所创业板股票上市规则》及相关自律监管指引等规定，实行了专户存储和专项使用，募集资金具体使用情况与已披露情况一致，不存在变相改变募集资金用途等违规情形。",
+   "snippet": "报告期内，宁德时代的主要业务聚焦于电池产业链相关业务，致力于满足不同客户的多元化、跨场景需求，以引领全球零碳新经济发展，其主要产品包括动力电池系统；经营数据显示，公司电池系统产能规模较大，产能利用率保持在较高水平，且前五名客户合计销售金额占",
+   "relevant_chunk_ids": [
+    "91f93ab71e66473aa2e9e003b117a3b7",
+    "9d84e4f2a1ab4c19b8142a811ad07122",
+    "bbe8f17da5584856b6a61dc0a375d2ca",
+    "c35c0ec21c914069b906a8331138bf41",
+    "c40754eb022543899b2e67523a7b606f",
+    "cda6a7bb97b540328464732ed631e9a2"
+   ],
+   "relevant_fingerprints": [
+    "cbe051ebe28101081585e0c53bd31afebe89ddaa0a9d8c1af314241ea9134c23",
+    "972efc1bb732567c418cec593831732ab16c319bb00c58af9c14c25857f8e68a",
+    "b0578f84d93e2ee7404bf840e47b8b493a12aa4efcb8b544257ea950138f54ba",
+    "5cf7432dfc8537c214a149e345ebb9366030d0103db1d5d37b390084e375ca7c",
+    "08aa668cb4de0949f9fb6e41bc3a70d23efde6801243cabbe777ec115d33450a",
+    "d6465856721b8a7ee55fa8186dc97a9a367de858ce1ea17217394aef17fe4656"
+   ]
+  },
+  {
+   "question": "请综合梳理宁德时代新能源科技股份有限公司2025年年度报告片段中，关于公司治理与股东结构、资本运作与股本变化、以及财务表现与风险管理方面的核心内容。",
+   "type": "综述",
+   "company": "300750_宁德时代：2025年年度报告.pdf",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "answer": "根据所提供的报告片段，宁德时代新能源科技股份有限公司2025年年度报告涉及以下核心内容：\n\n一、公司治理与股东结构\n1. 公司控股股东为自然人控股的法人，报告期内未发生变更；实际控制人为境内自然人。公司与实际控制人在业务、人员、财务、机构和资产等方面严格分离，独立核算，不存在不能保证独立性或不能保持自主经营能力的情况。\n2. 截至报告期末，持股5%以上股东、前10名股东及前10名无限售流通股股东不存在参与转融通业务出借股份情况。\n3. 公司高级管理人员共计四名，包括总经理、副总经理、董事会秘书及财务总监，按照相关监管规则和制度履行职责，执行董事会和股东会决议，推动业务发展及内部管理提升。\n\n二、资本运作与股本变化\n1. 公司经中国证监会核准首次公开发行人民币普通股（A股）217,244千股，并于2018年6月11日在深圳证券交易所上市。2020年又经核准非公开发行股票。\n2. 公司行使超额配售权，于2025年5月23日完成20,337千股H股股份发行，超额配售权悉数行使后共计发行155,915千股H股股份。截至2025年12月31日，公司总股本为人民币4,563,803千元。\n3. 2022年股票期权与限制性股票激励计划第三个归属期归属条件成就，归属股票数量1,650,424股，并于2025年9月16日上市流通，公司总股本相应增加。\n4. 公司实施2025年中期分红，以人民币计值和宣布，向A股股东以人民币支付、向H股股东以港币支付，并已于2025年8月和9月分别派发。\n\n三、财务表现与风险管理\n1. 报告列示了多项金融工具，包括流动资产、交易性金融资产、其他权益工具投资、其他非流动金融资产、长期应收款、衍生金融负债、应付账款、应付票据、应付股利、其他应付款、短期借款、一年内到期的非流动负债、长期借款、应付债券、租赁负债及长期应付款等。\n2. 公司开展套期保值业务，以金属远期、金属期货等衍生品合约为套期工具，对预期采购、销售交易中商品价格风险成分进行现金流量套期，以规避商品市场价格波动带来的未来现金流量波动风险。\n3. 公司管理流动风险时，保持管理层认为充分的现金及现金等价物并对其进行监控，监控银行借款使用情况并确保遵守借款协议，同时从主要金融机构获得提供足够备用资金的承诺，以满足短期和长期资金需求。\n4. 报告披露了预期信用损失计量方法，考虑资产负债表日后12个月内可能发生的金融工具违约事件导致的预期信用损失，并以企业面临信用风险的最长合同期限为最长期限。\n5. 报告披露了长期资产减值政策，对长期股权投资、固定资产、在建工程、使用权资产、无形资产和商誉等，于资产负债表日判断是否存在减值迹象，存在减值迹象时估计可收回金额并进行减值测试。",
+   "snippet": "根据所提供的报告片段，宁德时代新能源科技股份有限公司2025年年度报告涉及以下核心内容：\n\n一、公司治理与股东结构\n1. 公司控股股东为自然人控股的法人，报告期内未发生变更；实际控制人为境内自然人。公司与实际控制人在业务、人员、财务、机构和",
+   "relevant_chunk_ids": [
+    "1b03ed16595f4451bfcfce52fbd1f8a5",
+    "38c2a05ec7964fde98ea8bb187e2e8f2",
+    "45e989daa2d545d996821157e62d4cf8",
+    "5f7f80ab44484dea91ce1dc42fccfa37",
+    "609b54c7a1b34703be4ac448e0e1dd25",
+    "a47b1dc100a840618b4b42d26ed2c64a",
+    "a8fafbee301e45b68b184be4abc12153",
+    "c23fbecbe7f044b98008917747a5cc5f",
+    "c7df66c779d34874a4ae99f8806a606b",
+    "dda3a32981db4de2be93817fc43246e2"
+   ],
+   "relevant_fingerprints": [
+    "90388da35df1f61bd0ba741db055d808e160609ebbefabdb18e39b5f4e5cd08f",
+    "8256c40f235ed45483a60658716f8aa6761371bd23763436be2a484df0a5c589",
+    "65626a0d3fd5910fa69da60a83ecb088fa794efbcc31c823a5f07ceddf00b103",
+    "08a3ec51a1546d9ab7acb6ee8a29c707a54f4dfb712eaa57d8658fde6a1bd2ce",
+    "ba118fc926010e576dd00417b16f456cf31f2e574212cbed9fdf1587241a47a5",
+    "2eb59b1c13dcc07c57b6c176cf149265a6ddc1f09939ac3d7341b4fc89a2ee9b",
+    "71942889cb6bcfd1bb94f01cae35470422a9b9b419cad96e0a6ead4a473ceddb",
+    "431b9ba063e5a315fc4ce9b0e963204e41f22b76a2d786a3f9d138006a683c8b",
+    "8959da7cfbcdce93dde5af6c430236004618d4ff5c05a5412fad4098322cbc68",
+    "9aca9f086bdc5960ee44cb1ef12146c7f8976f63c4899a15a5c60717a825ba4c"
+   ]
+  },
+  {
+   "question": "综合该章节内容，概述贵州茅台在市值管理与投资者回报方面采取的主要举措及其影响。",
+   "type": "综述",
+   "company": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "answer": "该章节显示，贵州茅台持续深化市值管理体系建设，发布并实施《市值管理办法》，提升管理的规范化、精细化水平。在投资者回报方面，公司继续落实现金分红三年规划，2025年度累计派发现金红利650.33亿元（含2025年年度分红预案金额），分红总额创历史新高；同时完成首次60亿元股票回购方案操作，并启动第二轮股票回购计划，以自有资金通过集中竞价交易方式回购股份用于注销并减少注册资本，回购价格不超过1,863.67元/股（含），回购金额不低于15亿元且不超过30亿元。这些举措体现了公司切实保护投资者利益并持续为投资者创造价值的经营导向。",
+   "snippet": "该章节显示，贵州茅台持续深化市值管理体系建设，发布并实施《市值管理办法》，提升管理的规范化、精细化水平。在投资者回报方面，公司继续落实现金分红三年规划，2025年度累计派发现金红利650.33亿元（含2025年年度分红预案金额），分红总额创",
+   "relevant_chunk_ids": [
+    "37a5b53d61af4f2cb5a8802a35e466c8",
+    "a2f303bcf2364e40b1b6edb0ac75d426"
+   ],
+   "relevant_fingerprints": [
+    "5318c72227b55582d297b88a6debb94d90089ce0dec53022bd0403535e968d4a",
+    "ef21d24bea5c975335d0f412aa2e9f00a9c93be9c74044e9ebd1527b04429369"
+   ]
+  },
+  {
+   "question": "工商银行2025年末总资产是多少？",
+   "snippet": "53.48",
+   "unit": "万亿元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "7063e3b0531341098b99b601377906e6",
+    "4a78fbae69b6466d86e1b8e7846dfa42",
+    "ef181d1354be4d45b4f7088359c5b8e6",
+    "e444c84ab83e4d67b9328a2c41c2733e"
+   ],
+   "relevant_fingerprints": [
+    "46e4862025784544560c22a6b6a93e5a08e000aee953d4a669c6d2f29a8f0e0d",
+    "dc1d8c1fa3aa018147f0b9969a87a28245d66921a2cc46543a03d4819c2af533",
+    "092fe0624dc3cae05315d8de8bb73acb403f29bab21a2c022231eeeb49bea78c",
+    "6dc0dacd7c8d6c0852a251dec4e72b043b30722f2f942da43d989f3582f1285b"
+   ]
+  },
+  {
+   "question": "工商银行2025年末不良贷款率是多少？",
+   "snippet": "1.31",
+   "unit": "%",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "npl_ratio",
+   "metric_label": "不良贷款率",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "7c2c4eb5e5394230abeed628797070c1",
+    "589402b960fa49c1808e91bb5ece7b75"
+   ],
+   "relevant_fingerprints": [
+    "29277b6e0c1073c0a908cd66925232976051d273ead246df0e40dfb60dfa2dbe",
+    "8dfd9e4aebebe4cd2a4d1daa2c52b5dbd35089dad2c4ee45d6e041a89ca28d6f"
+   ]
+  },
+  {
+   "question": "工商银行2025年基本每股收益是多少？",
+   "snippet": "1.00",
+   "unit": "元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "eps",
+   "metric_label": "基本每股收益",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "04b44c5d7328450dbd5561e39abcde9e"
+   ],
+   "relevant_fingerprints": [
+    "58bf8e7cec4cc5e60e3f9f7572dd3ce70d6d1a4f436fe7e29941fd03fde778a4"
+   ]
+  },
+  {
+   "question": "工商银行2025年末资本充足率是多少？",
+   "snippet": "18.76",
+   "unit": "%",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "capital_adequacy",
+   "metric_label": "资本充足率",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "6982fb86307f4e1997dbe20aef73d356",
+    "87c94df651ed425a86e11e70343158a1",
+    "589402b960fa49c1808e91bb5ece7b75",
+    "62d0ba11a74044bf8c041f372498b38d",
+    "f1dfb773ae59417c9fe6d771d829babd"
+   ],
+   "relevant_fingerprints": [
+    "b850ae8fbb8d8aefcfbd34610ccde259fad3e937b5a5f84eafdc80602373467a",
+    "f46eede504c6263d8d2ec81f730b4c15a505d76363b09460a2f8ffd42fec5b4a",
+    "8dfd9e4aebebe4cd2a4d1daa2c52b5dbd35089dad2c4ee45d6e041a89ca28d6f",
+    "f494deb8821554b539895c95a563c24402848efe8aec43e2adb0293aff21e472",
+    "24716a1125c3a1ec01efadc6d7665e2a6a3a983761764d2f64e18bbb68166cc4"
+   ]
+  },
+  {
+   "question": "工商银行2025年手续费及佣金净收入是多少？",
+   "snippet": "1,111.71",
+   "unit": "亿元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "fee_income",
+   "metric_label": "手续费及佣金净收入",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "ef181d1354be4d45b4f7088359c5b8e6",
+    "0c00969e692242ba9df84084abed2473"
+   ],
+   "relevant_fingerprints": [
+    "092fe0624dc3cae05315d8de8bb73acb403f29bab21a2c022231eeeb49bea78c",
+    "5c54004d062f80148de831835c0da528d0d998e924672efc3a7ad557533dab9a"
+   ]
+  },
+  {
+   "question": "工商银行2025年末营业网点有多少个？",
+   "snippet": "15,434",
+   "unit": "个",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "outlets",
+   "metric_label": "营业网点",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "f95c3f47029b49cf850095eaa842eef4"
+   ],
+   "relevant_fingerprints": [
+    "ebf2ea5ce6dfe4cdd06edff8f49cfd118006bdf6eee4e5d8798de3b2d93da390"
+   ]
+  },
+  {
+   "question": "工商银行2025年末自助银行有多少个？",
+   "snippet": "19,223",
+   "unit": "个",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "self_banking",
+   "metric_label": "自助银行",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "f95c3f47029b49cf850095eaa842eef4",
+    "7862460a3f7a4b5fbf50324d04363804",
+    "98cbe1c8b51048ddb08e9643dd328cf3"
+   ],
+   "relevant_fingerprints": [
+    "ebf2ea5ce6dfe4cdd06edff8f49cfd118006bdf6eee4e5d8798de3b2d93da390",
+    "2e9b8d41adc84cddfe930d1b4fa9daf3c2d12ecfead016d2e4e761629fd4f962",
+    "92aeceba0dbafc57a0fb33e4ef6c18620265570060d03f371219de534dd817ab"
+   ]
+  },
+  {
+   "question": "工商银行2025年末智能设备有多少台？",
+   "snippet": "72,026",
+   "unit": "台",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "smart_devices",
+   "metric_label": "智能设备",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "f95c3f47029b49cf850095eaa842eef4"
+   ],
+   "relevant_fingerprints": [
+    "ebf2ea5ce6dfe4cdd06edff8f49cfd118006bdf6eee4e5d8798de3b2d93da390"
+   ]
+  },
+  {
+   "question": "工商银行2025年网点县域覆盖率提升至多少？",
+   "snippet": "87.5",
+   "unit": "%",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "county_coverage",
+   "metric_label": "县域覆盖率",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "f95c3f47029b49cf850095eaa842eef4",
+    "7862460a3f7a4b5fbf50324d04363804",
+    "b26bfc8397994ec1b302936916189e05",
+    "98cbe1c8b51048ddb08e9643dd328cf3"
+   ],
+   "relevant_fingerprints": [
+    "ebf2ea5ce6dfe4cdd06edff8f49cfd118006bdf6eee4e5d8798de3b2d93da390",
+    "2e9b8d41adc84cddfe930d1b4fa9daf3c2d12ecfead016d2e4e761629fd4f962",
+    "99034874029841199c36f34ed7b9283bc4ae5c426d19400ec388ae46f24f788b",
+    "92aeceba0dbafc57a0fb33e4ef6c18620265570060d03f371219de534dd817ab"
+   ]
+  },
+  {
+   "question": "工商银行2025年末绿色贷款余额是多少？",
+   "snippet": "超 6.7",
+   "unit": "万亿元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "green_loan",
+   "metric_label": "绿色贷款",
+   "year": 2025,
+   "company": "工商银行",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "2fdbc54110c24cba87099eb5a7fc1ba7",
+    "f32f143177c94cdabd399dfb84570a70"
+   ],
+   "relevant_fingerprints": [
+    "d53671bfd750b94f80aecde3866c64b37c63b2100234ac7a893d6e013e7249d6",
+    "dbb07b9cf05e81ebe95729eda9da5108d0c00dacaf8cbc0590970bf771cbdffc"
+   ]
+  },
+  {
+   "question": "What were GE's net earnings in 1998?",
+   "snippet": "9,296",
+   "unit": "US$M",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "net_profit",
+   "metric_label": "Net earnings",
+   "year": 1998,
+   "company": "GE",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "53cd0836651e485882f48f81334a6796",
+    "d09a9e5b449143ec9de353334f41e94b",
+    "c3c46c6d227e4d698ba0485ef05647b9",
+    "e5eb3b4616e842938254f77b9eb937a2",
+    "d77300603b6d4a499f33b84813e56307",
+    "90c13b8a14a14b1fb580f93127fe2bfe",
+    "637dc0b833434b8fbc8607eca680501e",
+    "832ecc233c46406993f563d7ecaacd63",
+    "d1bb22b787044c6ba7e49835af33d1ee",
+    "db4b391709294e43a0d7616dee055125"
+   ],
+   "relevant_fingerprints": [
+    "d65b712bae736d7164c063e467c3bd005f3107bde5fb42fe576e9fbf584e0faf",
+    "ffa2a13f092e132de837a3d14ab5afc02b8784d6bd1590d947fbcec5b2339a3f",
+    "839b163047c7caccb7c99350a07d0b8eb0ac5ef3764764a2d6dd89be207eb4d1",
+    "79d09dd546f97cd22cba5d7900878221f9a4246c114dd18e58c3a24680e85f6f",
+    "1a56929490f321b137df18c30248300a862f4853515801c4d48e1018b5a0359b",
+    "a4a33412d3eeb55db49ba090f3c688edb69f2be643a03f7103ab47d8cc0f0fef",
+    "68e8412f9c866227b0b473bcc6d3df0585ca3217d413d9121d086ede9c18e825",
+    "045917d92d2aab81aa44cc4aad0d7567580807277a0eaea44c5aaf07887fd382",
+    "ee17f95bf5f6e443c464cf588838cc2c3f448739be9c04f9c8bdb015a6b20143",
+    "3a49b7198329b0167b969618b4e1a8519df714d694ca7104fe60c5ff7c1d319e"
+   ]
+  },
+  {
+   "question": "What was GE's basic earnings per share in 1998?",
+   "snippet": "2.84",
+   "unit": "US$",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "eps",
+   "metric_label": "Basic EPS",
+   "year": 1998,
+   "company": "GE",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "c0b978eb2f2545b5a51be6b7206df6db"
+   ],
+   "relevant_fingerprints": [
+    "47d10740311c0c56339aa4b5ea2ffe67d371bcfa952f1aed91123e74232bbd5d"
+   ]
+  },
+  {
+   "question": "What was GE's diluted earnings per share in 1998?",
+   "snippet": "2.80",
+   "unit": "US$",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "eps_diluted",
+   "metric_label": "Diluted EPS",
+   "year": 1998,
+   "company": "GE",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "c0b978eb2f2545b5a51be6b7206df6db"
+   ],
+   "relevant_fingerprints": [
+    "47d10740311c0c56339aa4b5ea2ffe67d371bcfa952f1aed91123e74232bbd5d"
+   ]
+  },
+  {
+   "question": "What were Power Systems' segment revenues in 1998?",
+   "snippet": "8,466",
+   "unit": "US$M",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "segment_revenues",
+   "metric_label": "Power Systems revenues",
+   "year": 1998,
+   "company": "GE",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "921ed78247844f6a80a87bacae14d2c9",
+    "e671bee4526a4acd91c7cbbe0e161f20"
+   ],
+   "relevant_fingerprints": [
+    "b35d5207296343b7f9e6f0604620687a295ac2efa8a2c1341e5f77827cdd0761",
+    "cdaea7986a2ac59829f98ba729e8d3122728d33ff3e8e1c16deb792d1d8c08de"
+   ]
+  },
+  {
+   "question": "What were GECS' segment revenues in 1998?",
+   "snippet": "48,694",
+   "unit": "US$M",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "gecs_revenues",
+   "metric_label": "GECS segment revenues",
+   "year": 1998,
+   "company": "GE",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "fe2b9b9555af4976897ad9cba9c78ad4",
+    "8dab5a18bdb5487ab45a2ae2bf9b8abd",
+    "5dad5cf30b2e45638627b1ce15d56267"
+   ],
+   "relevant_fingerprints": [
+    "aba9485c2c53f15b6edb3346854561303cd1689e1da3963ab2725ef48c74bbc3",
+    "828900ebd4adb305867eb4d385b044ffd69202ddfb1a6eb7c0de338dc5f20bfd",
+    "078e953701a573b443539c801e58d2867f542440528abacba35826c590502fe6"
+   ]
+  },
+  {
+   "question": "What were GE's international revenues in 1998?",
+   "snippet": "24.6",
+   "unit": "US$B",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "international_revenues",
+   "metric_label": "International revenues",
+   "year": 1998,
+   "company": "GE",
+   "type": "metric",
+   "relevant_chunk_ids": [
+    "033fab6dbfed41b5ab327ddd558f9fb9"
+   ],
+   "relevant_fingerprints": [
+    "4c4df42bc03238bd71d6a9afa2005e73d1c8064d86b16278280afa8673406b0b"
+   ]
+  },
+  {
+   "question": "What was GE's property, plant and equipment at December 31, 1998?",
+   "snippet": "35.7",
+   "unit": "US$B",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "ppe",
+   "metric_label": "Property, plant and equipment",
+   "year": 1998,
+   "company": "GE",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "e9c49ae77de1446ebe2d57cb04c08e2d"
+   ],
+   "relevant_fingerprints": [
+    "6f93f1b6acd2cd442ab6592196ab856467d99bbcd9a2898baf8bd5520400984f"
+   ]
+  },
+  {
+   "question": "What were the dividends GE declared per share in 1998?",
+   "snippet": "1.25",
+   "unit": "US$",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "dividends",
+   "metric_label": "Dividends declared per share",
+   "year": 1998,
+   "company": "GE",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "c0b978eb2f2545b5a51be6b7206df6db",
+    "bc9c239765d44bc18b413ba38df6e1f4"
+   ],
+   "relevant_fingerprints": [
+    "47d10740311c0c56339aa4b5ea2ffe67d371bcfa952f1aed91123e74232bbd5d",
+    "ada8f8e5593ddc7197be4e5e5e0822d9ef482326bcc5b4dc4cba5780f1769f11"
+   ]
+  },
+  {
+   "question": "What was GE's income before taxes in 1998?",
+   "snippet": "9.7",
+   "unit": "US$B",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "income_before_taxes",
+   "metric_label": "Income before taxes",
+   "year": 1998,
+   "company": "GE",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "051a0bdca70d46dbbac180e7dd5c8f29",
+    "6f2d853e743e46b79beed105dad11627"
+   ],
+   "relevant_fingerprints": [
+    "70e4544cf20c579723642f428c18ebb5f5bddbe056ddaef8fa7e923e5f6b8b8b",
+    "49039a3ae7b39d62fd080aa2dad2a920a9962791a3a0d5d2115e338759a48768"
+   ]
+  },
+  {
+   "question": "What was GE's return on average share owners' equity in 1998?",
+   "snippet": "25.7",
+   "unit": "%",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "roe",
+   "metric_label": "ROE",
+   "year": 1998,
+   "company": "GE",
+   "type": "summary",
+   "relevant_chunk_ids": [
+    "291c7bae10274c4eaee383eb345cec53",
+    "3c7349931a1f4294a6639ba0d7498a03"
+   ],
+   "relevant_fingerprints": [
+    "f77fa9d0e12e6ae711cdd5f13658cf24986b660c8ec06082a0cbbd5d526b6015",
+    "78f9cc6c3af2aaa3de3f79f0e974daa7ae11b49e6f0546103c55ceba1216c61f"
+   ]
+  },
+  {
+   "question": "How did GE's research and development expenditures change in the years 1996-1998?",
+   "snippet": "1,930 / 1,891 / 1,886",
+   "unit": "US$M",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "rd_expense",
+   "metric_label": "R&D expenditures",
+   "year": 1998,
+   "company": "GE",
+   "type": "trend",
+   "relevant_chunk_ids": [
+    "4d2e8427e43d431f8edc985dc8b0a259",
+    "89b2f607ddfb4be58f36bd112d54c3f3",
+    "00a398f7702c4c06b58ff5feae08610f",
+    "25d43e1c2c424746b3dc566fe0aace45"
+   ],
+   "relevant_fingerprints": [
+    "598c15689fca5d4e0615ed72525936842c09d29857447f3fef6c9143461e78d7",
+    "b108a083fbdf26ac55d534a974d64d181edb6b61fc04152378cbf1c5d2f93747",
+    "3430eb2ca520509671baaa8074eb6c3844dd5ad334307238315938aafd14a3b0",
+    "46f31b845825b2c082695a5113c88e5af63df832686e39983515d08350e5fffb"
+   ]
+  }
+ ]
+}

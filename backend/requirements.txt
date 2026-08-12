@@ -10,6 +10,7 @@ sse-starlette>=2.1,<3.0
 qdrant-client>=1.13,<1.14  # 与服务端 qdrant/qdrant:v1.13.4 对齐（避免大版本不一致）
 redis>=5.0,<6.0
 sqlalchemy>=2.0,<3.0
+celery>=5.6,<6.0  # 阶段四：异步任务（broker=Redis，独立 worker）
 
 # ===== 解析 =====
 pymupdf>=1.24
@@ -24,6 +25,11 @@ openai>=1.40
 tiktoken>=0.7
 httpx>=0.27
 beautifulsoup4>=4.12  # 财报抓取工具（SEC HTML 清洗）
+
+# ===== 阶段四：可观测（OTel，本地导出）=====
+opentelemetry-sdk>=1.44,<2.0
+opentelemetry-api>=1.44,<2.0
+opentelemetry-instrumentation-fastapi>=0.65b0,<0.66
 
 # ===== 测试 =====
 pytest>=8.0

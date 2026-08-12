@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
@@ -18,6 +19,7 @@ import numpy as np
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.metrics import record_api_call
 
 logger = get_logger(__name__)
 
@@ -183,7 +185,13 @@ class ApiEmbedBackend:
         results: list[tuple[int, list[list[float]], list[dict] | None]] = [None] * len(batches)  # type: ignore[list-item]
 
         def _run(i: int, batch: list[str]) -> None:
-            resp = self._post_batch(batch, output_type, text_type)
+            t0 = time.perf_counter()
+            try:
+                resp = self._post_batch(batch, output_type, text_type)
+                record_api_call("embed", time.perf_counter() - t0)
+            except Exception:
+                record_api_call("embed", time.perf_counter() - t0, error=True)
+                raise
             results[i] = (i,) + _parse_native_response(resp, self._model)
 
         with ThreadPoolExecutor(max_workers=max(1, concurrency)) as ex:

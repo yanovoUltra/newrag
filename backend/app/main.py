@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
-import redis
+import time
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import redis
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from qdrant_client import QdrantClient
 
 from app.api.v1 import chat, documents, tasks
 from app.core.config import get_settings
-from app.core.logging import get_logger, setup_logging
+from app.core.logging import get_logger, set_trace_id, setup_logging
+from app.core.otel import setup_otel
 from app.core.security import AuthMiddleware
 from app.store import qdrant as qdrant_store
 from app.store.registry import init_db
@@ -26,12 +31,53 @@ async def lifespan(app: FastAPI):
     settings.resolved_upload_dir.mkdir(parents=True, exist_ok=True)
     settings.resolved_pipeline_dir.mkdir(parents=True, exist_ok=True)
     init_db()
+    # 阶段四：OTel 可观测（本地导出；未启用时零开销）
+    if setup_otel():
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+            FastAPIInstrumentor.instrument_app(app)
+            logger.info("OTel enabled: FastAPI instrumentation installed")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("OTel instrumentation 失败（继续启动）: %s", e)
     try:
         qdrant_store.ensure_collection()
     except Exception as e:
         logger.warning("Qdrant 初始化失败（稍后可通过重试/上传触发重建）: %s", e)
     logger.info("app startup done, env=%s", settings.app_env)
     yield
+
+
+class RequestIdMiddleware:
+    """每个 HTTP 请求注入 trace_id：日志上下文 + 响应头 X-Trace-Id，并记录请求总耗时。"""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        tid = uuid.uuid4().hex[:12]
+        set_trace_id(tid)
+        method = scope.get("method", "")
+        path = scope.get("path", "")
+        start = time.perf_counter()
+        logger.info("request start: %s %s", method, path)
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-trace-id", tid.encode()))
+                message["headers"] = headers
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            dur_ms = (time.perf_counter() - start) * 1000
+            logger.info("request done: %s %s %.0fms", method, path, dur_ms)
+            set_trace_id("")
 
 
 def create_app() -> FastAPI:
@@ -46,6 +92,21 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # trace_id 最外层：认证/业务日志都能带上请求链路号
+    app.add_middleware(RequestIdMiddleware)
+
+    # 全局异常兜底：未捕获异常统一 500 JSON（详情只进日志，不回给客户端），
+    # 入参校验失败统一 422（格式与 FastAPI 默认一致，前端无需改动）
+    @app.exception_handler(RequestValidationError)
+    async def validation_exc_handler(request: Request, exc: RequestValidationError):
+        logger.warning("validation error: %s %s %s", request.method, request.url.path, exc.errors())
+        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+    @app.exception_handler(Exception)
+    async def unhandled_exc_handler(request: Request, exc: Exception):
+        logger.exception("unhandled error: %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": "服务器内部错误，请稍后重试"})
+
     app.include_router(documents.router, prefix="/api/v1")
     app.include_router(tasks.router, prefix="/api/v1")
     app.include_router(chat.router, prefix="/api/v1")

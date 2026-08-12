@@ -33,10 +33,14 @@ _ENTITY_KEYWORDS = [
 
 # HyDE 触发放宽触发词：综述/总结/分析类问题即使 LLM 未标复杂也生成假设文档
 # （对抗性评测 §7.3 实证：D 类综述型 baseline Recall@8=0，HyDE 修复至 0.37）
+# 2026-08-11 §15.5 P2：扩大到趋势/多跳/比较类（v9 非指标题趋势零分率 53.8%、
+# 多跳 53.1%——"为什么/原因/趋势/对比"类问题跨块综合，单块检索易漏）
 _SUMMARY_TRIGGERS = (
     "总结", "综述", "归纳", "概述", "概括", "梳理",
     "看法", "观点", "评价", "意见", "分析",
-    "summar", "overview",
+    "趋势", "走势", "变化", "变动", "发展",
+    "为什么", "原因", "导致", "比较", "对比", "相比", "差异",
+    "summar", "overview", "trend",
 )
 
 
@@ -53,11 +57,16 @@ class RoutePlan:
     query_type: str = "general"  # metric | entity | general
     rewritten_query: str | None = None
     sub_queries: list[str] = field(default_factory=list)
+    sub_query_deps: dict[int, list[int]] = field(default_factory=dict)
     needs_hyde: bool = False
 
     @property
     def effective_queries(self) -> list[str]:
-        """用于检索的有效查询集合：多跳子查询优先，其次改写查询，兜底原问题。"""
+        """用于检索的有效查询集合：多跳子查询优先，其次改写查询，兜底原问题。
+
+        注：DAG 拆解路径的依赖注入在 _search_plan 内按 sub_query_deps 执行，
+        本属性仅返回扁平子查询文本（供简单多查询扩展场景兼容使用）。
+        """
         if self.sub_queries:
             return self.sub_queries
         if self.rewritten_query:
@@ -87,6 +96,40 @@ def _merge_query_type(plan_type: str, keyword_type: str) -> str:
     return plan_type if plan_type in ("metric", "entity") else "general"
 
 
+def _parse_sub_queries(raw) -> tuple[list[str], dict[int, list[int]]]:
+    """解析 LLM 输出的子查询（新结构 [{step, question, dependency}] 与旧结构 [str] 兼容）。
+
+    返回 (子查询列表, 依赖边 {index: [依赖子查询下标, ...]})，先过滤空项再截前 5 个。
+    dependency 为 null/缺省表示无依赖；下标引用 sub_queries 数组中的位置（0 起）。
+    """
+    items: list[tuple[str, list[int] | None]] = []
+    for item in raw or []:
+        if isinstance(item, str):
+            q = item.strip()
+            if q:
+                items.append((q, None))
+            continue
+        if not isinstance(item, dict):
+            continue
+        q = str(item.get("question") or "").strip()
+        if not q:
+            continue
+        dep = item.get("dependency")
+        if not isinstance(dep, list):
+            dep = [dep]
+        idxs = [
+            int(d) for d in dep
+            if d is not None and (
+                isinstance(d, int) or (isinstance(d, str) and d.isdigit())
+            )
+        ]
+        items.append((q, idxs or None))
+    head = items[:5]
+    subs = [q for q, _ in head]
+    deps = {i: d for i, (_, d) in enumerate(head) if d}
+    return subs, deps
+
+
 def _parse_plan(raw: str) -> RoutePlan:
     """容错解析 LLM JSON 输出（去代码围栏、补全缺省字段）。"""
     text = raw.strip()
@@ -114,12 +157,14 @@ def _parse_plan(raw: str) -> RoutePlan:
     query_type = data.get("query_type", "general")
     if query_type not in QUERY_TYPES:
         query_type = "general"
+    subs, sub_deps = _parse_sub_queries(data.get("sub_queries"))
     return RoutePlan(
         intent=intent,
         complexity=complexity,
         query_type=query_type,
         rewritten_query=str(data.get("rewritten_query") or "").strip() or None,
-        sub_queries=[str(q).strip() for q in data.get("sub_queries", []) if str(q).strip()][:3],
+        sub_queries=subs,
+        sub_query_deps=sub_deps,
         needs_hyde=bool(data.get("needs_hyde", False)),
     )
 

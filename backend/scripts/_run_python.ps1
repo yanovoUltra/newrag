@@ -1,4 +1,4 @@
-﻿# _run_python.ps1 - backend 统一 Python 调用约定
+﻿﻿# _run_python.ps1 - backend 统一 Python 调用约定
 #
 # 解决的问题（历史踩坑）：
 #   1. 系统 python 缺 pydantic_settings，必须用 venv python
@@ -12,7 +12,7 @@
 #     脚本路径相对 backend/ 或绝对路径均可。
 #   2) dot-source 加载后调用函数：
 #        . .\scripts\_run_python.ps1
-#        Invoke-Py eval_idf_structural.py --top-k 8
+#        Invoke-Py eval_ablation.py --top-k 8
 #        $PY                        # venv python 绝对路径
 #        $BACKEND_DIR / $ROOT_DIR   # 目录绝对路径
 #

@@ -206,6 +206,15 @@ def _dedup_diverse(results: list[dict]) -> list[dict]:
     return kept
 
 
+def _year_filter_condition(fiscal_year: int | None, fiscal_years: list[int] | None) -> models.Condition | None:
+    """年份过滤条件：单值 MatchValue；多值（降级 L2 前后年窗口）MatchAny；均无则 None。"""
+    if fiscal_years:
+        return models.FieldCondition(key="fiscal_year", match=models.MatchAny(any=list(fiscal_years)))
+    if fiscal_year is not None:
+        return models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year))
+    return None
+
+
 def search_dense(
     query_vector: list[float],
     org_id: str,
@@ -214,6 +223,7 @@ def search_dense(
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
     fiscal_year: int | None = None,
+    fiscal_years: list[int] | None = None,
     doc_ids: list[str] | None = None,
 ) -> list[dict]:
     """单路稠密检索，强制注入权限 payload 过滤；可追加年份过滤（陈旧文档防护）与文档过滤（主体预过滤）。"""
@@ -225,8 +235,9 @@ def search_dense(
             match=models.MatchAny(any=visible_levels(user_visibility)),
         ),
     ]
-    if fiscal_year is not None:
-        must.append(models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year)))
+    yf = _year_filter_condition(fiscal_year, fiscal_years)
+    if yf is not None:
+        must.append(yf)
     if doc_ids:
         must.append(models.FieldCondition(key="doc_id", match=models.MatchAny(any=doc_ids)))
     if chunk_type:
@@ -275,6 +286,7 @@ def search_sparse(
     chunk_type: str | None = None,
     exclude_chunk_types: list[str] | None = None,
     fiscal_year: int | None = None,
+    fiscal_years: list[int] | None = None,
     doc_ids: list[str] | None = None,
 ) -> list[dict]:
     """稀疏路召回（模型原生稀疏：词表 index + 语义权重），强制权限过滤；可追加年份/文档过滤。"""
@@ -286,8 +298,9 @@ def search_sparse(
             match=models.MatchAny(any=visible_levels(user_visibility)),
         ),
     ]
-    if fiscal_year is not None:
-        must.append(models.FieldCondition(key="fiscal_year", match=models.MatchValue(value=fiscal_year)))
+    yf = _year_filter_condition(fiscal_year, fiscal_years)
+    if yf is not None:
+        must.append(yf)
     if doc_ids:
         must.append(models.FieldCondition(key="doc_id", match=models.MatchAny(any=doc_ids)))
     if chunk_type:

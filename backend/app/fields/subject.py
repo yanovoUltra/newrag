@@ -21,7 +21,17 @@ _YEAR_SPAN_RE = re.compile(
 )
 _FILLER_RE = re.compile(r"[，,。？?、\s]+")
 # 通用填充词（非公司、非指标）
-_FILLER_TOKENS = ("请问", "是多少", "为多少", "有多少", "多少", "分别为", "分别", "其", "公司", "的")
+_FILLER_TOKENS = (
+    "请问", "是多少", "为多少", "有多少", "多少", "分别为", "分别", "其", "公司", "的",
+    # 期末/年末表述："2025年末/期末/年底总资产" 中的时间缀（不剔除会混入主体串导致匹配失败）
+    "年末", "期末", "年底", "末",
+)
+# 英文疑问/介词填充词（英文题 "What were GE's total revenues in 1998?" 中的功能词，
+# 不剔除会混入主体串导致匹配失败；指标别名已在 _strip_metric_aliases 剔除）
+_EN_FILLER_RE = re.compile(
+    r"\b(?:what|were|was|are|is|in|of|for|at|the|and|how|did|do|does|has|have|had|by|to|from|on|as|its|their|it|they|that|this|these|those)\b",
+    re.I,
+)
 
 
 def _strip_metric_aliases(q: str) -> str:
@@ -38,7 +48,13 @@ def _strip_metric_aliases(q: str) -> str:
 def extract_subject(question: str) -> str:
     """从问题中抽出主体公司候选串：剔除年份/指标别名/填充词后剩余的核心串。"""
     q = _YEAR_SPAN_RE.sub(" ", question or "")
+    # 裸年份也剔除（英文题 "in 1998" 的 1998 无 fiscal 前缀，不剔除会混入主体串）
+    q = re.sub(r"(?:19|20)\d{2}", " ", q)
     q = _strip_metric_aliases(q)
+    # 英文所有格与撇号（GE's → GE；GECS' → GECS），先于填充词剔除（否则 "ge's" 无法匹配）
+    q = q.replace("'s", " ")
+    q = q.replace("'", " ")
+    q = _EN_FILLER_RE.sub(" ", q)
     for tok in _FILLER_TOKENS:
         q = q.replace(tok, "")
     q = _FILLER_RE.sub("", q)
@@ -68,12 +84,20 @@ def _is_subseq(short: str, long: str) -> bool:
     return all(ch in it for ch in short)
 
 
+# 已知公司简称 → 全称（简称与子公司名共享前缀时，纯字符串匹配无法区分：
+# "GE" 同时是 "General Electric" 与 "GECS" 的子串，多匹配即放弃会让字段 relay 失效）
+_COMPANY_ABBREVIATIONS = {
+    "ge": "General Electric",
+}
+
+
 def find_subject_company(question: str, companies: list[str]) -> str | None:
     """在公司名列表里定位问题主体公司；0 或 多个匹配返回 None（无法确定 → 跳过字段注入）。
 
     双向子串 + 双向子序列匹配（归一化简体后，英文统一小写）：
     - 完整名直接命中（"贵州茅台"⊆"贵州茅台"、"CXMT"⊆"CXMT"）；
     - 简称命中全称（"浦发银行"⊆"上海浦东发展银行" 的子序列）；
+    - 已知简称优先（"GE"→"General Electric"，防与 GECS 等子公司歧义）；
     - 繁体/简体差异（"招商银行" vs "招商銀行"）；
     - 英文大小写差异（问题提取主体串为小写，公司名保持原样，如 "CXMT"）。
     """
@@ -81,6 +105,9 @@ def find_subject_company(question: str, companies: list[str]) -> str | None:
     if len(subj) < 2:
         return None
     subj_n = _normalize_name(subj)
+    abbr = _COMPANY_ABBREVIATIONS.get(subj_n.lower())
+    if abbr and abbr in companies:
+        return abbr
     matched = [
         c for c in companies
         if c and _match_names(subj_n, _normalize_name(c))
