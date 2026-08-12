@@ -12,12 +12,26 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import threading
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.store.redisx import get_redis
 
 logger = get_logger(__name__)
+
+_embed_stats_lock = threading.Lock()
+_embed_stats = {
+    "hits": 0,
+    "misses": 0,
+    "bypassed": 0,
+    "unavailable": 0,
+}
+
+
+def _record_embed_stat(name: str) -> None:
+    with _embed_stats_lock:
+        _embed_stats[name] += 1
 
 
 def _norm(text: str) -> str:
@@ -54,30 +68,84 @@ def _char_overlap(a: str, b: str) -> float:
 def embed_cache_get(
     text: str, text_type: str, output_type: str = "dense"
 ) -> tuple[list[float], dict | None] | None:
+    if text_type == "document" and get_settings().embed_document_cache_ttl <= 0:
+        _record_embed_stat("bypassed")
+        return None
     r = get_redis()
     if r is None:
+        _record_embed_stat("unavailable")
         return None
     try:
         key = f"emb:{text_type}:{output_type}:{hashlib.sha256(_norm(text).encode('utf-8')).hexdigest()}"
         raw = r.get(key)
         if not raw:
+            _record_embed_stat("misses")
             return None
         data = json.loads(raw)
+        _record_embed_stat("hits")
         return data["dense"], data.get("sparse")
     except Exception as e:
+        _record_embed_stat("unavailable")
         logger.warning("嵌入缓存读取失败: %s", e)
         return None
+
+
+def cache_metrics_snapshot() -> dict:
+    """返回当前进程的嵌入缓存计数和 Redis 数据集快照。
+
+    命中计数是进程级指标；Redis 键数与内存是实例级指标。扫描只在
+    显式请求指标端点时执行，不进入问答和入库热路径。
+    """
+    with _embed_stats_lock:
+        stats = dict(_embed_stats)
+    lookups = stats["hits"] + stats["misses"]
+    result = {
+        "redis_available": False,
+        "redis_total_keys": 0,
+        "redis_used_memory_bytes": 0,
+        "embed_query_keys": 0,
+        "embed_document_keys": 0,
+        "embed_cache_hits": stats["hits"],
+        "embed_cache_misses": stats["misses"],
+        "embed_cache_bypassed": stats["bypassed"],
+        "embed_cache_unavailable": stats["unavailable"],
+        "embed_cache_hit_rate": round(stats["hits"] / lookups, 4) if lookups else 0.0,
+    }
+    r = get_redis()
+    if r is None:
+        return result
+    try:
+        memory = r.info("memory")
+        result.update(
+            redis_available=True,
+            redis_total_keys=int(r.dbsize()),
+            redis_used_memory_bytes=int(memory.get("used_memory", 0)),
+            embed_query_keys=sum(1 for _ in r.scan_iter(match="emb:query:*", count=1000)),
+            embed_document_keys=sum(
+                1 for _ in r.scan_iter(match="emb:document:*", count=1000)
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Redis 缓存指标读取失败: %s", exc)
+    return result
 
 
 def embed_cache_set(
     text: str, text_type: str, output_type: str, dense: list[float], sparse: dict | None
 ) -> None:
+    settings = get_settings()
+    ttl = (
+        settings.embed_document_cache_ttl
+        if text_type == "document"
+        else settings.embed_cache_ttl
+    )
+    if ttl <= 0:
+        return
     r = get_redis()
     if r is None:
         return
     try:
         key = f"emb:{text_type}:{output_type}:{hashlib.sha256(_norm(text).encode('utf-8')).hexdigest()}"
-        ttl = get_settings().embed_cache_ttl
         r.set(key, json.dumps({"dense": dense, "sparse": sparse}, ensure_ascii=False), ex=ttl)
     except Exception as e:
         logger.warning("嵌入缓存写入失败: %s", e)

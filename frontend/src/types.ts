@@ -17,6 +17,13 @@ export interface DocumentItem {
   updated_at: string
 }
 
+export interface DocumentPage {
+  items: DocumentItem[]
+  total: number
+  limit: number
+  offset: number
+}
+
 // ---- 任务（ingest 进度轮询）----
 export interface TaskItem {
   id: string

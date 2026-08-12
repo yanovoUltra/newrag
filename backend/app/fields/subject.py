@@ -88,7 +88,52 @@ def _is_subseq(short: str, long: str) -> bool:
 # "GE" 同时是 "General Electric" 与 "GECS" 的子串，多匹配即放弃会让字段 relay 失效）
 _COMPANY_ABBREVIATIONS = {
     "ge": "General Electric",
+    "工行": "中国工商银行",
+    "建行": "中国建设银行",
+    "农行": "中国农业银行",
+    "中行": "中国银行",
+    "招行": "招商银行",
+    "浦发": "上海浦东发展银行",
+    "茅台": "贵州茅台",
+    "中芯": "中芯国际",
+    "宁德": "宁德时代新能源科技",
+    "海康": "杭州海康威视数字技术",
+    "汇川": "深圳市汇川技术",
 }
+
+_COMPANY_PREFIXES = ("中国", "上海", "深圳市", "深圳", "宜宾", "杭州", "贵州", "北京市", "北京")
+_COMPANY_SUFFIXES = ("股份有限公司", "集团股份有限公司", "集团有限公司", "有限公司", "股份", "集团")
+
+
+def _company_aliases(company: str) -> set[str]:
+    """返回可在自然语言问题中直接出现的公司别名（全名、去地域/法定后缀、常用简称）。"""
+    normalized = _normalize_name(company)
+    aliases = {normalized}
+    core = normalized
+    for suffix in _COMPANY_SUFFIXES:
+        if core.endswith(suffix):
+            core = core[: -len(suffix)]
+            break
+    aliases.add(core)
+    for prefix in _COMPANY_PREFIXES:
+        if core.startswith(prefix) and len(core) - len(prefix) >= 2:
+            aliases.add(core[len(prefix):])
+    for abbr, target in _COMPANY_ABBREVIATIONS.items():
+        target_n = _normalize_name(target).lower()
+        company_n = normalized.lower()
+        if target_n == company_n or target_n in company_n or company_n in target_n:
+            aliases.add(abbr)
+    return {a.lower() for a in aliases if len(a) >= 2}
+
+
+def find_mentioned_companies(question: str, companies: list[str]) -> list[str]:
+    """查找问题中显式提到的全部公司，适用于综述、趋势和跨公司比较题。
+
+    与 ``extract_subject`` 不同，本函数不要求剔除整句分析意图，因此
+    ``梳理工商银行风险变化``、``比较工行和建行`` 仍能可靠限定目标文档。
+    """
+    q = _normalize_name(question).lower()
+    return [c for c in companies if c and any(alias in q for alias in _company_aliases(c))]
 
 
 def find_subject_company(question: str, companies: list[str]) -> str | None:
@@ -114,6 +159,9 @@ def find_subject_company(question: str, companies: list[str]) -> str | None:
     ]
     if len(matched) == 1:
         return matched[0]
+    mentioned = find_mentioned_companies(question, companies)
+    if len(mentioned) == 1:
+        return mentioned[0]
     return None
 
 

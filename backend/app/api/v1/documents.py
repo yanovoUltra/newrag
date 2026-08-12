@@ -3,23 +3,28 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
+import tempfile
 import uuid
+from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 
 from app.core.config import get_settings
 from app.pipelines.ingest import run_ingest
-from app.schemas import DocumentOut
+from app.schemas import DocumentOut, DocumentPage
 from app.store import qdrant as qdrant_store
 from app.store.registry import (
     create_document,
     create_task,
     delete_document,
     delete_fields,
+    find_document_by_filename,
+    find_document_by_sha256,
     get_document,
-    list_documents,
+    query_documents_page,
     update_document,
 )
 from app.parsers.base import SUPPORTED_EXTENSIONS
@@ -27,6 +32,12 @@ from app.parsers.base import SUPPORTED_EXTENSIONS
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 VALID_VISIBILITY = {"public", "internal", "restricted"}
+MIN_FISCAL_YEAR = 1990
+
+
+def _current_year(today: date | None = None) -> int:
+    """返回服务器当前自然年；允许注入日期以便确定性测试。"""
+    return (today or date.today()).year
 
 
 def _same_file_key(a: str, b: str) -> bool:
@@ -64,23 +75,21 @@ def _archive_document(doc_id: str) -> None:
     update_document(doc_id, status="archived")
 
 
-def _find_replace_target(settings, org_id: str, content: bytes, filename: str):
+def _find_replace_target(settings, org_id: str, sha256: str, filename: str):
     """陈旧文档防护：
     - 同 org + 同 sha256 → 返回 ("duplicate", doc)：幂等，不重复入库（failed 状态除外，允许重试）；
     - 同 org + 同名文件且内容不同 → 返回 ("replace", doc)：替换旧版，先归档旧点再入库。
     已归档（archived）记录视为不存在：跳过，允许重新入库形成新版本（旧版留档）。
     返回 (kind, doc|None)。"""
-    sha256 = hashlib.sha256(content).hexdigest()
-    docs = list_documents(org_id=org_id, limit=500)
-    for d in docs:
-        if d.status == "archived":
-            continue  # 已归档版本不参与幂等/替换判定
-        if d.sha256 and d.sha256 == sha256:
-            if d.status == "failed":
-                return "replace", d  # 上次失败，允许重试（旧痕迹已无向量，直接重入）
-            return "duplicate", d
-        if settings.upload_replace_same_filename and _same_file_key(d.filename, filename):
-            return "replace", d
+    same_content = find_document_by_sha256(org_id, sha256)
+    if same_content is not None:
+        if same_content.status == "failed":
+            return "replace", same_content
+        return "duplicate", same_content
+    if settings.upload_replace_same_filename:
+        same_name = find_document_by_filename(org_id, filename)
+        if same_name is not None:
+            return "replace", same_name
     return "none", None
 
 
@@ -99,33 +108,54 @@ async def upload_document(
         raise HTTPException(400, f"不支持的文件类型: {ext or '(无扩展名)'}，支持 {sorted(SUPPORTED_EXTENSIONS)}")
     if visibility not in VALID_VISIBILITY:
         raise HTTPException(400, f"visibility 非法: {visibility}，可选 {sorted(VALID_VISIBILITY)}")
+    if fiscal_year is not None:
+        current_year = _current_year()
+        if not MIN_FISCAL_YEAR <= fiscal_year <= current_year:
+            raise HTTPException(
+                400,
+                f"fiscal_year 非法: {fiscal_year}，允许范围 {MIN_FISCAL_YEAR}-{current_year}",
+            )
 
-    content = await file.read()
-    if not content:
-        raise HTTPException(400, "上传内容为空")
-    if len(content) > settings.max_upload_mb * 1024 * 1024:
-        raise HTTPException(413, f"文件超过大小限制 {settings.max_upload_mb}MB")
+    upload_dir = settings.resolved_upload_dir
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    digest = hashlib.sha256()
+    size_bytes = 0
+    temp = tempfile.NamedTemporaryFile(prefix="upload-", suffix=".part", dir=upload_dir, delete=False)
+    temp_path = Path(temp.name)
+    try:
+        with temp:
+            while chunk := await file.read(1024 * 1024):
+                size_bytes += len(chunk)
+                if size_bytes > max_bytes:
+                    raise HTTPException(413, f"文件超过大小限制 {settings.max_upload_mb}MB")
+                digest.update(chunk)
+                temp.write(chunk)
+        if size_bytes == 0:
+            raise HTTPException(400, "上传内容为空")
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+    sha256 = digest.hexdigest()
 
     # ---- 陈旧文档防护：sha256 幂等 / 同名替换（旧版归档留档）----
-    kind, existing = _find_replace_target(settings, org_id, content, file.filename or "")
+    kind, existing = _find_replace_target(settings, org_id, sha256, file.filename or "")
     if kind == "duplicate" and existing is not None:
+        temp_path.unlink(missing_ok=True)
         return {"task_id": "", "doc_id": existing.id, "status": "duplicate"}
     if kind == "replace" and existing is not None:
         _archive_document(existing.id)
 
-    upload_dir = settings.resolved_upload_dir
-    upload_dir.mkdir(parents=True, exist_ok=True)
     stored_name = f"{uuid.uuid4().hex}{ext}"
     stored_path = upload_dir / stored_name
-    stored_path.write_bytes(content)
+    os.replace(temp_path, stored_path)
 
-    sha256 = hashlib.sha256(content).hexdigest()
     doc = create_document(
         filename=file.filename or stored_name,
         file_type=ext.lstrip("."),
         org_id=org_id,
         visibility=visibility,
-        size_bytes=len(content),
+        size_bytes=size_bytes,
         sha256=sha256,
         fiscal_year=fiscal_year,
         fiscal_quarter=fiscal_quarter,
@@ -156,14 +186,42 @@ async def upload_document(
 @router.get("", response_model=list[DocumentOut])
 def list_docs(
     org_id: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     include_archived: bool = False,
 ):
-    docs = list_documents(org_id, limit, offset)
-    if not include_archived:
-        docs = [d for d in docs if d.status != "archived"]
+    docs, _ = query_documents_page(
+        org_id=org_id,
+        limit=limit,
+        offset=offset,
+        include_archived=include_archived,
+    )
     return [doc_dict(d) for d in docs]
+
+
+@router.get("/page", response_model=DocumentPage)
+def list_docs_page(
+    org_id: str | None = None,
+    filename: str | None = None,
+    status: str | None = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    include_archived: bool = False,
+):
+    docs, total = query_documents_page(
+        org_id=org_id,
+        filename=filename,
+        status=status,
+        limit=limit,
+        offset=offset,
+        include_archived=include_archived,
+    )
+    return DocumentPage(
+        items=[doc_dict(d) for d in docs],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{doc_id}", response_model=DocumentOut)

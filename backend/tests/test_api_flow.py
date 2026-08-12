@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import time
+from datetime import date
+from types import SimpleNamespace
 
 import pytest
 
@@ -107,6 +109,117 @@ def test_upload_validation(client):
         data={"org_id": "orgA"},
     )
     assert resp.status_code == 400
+
+
+def test_current_year_helper():
+    from app.api.v1.documents import _current_year
+
+    assert _current_year(date(2032, 1, 1)) == 2032
+
+
+@pytest.mark.parametrize("fiscal_year", [1990, date.today().year, None])
+def test_upload_accepts_valid_fiscal_year(client, monkeypatch, fiscal_year):
+    from app.api.v1 import documents as documents_api
+
+    monkeypatch.setattr(documents_api, "_find_replace_target", lambda *args: ("none", None))
+    monkeypatch.setattr(
+        documents_api,
+        "create_document",
+        lambda **kwargs: SimpleNamespace(id=f"doc-{fiscal_year}"),
+    )
+    monkeypatch.setattr(
+        documents_api,
+        "create_task",
+        lambda *args, **kwargs: SimpleNamespace(id=f"task-{fiscal_year}"),
+    )
+    monkeypatch.setattr(documents_api, "run_ingest", lambda *args, **kwargs: None)
+
+    data = {"org_id": "orgA"}
+    if fiscal_year is not None:
+        data["fiscal_year"] = str(fiscal_year)
+    resp = client.post(
+        "/api/v1/documents",
+        files={"file": ("year.pdf", b"valid", "application/pdf")},
+        data=data,
+    )
+
+    assert resp.status_code == 201
+
+
+@pytest.mark.parametrize("fiscal_year", [1989, date.today().year + 1])
+def test_upload_rejects_fiscal_year_outside_reality(client, fiscal_year):
+    resp = client.post(
+        "/api/v1/documents",
+        files={"file": ("year.pdf", b"valid", "application/pdf")},
+        data={"org_id": "orgA", "fiscal_year": str(fiscal_year)},
+    )
+
+    assert resp.status_code == 400
+    assert f"1990-{date.today().year}" in resp.json()["detail"]
+
+
+def test_document_page_filters_and_contract(client, monkeypatch):
+    from datetime import datetime
+
+    from app.api.v1 import documents as documents_api
+
+    captured = {}
+    doc = SimpleNamespace(
+        id="doc-page-1",
+        filename="annual-report.pdf",
+        file_type="pdf",
+        status="indexed",
+        org_id="orgA",
+        visibility="public",
+        fiscal_year=2025,
+        fiscal_quarter=None,
+        chunk_count=12,
+        size_bytes=1024,
+        error=None,
+        created_at=datetime(2026, 1, 2, 3, 4, 5),
+        updated_at=datetime(2026, 1, 2, 3, 4, 5),
+    )
+
+    def fake_query(**kwargs):
+        captured.update(kwargs)
+        return [doc], 37
+
+    monkeypatch.setattr(documents_api, "query_documents_page", fake_query)
+    response = client.get(
+        "/api/v1/documents/page",
+        params={
+            "org_id": "orgA",
+            "filename": "annual",
+            "status": "indexed",
+            "limit": 20,
+            "offset": 20,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 37
+    assert response.json()["items"][0]["id"] == "doc-page-1"
+    assert captured == {
+        "org_id": "orgA",
+        "filename": "annual",
+        "status": "indexed",
+        "limit": 20,
+        "offset": 20,
+        "include_archived": False,
+    }
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"limit": 0},
+        {"limit": 101},
+        {"offset": -1},
+    ],
+)
+def test_document_page_rejects_invalid_bounds(client, params):
+    response = client.get("/api/v1/documents/page", params=params)
+    assert response.status_code == 422
 
 
 @pytest.mark.skipif(not qdrant_available(), reason="需要本地 Qdrant")

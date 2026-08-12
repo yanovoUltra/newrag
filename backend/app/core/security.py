@@ -116,7 +116,7 @@ def verify_request(method: str, path: str, body: bytes, headers: dict[str, str])
 class AuthMiddleware:
     """FastAPI 中间件：开启 AUTH_ENABLED 后保护 /api/v1/*。
 
-    放行：/healthz、OpenAPI 文档、CORS 预检（OPTIONS）、静态资源。
+    放行：/healthz、/livez、/api/v1/config/public、OpenAPI 文档、CORS 预检。
     未开启或未配置密钥时完全放行（默认开发行为，不影响既有流程）。
     """
 
@@ -136,7 +136,11 @@ class AuthMiddleware:
         method = request.method
         path = request.path
         # 仅保护 /api/v1/*；其余（/healthz、OpenAPI 文档）与 CORS 预检（OPTIONS）放行
-        if method == "OPTIONS" or not path.startswith(self.protected_prefix):
+        if (
+            method == "OPTIONS"
+            or path == "/api/v1/config/public"
+            or not path.startswith(self.protected_prefix)
+        ):
             await self.app(scope, receive, send)
             return
         body = await request.body()

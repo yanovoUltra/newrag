@@ -45,7 +45,9 @@ def _section_weight(r: dict) -> float:
     return 1.0
 
 # 章节级父块只作上下文扩展，不进召回候选（避免与叶子重复命中）
-_EXCLUDE_PARENT = {"section"}
+# summary 摘要块同样只走专用摘要锚点路（启用时 doc 限定展开），不进主路——
+# 否则关闭摘要时主路仍会召回摘要块（与未建摘要的基线状态不一致，P2-1 口径修正）
+_EXCLUDE_PARENT = {"section", "summary"}
 
 # 否定词模式："除了X之外/除X以外/排除X/不包括X"（X 为被否定实体）
 _NEG_PATTERNS = (
@@ -149,10 +151,10 @@ def _apply_negation(
 
 
 def _resolve_subject_doc_ids(query_text: str, org_id: str, user_visibility: str) -> list[str] | None:
-    """metric 问题解析主体公司 → 返回目标文档 doc_id 列表；无法确定主体返回 None（不过滤）。"""
+    """解析问题显式公司 → 返回目标文档列表；支持单主体与跨公司比较。"""
     from sqlalchemy import select
 
-    from app.fields.subject import find_subject_company
+    from app.fields.subject import find_mentioned_companies, find_subject_company
     from app.models.entities import FinancialField
     from app.store.registry import get_session, list_field_companies
 
@@ -160,14 +162,15 @@ def _resolve_subject_doc_ids(query_text: str, org_id: str, user_visibility: str)
     if not companies:
         return None
     company = find_subject_company(query_text, companies)
-    if not company:
+    matched = [company] if company else find_mentioned_companies(query_text, companies)
+    if not matched:
         return None
     allowed = qdrant_store.visible_levels(user_visibility)
     with get_session() as s:
         doc_ids = set(
             s.scalars(
                 select(FinancialField.doc_id).where(
-                    FinancialField.company == company,
+                    FinancialField.company.in_(matched),
                     FinancialField.org_id == org_id,
                     FinancialField.visibility.in_(allowed),
                 )
@@ -456,6 +459,27 @@ def hybrid_search(
             doc_ids=doc_ids,
         )
         routes.append(parent_hits)
+    # 摘要锚点独立召回路（阶段四验证）：dense 检索 chunk_type=summary top-N。
+    # 摘要块 RRF 单路分低（~1/(60+rank)）进不了 top-8 候选（实测 dense top20 有 4 个
+    # summary 但 RRF 候选 top-8 无）——对标 §18 父块路教训，独立召回命中后展开为
+    # 原文父块硬插候选 + boost。未开启时零开销。
+    # P0 防跨文档污染（2026-08-12）：摘要块仅目标文档存在（如中芯），若主体解析失败
+    # doc_ids 为空则整路跳过——否则其它公司问题会把中芯摘要块召回并顶入 top-8。
+    summary_hits: list[dict] = []
+    if settings.summary_enabled and use_parent_route and query_text and doc_ids:
+        try:
+            summary_hits = qdrant_store.search_dense(
+                query_vector=query_vector,
+                org_id=org_id,
+                user_visibility=user_visibility,
+                top_k=settings.summary_route_top_k,
+                chunk_type="summary",
+                fiscal_year=fiscal_year,
+                fiscal_years=fiscal_years,
+                doc_ids=doc_ids,
+            )
+        except Exception:  # noqa: BLE001 独立路失败不阻断主流程
+            summary_hits = []
     if query_text and query_sparse:
         routes.append(
             qdrant_store.search_sparse(
@@ -493,7 +517,7 @@ def hybrid_search(
     # 综述题池重构（§18）：parent_route_top_k=12 + 叶子候选 summary_leaf_candidates=6（18 槽）。
     # 探针实证：叶 8→6 仅损失 1 题相关叶入池，换来父块结构性进 top-8 的降级鲁棒性
     # （rerank 降级 RRF 直出时父块在第 7-8 槽，no-rerank top8 相关块 0.35→0.96）
-    if use_parent_route:
+    if use_parent_route and rerank_candidates is None:
         base_cand = settings.summary_leaf_candidates
     fused = rrf_fuse(
         routes,
@@ -547,6 +571,52 @@ def hybrid_search(
                 fused.append(ph)
                 fused_ids.add(ph["chunk_id"])
 
+    # 摘要锚点展开（阶段四验证）：独立召回路（summary_hits）+ 候选内 summary 块统一
+    # 展开——有 parent_id 的章节摘要块 → 拉原文父块替换进候选（摘要只做检索指针，
+    # 原文父块进 rerank/生成，防摘要编造数字）；文档综述块（无 parent_id）保留。
+    # 与召回路同口径 doc_ids 限定：主体解析失败时整段跳过（防跨文档污染，2026-08-12）。
+    # 未开启/无 summary 命中时零开销。
+    if settings.summary_enabled and use_parent_route and doc_ids:
+        sum_blocks = summary_hits + [
+            h for h in fused
+            if h.get("chunk_type") == "summary" and h.get("doc_id") in set(doc_ids)
+        ]
+        if sum_blocks:
+            pids_by_doc: dict[str, list[str]] = {}
+            for h in sum_blocks:
+                pid = h.get("parent_id")
+                if pid:
+                    pids_by_doc.setdefault(h.get("doc_id"), []).append(pid)
+            expanded: list[dict] = []
+            for doc_id, pids in pids_by_doc.items():
+                try:
+                    payloads = qdrant_store.fetch_payloads(doc_id, list(dict.fromkeys(pids)))
+                except Exception:  # noqa: BLE001 摘要展开失败不阻断（候选保持原样）
+                    payloads = {}
+                for cid, pay in payloads.items():
+                    expanded.append({
+                        "chunk_id": cid, "doc_id": doc_id,
+                        "doc_name": pay.get("doc_name"), "page": pay.get("page"),
+                        "section_path": pay.get("section_path", ""),
+                        "chunk_type": pay.get("chunk_type", "text"),
+                        "content": pay.get("content", ""),
+                        "parent_id": pay.get("parent_id"),
+                        "score": 0.0, "fused_score": 0.0,
+                        "org_id": pay.get("org_id"), "visibility": pay.get("visibility"),
+                        "is_structural": bool(pay.get("is_structural")),
+                        "is_summary_expanded": True,
+                    })
+            if expanded:
+                fused_ids = {f["chunk_id"] for f in fused}
+                for block in expanded:
+                    if block["chunk_id"] not in fused_ids and block["chunk_id"] not in relay_ids:
+                        fused.append(block)
+                        fused_ids.add(block["chunk_id"])
+                fused = [
+                    h for h in fused
+                    if not (h.get("chunk_type") == "summary" and h.get("parent_id"))
+                ]
+
     # 分析型问题候选池 MMR 去重（§16 已删）：消融证明负优化（非指标 NDCG 0.3533→0.2852），
     # 相关集本身为同主题多块，去重反而删掉相关块。见 ablation_report §16.4。
 
@@ -581,6 +651,10 @@ def hybrid_search(
                 for r in fused:
                     if r["chunk_id"] in parent_ids:
                         r["rerank_score"] += settings.parent_route_boost
+            # 摘要锚点保底：摘要展开出的原文父块同样加分（与父块路同一语义信号）
+            for r in fused:
+                if r.get("is_summary_expanded"):
+                    r["rerank_score"] += settings.parent_route_boost
             # 数值约束满足度奖励（β 低于核心检索分，防过度压分）
             if constraints:
                 for r in fused:
@@ -594,6 +668,10 @@ def hybrid_search(
                     r["section_weight"] = w
                     r["rerank_score"] *= w
             fused.sort(key=lambda r: r["rerank_score"], reverse=True)
+            # 指标直查的 relay 来源于 (公司, 指标, 年份) 结构化字段索引，是确定性答案块。
+            # rerank 只负责排列其余语义候选，不得把概率性高分块压到 relay 之前。
+            if relay_ids:
+                fused.sort(key=lambda r: r["chunk_id"] not in relay_ids)
         else:
             # RRF 直出路径：数值约束满足度并入 fused_score 再排序（仅约束题生效，
             # 保持"无约束时 RRF 顺序不变"的契约）

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -9,7 +9,7 @@ import {
   Document,
   Search,
 } from '@element-plus/icons-vue'
-import { deleteDocument, listDocuments } from '@/api/documents'
+import { deleteDocument, listDocumentPage } from '@/api/documents'
 import { notifyError } from '@/api/client'
 import type { DocumentItem } from '@/types'
 
@@ -17,27 +17,48 @@ const router = useRouter()
 const docs = ref<DocumentItem[]>([])
 const loading = ref(false)
 const keyword = ref('')
-
-const filtered = computed(() => {
-  const kw = keyword.value.trim().toLowerCase()
-  if (!kw) return docs.value
-  return docs.value.filter(
-    (d) =>
-      d.filename.toLowerCase().includes(kw) ||
-      d.id.toLowerCase().includes(kw) ||
-      d.org_id.toLowerCase().includes(kw),
-  )
-})
+const orgFilter = ref('')
+const statusFilter = ref('')
+const total = ref(0)
+const page = ref(1)
+const pageSize = 20
+let loadAbort: AbortController | null = null
+let searchTimer: number | undefined
 
 async function load() {
+  loadAbort?.abort()
+  const ctrl = new AbortController()
+  loadAbort = ctrl
   loading.value = true
   try {
-    docs.value = await listDocuments()
+    const result = await listDocumentPage({
+      filename: keyword.value.trim() || undefined,
+      orgId: orgFilter.value.trim() || undefined,
+      status: statusFilter.value || undefined,
+      limit: pageSize,
+      offset: (page.value - 1) * pageSize,
+      signal: ctrl.signal,
+    })
+    if (ctrl.signal.aborted) return
+    docs.value = result.items
+    total.value = result.total
   } catch (e) {
+    if ((e as Error).name === 'AbortError') return
     notifyError(e)
   } finally {
-    loading.value = false
+    if (loadAbort === ctrl) loading.value = false
   }
+}
+
+function scheduleSearch() {
+  page.value = 1
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(load, 250)
+}
+
+function changePage(next: number) {
+  page.value = next
+  load()
 }
 
 async function onDelete(d: DocumentItem) {
@@ -53,7 +74,8 @@ async function onDelete(d: DocumentItem) {
   try {
     await deleteDocument(d.id)
     ElMessage.success('已删除')
-    load()
+    if (docs.value.length === 1 && page.value > 1) page.value -= 1
+    await load()
   } catch (e) {
     notifyError(e)
   }
@@ -93,7 +115,12 @@ function fmtSizeBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+watch([keyword, orgFilter, statusFilter], scheduleSearch)
 onMounted(load)
+onUnmounted(() => {
+  loadAbort?.abort()
+  window.clearTimeout(searchTimer)
+})
 </script>
 
 <template>
@@ -101,16 +128,35 @@ onMounted(load)
     <header class="doc-header">
       <div class="header-title">
         <h1>文档库</h1>
-        <span class="header-sub">共 {{ docs.length }} 份财报，检索与问答均基于已入库知识块</span>
+        <span class="header-sub">共 {{ total }} 份财报，检索与问答均基于已入库知识块</span>
       </div>
       <div class="header-actions">
         <el-input
           v-model="keyword"
-          placeholder="搜索文件名 / ID"
+          placeholder="搜索文件名"
+          aria-label="按文件名搜索"
           clearable
           :prefix-icon="Search"
           style="width: 220px"
         />
+        <el-input
+          v-model="orgFilter"
+          placeholder="机构 ID"
+          aria-label="按机构 ID 筛选"
+          clearable
+          style="width: 130px"
+        />
+        <el-select
+          v-model="statusFilter"
+          placeholder="全部状态"
+          aria-label="按文档状态筛选"
+          clearable
+          style="width: 130px"
+        >
+          <el-option label="已入库" value="indexed" />
+          <el-option label="处理中" value="pending" />
+          <el-option label="失败" value="failed" />
+        </el-select>
         <el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button>
         <el-button type="primary" :icon="Plus" @click="router.push('/upload')">
           上传文档
@@ -120,7 +166,8 @@ onMounted(load)
 
     <div class="doc-body">
       <el-table
-        :data="filtered"
+        class="desktop-table"
+        :data="docs"
         v-loading="loading"
         empty-text="暂无文档，点击右上角上传"
         stripe
@@ -176,9 +223,11 @@ onMounted(load)
           <template #default="{ row }">
             <el-tooltip content="删除文档及其向量" placement="top">
               <el-button
+                class="table-delete"
                 link
                 type="danger"
                 :icon="Delete"
+                :aria-label="`删除文档 ${row.filename}`"
                 :disabled="BUSY_STATUS.has(row.status)"
                 @click="onDelete(row)"
               />
@@ -186,6 +235,48 @@ onMounted(load)
           </template>
         </el-table-column>
       </el-table>
+
+      <div v-loading="loading" class="mobile-cards" aria-live="polite">
+        <article v-for="doc in docs" :key="doc.id" class="doc-card">
+          <div class="card-heading">
+            <div class="doc-name">
+              <el-icon :size="18" class="doc-icon"><Document /></el-icon>
+              <div class="doc-name-text">
+                <span class="doc-filename">{{ doc.filename }}</span>
+                <span class="doc-meta">{{ doc.file_type?.toUpperCase() }} · {{ fmtSizeBytes(doc.size_bytes ?? 0) }}</span>
+              </div>
+            </div>
+            <el-button
+              class="card-delete"
+              type="danger"
+              text
+              :icon="Delete"
+              :aria-label="`删除文档 ${doc.filename}`"
+              :disabled="BUSY_STATUS.has(doc.status)"
+              @click="onDelete(doc)"
+            />
+          </div>
+          <dl class="card-grid">
+            <div><dt>状态</dt><dd>{{ statusInfo(doc).label }}</dd></div>
+            <div><dt>机构</dt><dd>{{ doc.org_id }}</dd></div>
+            <div><dt>财年</dt><dd>{{ doc.fiscal_year ?? '—' }}</dd></div>
+            <div><dt>知识块</dt><dd>{{ doc.chunk_count }}</dd></div>
+          </dl>
+          <div class="card-date">上传于 {{ fmtDate(doc.created_at) }}</div>
+        </article>
+        <div v-if="!loading && docs.length === 0" class="mobile-empty">暂无符合条件的文档</div>
+      </div>
+
+      <el-pagination
+        v-if="total > pageSize"
+        class="pagination"
+        background
+        layout="prev, pager, next"
+        :current-page="page"
+        :page-size="pageSize"
+        :total="total"
+        @current-change="changePage"
+      />
     </div>
   </div>
 </template>
@@ -253,12 +344,93 @@ onMounted(load)
   color: var(--color-fg-faint);
 }
 
+.mobile-cards {
+  display: none;
+}
+.table-delete {
+  width: 44px;
+  height: 44px;
+}
+.pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 @media (max-width: 768px) {
   .doc-header {
     padding: 12px 14px;
+    align-items: stretch;
+  }
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .header-actions :deep(.el-input),
+  .header-actions :deep(.el-select) {
+    width: 100% !important;
+  }
+  .header-actions :deep(.el-input__wrapper),
+  .header-actions :deep(.el-select__wrapper),
+  .header-actions :deep(.el-button) {
+    min-height: 44px;
   }
   .doc-body {
     padding: 12px;
+  }
+  .desktop-table {
+    display: none;
+  }
+  .mobile-cards {
+    display: grid;
+    gap: 10px;
+  }
+  .doc-card {
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-panel);
+  }
+  .card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .card-delete {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 14px 0 10px;
+  }
+  .card-grid div {
+    min-width: 0;
+  }
+  .card-grid dt {
+    font-size: 11px;
+    color: var(--color-fg-faint);
+  }
+  .card-grid dd {
+    margin: 2px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-date,
+  .mobile-empty {
+    font-size: 12px;
+    color: var(--color-fg-muted);
+  }
+  .mobile-empty {
+    padding: 40px 0;
+    text-align: center;
+  }
+  .pagination {
+    justify-content: center;
   }
 }
 </style>

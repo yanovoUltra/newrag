@@ -3,6 +3,7 @@
 import pytest
 
 from app.fields.phrases import extract_number_phrases
+from app.pipelines.answer import _merge_blocks
 from app.retrieval.search import _extract_exact_phrases, hybrid_search
 
 
@@ -75,6 +76,44 @@ def test_hybrid_search_number_phrase_route(mock_search_env):
     )
     # 短语路每短语一次稀疏检索：断言发生过多路稀疏调用（原查询 1 次 + 短语路 ≥1 次）
     assert len(mock_search_env["sparse"]) >= 2
+
+
+def test_field_relay_stays_before_higher_rerank_score(mock_search_env, monkeypatch):
+    """结构化字段 relay 是确定性答案块，不能被概率性 rerank 候选挤出首位。"""
+    base = {
+        "doc_id": "d1", "doc_name": "公司", "page": 1, "section_path": "财务数据",
+        "chunk_type": "table", "parent_id": None, "score": 0.1,
+        "org_id": "default", "visibility": "public", "is_structural": False,
+    }
+    other = {**base, "chunk_id": "other", "content": "语义相似但不是权威答案块"}
+    relay = {
+        **base, "chunk_id": "relay", "content": "权威指标答案块",
+        "fused_score": 1.0, "rerank_score": None, "is_relay": True,
+    }
+    monkeypatch.setattr("app.store.qdrant.search_dense", lambda **kw: [other])
+    monkeypatch.setattr("app.retrieval.search._field_relay_candidates", lambda *a, **k: [relay])
+
+    class _BiasedReranker:
+        name = "api"
+
+        def rerank(self, query, docs):
+            return [0.1 if "权威" in doc else 0.99 for doc in docs]
+
+    monkeypatch.setattr("app.retrieval.search.get_reranker", lambda: _BiasedReranker())
+    hits = hybrid_search(
+        query_vector=[0.1] * 8, org_id="default", user_visibility="public",
+        query_text="公司2025年营业收入是多少？", top_k=2,
+        use_table_route=False, query_sparse=None,
+    )
+    assert [h["chunk_id"] for h in hits] == ["relay", "other"]
+
+
+def test_answer_merge_preserves_deterministic_relay_first():
+    hits = [
+        {"chunk_id": "semantic", "rerank_score": 0.99},
+        {"chunk_id": "relay", "rerank_score": 0.1, "is_relay": True},
+    ]
+    assert [h["chunk_id"] for h in _merge_blocks(hits, 2)] == ["relay", "semantic"]
 
 
 # ---- 数字+单位短语提取 ----

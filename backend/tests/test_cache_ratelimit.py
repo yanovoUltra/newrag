@@ -22,7 +22,7 @@ def test_embed_cache_roundtrip_and_output_type_isolation():
     _need_redis()
     from app.store.cache import embed_cache_get, embed_cache_set
 
-    text, ttype = "营业收入1,707.48亿元。", "document"
+    text, ttype = "营业收入1,707.48亿元。", "query"
     dense, sparse = [0.1] * 8, {"indices": [1, 2], "values": [0.9, 0.4]}
     embed_cache_set(text, ttype, "dense&sparse", dense, sparse)
     hit = embed_cache_get(text, ttype, "dense&sparse")
@@ -36,9 +36,44 @@ def test_embed_cache_norm_insensitive():
     _need_redis()
     from app.store.cache import embed_cache_get, embed_cache_set
 
-    embed_cache_set("  营业收入1,707.48亿元  ", "document", "dense", [0.5] * 4, None)
-    hit = embed_cache_get("营业收入1,707.48亿元", "document", "dense")
+    embed_cache_set("  营业收入1,707.48亿元  ", "query", "dense", [0.5] * 4, None)
+    hit = embed_cache_get("营业收入1,707.48亿元", "query", "dense")
     assert hit is not None and hit[0] == [0.5] * 4
+
+
+def test_document_embedding_cache_disabled_by_default(monkeypatch):
+    from app.core.config import get_settings
+    from app.store.cache import embed_cache_get, embed_cache_set
+
+    monkeypatch.setattr(get_settings(), "embed_document_cache_ttl", 0)
+    embed_cache_set("unique-document-cache-test", "document", "dense", [0.1], None)
+    assert embed_cache_get("unique-document-cache-test", "document", "dense") is None
+
+
+def test_cache_metrics_snapshot(monkeypatch):
+    from app.store import cache
+
+    class FakeRedis:
+        def info(self, section):
+            assert section == "memory"
+            return {"used_memory": 12345}
+
+        def dbsize(self):
+            return 9
+
+        def scan_iter(self, match, count):
+            assert count == 1000
+            sizes = {"emb:query:*": 2, "emb:document:*": 3}
+            return iter(range(sizes[match]))
+
+    monkeypatch.setattr(cache, "get_redis", lambda: FakeRedis())
+    snapshot = cache.cache_metrics_snapshot()
+    assert snapshot["redis_available"] is True
+    assert snapshot["redis_total_keys"] == 9
+    assert snapshot["redis_used_memory_bytes"] == 12345
+    assert snapshot["embed_query_keys"] == 2
+    assert snapshot["embed_document_keys"] == 3
+    assert 0.0 <= snapshot["embed_cache_hit_rate"] <= 1.0
 
 
 # ---- 语义答案缓存 ----

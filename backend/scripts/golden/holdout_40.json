@@ -1,0 +1,687 @@
+{
+ "_说明": "holdout 指标题集（40 道，seed=7）：从 financial_fields 未覆盖（公司×指标×年份 不在 eval_set 已用 168 组合内）组合采样；snippet 来自字段值；相关块=source_chunk_id 内容指纹（语料重建免疫）。用于验证指标题检索/relay 泛化。",
+ "usage": "python scripts/eval_metrics.py --golden scripts/golden/holdout_40.json",
+ "n": 40,
+ "questions": [
+  {
+   "question": "中国平安人寿保险2025年营业利润是多少？",
+   "snippet": "187,696",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 2025,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "b9b1ceb7291b41d9879b957615f0676a"
+   ],
+   "relevant_fingerprints": [
+    "d07f02b172a960d472a130863bd10cf9c1543e03c29741477e7cf89d3b5b9abc"
+   ]
+  },
+  {
+   "question": "贵州茅台2025年净利润是多少？",
+   "snippet": "82,320,067,101.68",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "中国工商银行2025年归属于母公司股东的净利润是多少？",
+   "snippet": "3,707.66",
+   "unit": "亿元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "net_profit",
+   "metric_label": "归属于母公司股东的净利润",
+   "year": 2025,
+   "company": "中国工商银行",
+   "relevant_chunk_ids": [
+    "f101035d73584223b8a8ce68a73dd6e9"
+   ],
+   "relevant_fingerprints": [
+    "196fef705285df74ef56f99ee8f9d90e01724f20f49c7462cf71cc73625d1edc"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2025年总资产是多少？",
+   "snippet": "138,049,655,334.62",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2025,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "比亚迪2025年每股收益是多少？",
+   "snippet": "3.58",
+   "unit": "",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2025,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2025年经营活动现金流量净额是多少？",
+   "snippet": "6,681,025,417.16",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2025,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "e304bc892e9249beb2329211d4d30bf1"
+   ],
+   "relevant_fingerprints": [
+    "ac8ad132e806735f7cba9f44ed8275455ed1b7a8285264521ce8bb1489d6bdc7"
+   ]
+  },
+  {
+   "question": "What was Tesla's total net sales in fiscal year 2025?",
+   "snippet": "94,827",
+   "unit": "",
+   "doc_id": "2052851d5d284ce389f87cc66170f035",
+   "doc_name": "TSLA_10-K.docx",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "Tesla",
+   "relevant_chunk_ids": [
+    "ffcafaad87a045e0affe19878ecec942"
+   ],
+   "relevant_fingerprints": [
+    "99d8b65a2d31240e3c956258376dc40dae825083fe68ecf63f67c9e4742d3a4b"
+   ]
+  },
+  {
+   "question": "比亚迪2023年营业收入是多少？",
+   "snippet": "602,315,354,000",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "What was General Electric's basic earnings per share in 1996?",
+   "snippet": "2.16",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 1996,
+   "company": "General Electric",
+   "relevant_chunk_ids": [
+    "c0b978eb2f2545b5a51be6b7206df6db"
+   ],
+   "relevant_fingerprints": [
+    "47d10740311c0c56339aa4b5ea2ffe67d371bcfa952f1aed91123e74232bbd5d"
+   ]
+  },
+  {
+   "question": "中芯国际2023年净资产是多少？",
+   "snippet": "142,475,834",
+   "unit": "元",
+   "doc_id": "00faefeb293744639f678f2f4eec0b2c",
+   "doc_name": "688981_中芯国际：中芯国际2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2023,
+   "company": "中芯国际",
+   "relevant_chunk_ids": [
+    "70b4c5eeea0b4f8c9714e8f96c081a90"
+   ],
+   "relevant_fingerprints": [
+    "1c6d61305f001533a71e5f908e0866b251f0e7c3ad3210d9738bef459d5f802d"
+   ]
+  },
+  {
+   "question": "深圳市汇川技术2024年利润总额是多少？",
+   "snippet": "2,142,464,010.17",
+   "unit": "元",
+   "doc_id": "2f57ba4ce7f5425c8545e31cad3ea9b4",
+   "doc_name": "300124_汇川技术：2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2024,
+   "company": "深圳市汇川技术",
+   "relevant_chunk_ids": [
+    "68e08e33f28347e697fa347c42b68fdb"
+   ],
+   "relevant_fingerprints": [
+    "4522657d0d30b2b7cd14edcdf58bceb1b08cbb6f52d87f84857f71ee0d61be8a"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2024年每股收益是多少？",
+   "snippet": "8.2062",
+   "unit": "",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2024年净资产收益率是多少？",
+   "snippet": "15.34",
+   "unit": "%",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "What was CXMT's gross margin in fiscal year 2025?",
+   "snippet": "37.81",
+   "unit": "%",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "gross_margin",
+   "metric_label": "毛利率",
+   "year": 2025,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "cd70c74c2ae043f9b38a0942641e2a8a"
+   ],
+   "relevant_fingerprints": [
+    "24892e02ffd89bad37c3fbd8977aa310f822eb76a6ea22601db0cffcd1b10155"
+   ]
+  },
+  {
+   "question": "What was CXMT's net income in fiscal year 2023?",
+   "snippet": "-19,224,886,331.75",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2023,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "d9b780bfe27e4c5eacc08c5d6eca6928"
+   ],
+   "relevant_fingerprints": [
+    "c1055b75cd7f600b7b2497415def130eaad998a50c2c90b7314c422392b69162"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2024年经营活动现金流量净额是多少？",
+   "snippet": "13,264,092,022.73",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2024,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2024年总资产是多少？",
+   "snippet": "786,658,123",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "total_assets",
+   "metric_label": "总资产",
+   "year": 2024,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "What was General Electric's operating income in 1996?",
+   "snippet": "8,273",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 1996,
+   "company": "General Electric",
+   "relevant_chunk_ids": [
+    "ca1f2b64a25b40c6b3f730b2ae6d9790"
+   ],
+   "relevant_fingerprints": [
+    "1dfcd8b8a9fa10661e03307c3e99e57562ecfbc04908fdb95b17a9ad5554a6ac"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年经营活动现金流量净额是多少？",
+   "snippet": "388,397",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4430eca175594ec494036c86500a297d"
+   ],
+   "relevant_fingerprints": [
+    "6cf5d92edb799ae8e37b57d28a5abd8d8e4c5c8ee333ea9667dbee02af7a998e"
+   ]
+  },
+  {
+   "question": "What was CXMT's basic earnings per share in fiscal year 2024?",
+   "snippet": "-0.13",
+   "unit": "",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2024,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "4cc567136a954a28bfce81070acb4710"
+   ],
+   "relevant_fingerprints": [
+    "a28990a461dcaf25c29f548d0351252eae509c90cf3eb90236fe12f119bcc7e8"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2023年营业收入是多少？",
+   "snippet": "89,341,177,610.4",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "中国工商银行2025年基本每股收益是多少？",
+   "snippet": "1",
+   "unit": "元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "eps",
+   "metric_label": "基本每股收益",
+   "year": 2025,
+   "company": "中国工商银行",
+   "relevant_chunk_ids": [
+    "04b44c5d7328450dbd5561e39abcde9e"
+   ],
+   "relevant_fingerprints": [
+    "58bf8e7cec4cc5e60e3f9f7572dd3ce70d6d1a4f436fe7e29941fd03fde778a4"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2023年每股收益是多少？",
+   "snippet": "1.07",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 2023,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "比亚迪2025年净利润是多少？",
+   "snippet": "32,619,022,000",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2025,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "宁德时代新能源2023年营业收入是多少？",
+   "snippet": "400,917,045",
+   "unit": "元",
+   "doc_id": "1587f017a40d49479840c325fe433890",
+   "doc_name": "300750_宁德时代：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "宁德时代新能源",
+   "relevant_chunk_ids": [
+    "bfff01ac9a8141b296030ffc769ca778"
+   ],
+   "relevant_fingerprints": [
+    "648420f25929249833a6f45e865df2bf5c8520f5f990c3f6449a3ec8ba1d73cc"
+   ]
+  },
+  {
+   "question": "中国平安人寿保险2024年净资产是多少？",
+   "snippet": "928,600",
+   "unit": "元",
+   "doc_id": "c298bc3cb7de40788e1c773585cf3652",
+   "doc_name": "601318_中国平安：中国平安2025年年度报告.pdf",
+   "metric": "net_assets",
+   "metric_label": "净资产",
+   "year": 2024,
+   "company": "中国平安人寿保险",
+   "relevant_chunk_ids": [
+    "877032c316f1424aba709f1c33703159"
+   ],
+   "relevant_fingerprints": [
+    "713d593b179777f7cc71132cc9a195173ad50ac35cc93eefbb73d936b2575a0f"
+   ]
+  },
+  {
+   "question": "What was General Electric's total net sales in 1997?",
+   "snippet": "90,840",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 1997,
+   "company": "General Electric",
+   "relevant_chunk_ids": [
+    "5412cc1a92474486994143b385d4e053"
+   ],
+   "relevant_fingerprints": [
+    "cb6afd054ce8703ca74e1471f25e1ef1f6987af3d580c5a9b94a70a5f55a33fe"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2022年净资产收益率是多少？",
+   "snippet": "7.98",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2022,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "What was General Electric's basic earnings per share in 1998?",
+   "snippet": "2.8",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "eps",
+   "metric_label": "每股收益",
+   "year": 1998,
+   "company": "General Electric",
+   "relevant_chunk_ids": [
+    "c0b978eb2f2545b5a51be6b7206df6db"
+   ],
+   "relevant_fingerprints": [
+    "47d10740311c0c56339aa4b5ea2ffe67d371bcfa952f1aed91123e74232bbd5d"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2024年净资产收益率是多少？",
+   "snippet": "6.28",
+   "unit": "",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2024,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "中国工商银行2025年手续费及佣金净收入是多少？",
+   "snippet": "1,111.71",
+   "unit": "亿元",
+   "doc_id": "568f0ef2c26e4ccebd01d263b903ff65",
+   "doc_name": "601398_工商银行_2025年报.pdf",
+   "metric": "fee_income",
+   "metric_label": "手续费及佣金净收入",
+   "year": 2025,
+   "company": "中国工商银行",
+   "relevant_chunk_ids": [
+    "ef181d1354be4d45b4f7088359c5b8e6"
+   ],
+   "relevant_fingerprints": [
+    "092fe0624dc3cae05315d8de8bb73acb403f29bab21a2c022231eeeb49bea78c"
+   ]
+  },
+  {
+   "question": "What was CXMT's total net sales in fiscal year 2023?",
+   "snippet": "908,714.72",
+   "unit": "元",
+   "doc_id": "cef732f966e24b38983e1edac11fcb80",
+   "doc_name": "688825_长鑫科技：长鑫科技首次公开发行股票并在科创板上市招股说明书.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2023,
+   "company": "CXMT",
+   "relevant_chunk_ids": [
+    "4cc567136a954a28bfce81070acb4710"
+   ],
+   "relevant_fingerprints": [
+    "a28990a461dcaf25c29f548d0351252eae509c90cf3eb90236fe12f119bcc7e8"
+   ]
+  },
+  {
+   "question": "杭州海康威视数字技术2025年营业收入是多少？",
+   "snippet": "92,507,796,069.94",
+   "unit": "元",
+   "doc_id": "77d8003f3e164b0c8ef6f859f82f9376",
+   "doc_name": "002415_海康威视：2025年年度报告.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 2025,
+   "company": "杭州海康威视数字技术",
+   "relevant_chunk_ids": [
+    "0ee1a17f904449929d521a690762ce7b"
+   ],
+   "relevant_fingerprints": [
+    "4626c99b890ecab669627a058cf5cf4df2f76a3fc2be9e9445bcee6b2659ab08"
+   ]
+  },
+  {
+   "question": "What was General Electric's total net sales in 1996?",
+   "snippet": "79,179",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "revenue",
+   "metric_label": "营业收入",
+   "year": 1996,
+   "company": "General Electric",
+   "relevant_chunk_ids": [
+    "5412cc1a92474486994143b385d4e053"
+   ],
+   "relevant_fingerprints": [
+    "cb6afd054ce8703ca74e1471f25e1ef1f6987af3d580c5a9b94a70a5f55a33fe"
+   ]
+  },
+  {
+   "question": "宜宾五粮液2023年净资产收益率是多少？",
+   "snippet": "25.06",
+   "unit": "%",
+   "doc_id": "b173497b9a07445eb99de6d5fad46f3b",
+   "doc_name": "000858_五 粮 液：2025年年度报告.pdf",
+   "metric": "roe",
+   "metric_label": "净资产收益率",
+   "year": 2023,
+   "company": "宜宾五粮液",
+   "relevant_chunk_ids": [
+    "0ac4752480ba472fb50895477a2aa350"
+   ],
+   "relevant_fingerprints": [
+    "2eb9cadd3217d813c215b487cd8b5db2a05ca7359788e7bda3340586231f8c71"
+   ]
+  },
+  {
+   "question": "上海浦东发展银行2022年经营活动现金流量净额是多少？",
+   "snippet": "365,099",
+   "unit": "百万元",
+   "doc_id": "b07bdd82f24f47d985e907f0475c852a",
+   "doc_name": "600000_2024年报.pdf",
+   "metric": "operating_cashflow",
+   "metric_label": "经营活动现金流量净额",
+   "year": 2022,
+   "company": "上海浦东发展银行",
+   "relevant_chunk_ids": [
+    "4b44ff4b27e145f89c280d74e83d4bde"
+   ],
+   "relevant_fingerprints": [
+    "c3ee2cf4092bbcd48e0663db1ff2fb6e29d9708f287048206810ff9e51dcc791"
+   ]
+  },
+  {
+   "question": "比亚迪2023年净利润是多少？",
+   "snippet": "30,040,811,000",
+   "unit": "元",
+   "doc_id": "a1e5bb01f9b944969d8b0310313a9256",
+   "doc_name": "002594_比亚迪：2025年年度报告.pdf",
+   "metric": "net_profit",
+   "metric_label": "净利润",
+   "year": 2023,
+   "company": "比亚迪",
+   "relevant_chunk_ids": [
+    "a36fc510e79343abbef5484fe739931c"
+   ],
+   "relevant_fingerprints": [
+    "d87580154ae0d374d53d42e51266bce08474b4c5325f64b5550c4e2887604e28"
+   ]
+  },
+  {
+   "question": "贵州茅台2023年利润总额是多少？",
+   "snippet": "103,662,553,689.81",
+   "unit": "元",
+   "doc_id": "55a431da546b448bafb94b4b746cac80",
+   "doc_name": "600519_贵州茅台：贵州茅台2025年年度报告.pdf",
+   "metric": "total_profit",
+   "metric_label": "利润总额",
+   "year": 2023,
+   "company": "贵州茅台",
+   "relevant_chunk_ids": [
+    "e3a706aad3c044c79edbdd18e17b55da"
+   ],
+   "relevant_fingerprints": [
+    "80908c076dcc389ea954e5d6d76ebecfc08a3e5ae0e10bf4ed1353bba54f5243"
+   ]
+  },
+  {
+   "question": "What was General Electric's operating income in 1998?",
+   "snippet": "10,023",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "gross_profit",
+   "metric_label": "营业利润",
+   "year": 1998,
+   "company": "General Electric",
+   "relevant_chunk_ids": [
+    "ca1f2b64a25b40c6b3f730b2ae6d9790"
+   ],
+   "relevant_fingerprints": [
+    "1dfcd8b8a9fa10661e03307c3e99e57562ecfbc04908fdb95b17a9ad5554a6ac"
+   ]
+  },
+  {
+   "question": "What was Power Systems's segment revenues in 1997?",
+   "snippet": "7,915",
+   "unit": "",
+   "doc_id": "6c8cdc04771f47f883295129adb5f530",
+   "doc_name": "GE_10K_1999.pdf",
+   "metric": "segment_revenues",
+   "metric_label": "Power Systems segment revenues",
+   "year": 1997,
+   "company": "Power Systems",
+   "relevant_chunk_ids": [
+    "e671bee4526a4acd91c7cbbe0e161f20"
+   ],
+   "relevant_fingerprints": [
+    "cdaea7986a2ac59829f98ba729e8d3122728d33ff3e8e1c16deb792d1d8c08de"
+   ]
+  }
+ ]
+}

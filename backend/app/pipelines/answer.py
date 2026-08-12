@@ -129,7 +129,14 @@ def _merge_blocks(results: list[dict], top_k: int) -> list[dict]:
         prev = best[cid].get(score_key, 0.0)
         if cur > prev:
             best[cid] = r
-    ranked = sorted(best.values(), key=lambda h: h.get("rerank_score") or h.get("fused_score") or 0.0, reverse=True)
+    ranked = sorted(
+        best.values(),
+        key=lambda h: (
+            bool(h.get("is_relay")),
+            h.get("rerank_score") or h.get("fused_score") or 0.0,
+        ),
+        reverse=True,
+    )
     return ranked[:top_k]
 
 
@@ -401,7 +408,12 @@ def _real_hits(hits: list[dict]) -> int:
 
 
 def _needs_fallback(hits: list[dict], threshold: int, min_candidates: int) -> bool:
-    """召回健康度评估：触发降级的条件（relay 保底/综述父块命中≥2 视为健康豁免）。"""
+    """召回健康度评估：触发降级的条件（relay 保底/综述父块命中≥2 视为健康豁免）。
+
+    指标题口径（2026-08-12 决策）：relay 存在即豁免不降级——字段索引精确指路，
+    保底块确定正确（MRR=1.0），不因年份过滤放宽引入额外候选（precision 优先，
+    非 recall）。非指标题无 relay（use_field_relay=False），不受该分支影响。
+    """
     if not hits:
         return True
     if any(h.get("is_relay") for h in hits):
@@ -450,6 +462,7 @@ async def _search_plan(
     user_visibility: str,
     top_k: int,
     fiscal_year: int | None = None,
+    rerank_candidates: int | None = None,
 ) -> list[dict]:
     """按路由计划执行混合检索；复杂/抽象/多跳问题加深召回；可指定年份过滤。
 
@@ -542,6 +555,7 @@ async def _search_plan(
                 "use_field_relay": not analysis,
                 "use_phrase_route": settings.phrase_route_enabled,
                 "use_parent_route": use_parent,
+                "rerank_candidates": rerank_candidates,
             }
             params.update(overrides)
             return asyncio.to_thread(hybrid_search, **params)

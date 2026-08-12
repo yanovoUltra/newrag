@@ -39,6 +39,13 @@ const stickToBottom = ref(true)
 const citeDrawer = ref(false)
 const activeCitation = ref<CitationData | null>(null)
 const showSettings = ref(false)
+let tokenBuffer = ''
+let tokenFlushTimer: number | undefined
+let persistTimer: number | undefined
+let scrollFrame: number | undefined
+
+const MAX_STORED_MESSAGES = 40 // 最近 20 轮
+const MAX_STORAGE_BYTES = 1024 * 1024
 
 const currentAssistant = computed(() =>
   messages.value[messages.value.length - 1]?.role === 'assistant'
@@ -49,8 +56,23 @@ const currentAssistant = computed(() =>
 /* ---------------- 持久化 ---------------- */
 
 function persist() {
-  const data: PersistedChat = { sessionId: sessionId.value, messages: messages.value }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  const kept = messages.value.slice(-MAX_STORED_MESSAGES)
+  const data: PersistedChat = { sessionId: sessionId.value, messages: kept }
+  let serialized = JSON.stringify(data)
+  while (data.messages.length > 2 && new Blob([serialized]).size > MAX_STORAGE_BYTES) {
+    data.messages.splice(0, 2)
+    serialized = JSON.stringify(data)
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, serialized)
+  } catch (err) {
+    console.warn('聊天记录持久化失败', err)
+  }
+}
+
+function schedulePersist() {
+  window.clearTimeout(persistTimer)
+  persistTimer = window.setTimeout(persist, 800)
 }
 
 function restore() {
@@ -71,7 +93,6 @@ function newChat() {
   if (streaming.value) abort()
   sessionId.value = ''
   messages.value = []
-  persist()
   localStorage.removeItem(STORAGE_KEY)
   input.value = ''
   nextTick(() => inputEl.value?.focus())
@@ -92,16 +113,40 @@ async function scrollToBottom(smooth = false) {
   el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
 }
 
-watch(
-  () => messages.value.map((m) => m.content + (m.citations.length ? 'c' : '')).join('\u0001'),
-  () => scrollToBottom(true),
-)
+function scheduleScroll(smooth = false) {
+  if (!stickToBottom.value || scrollFrame !== undefined) return
+  scrollFrame = window.requestAnimationFrame(() => {
+    scrollFrame = undefined
+    void scrollToBottom(smooth)
+  })
+}
+
+function flushTokens() {
+  window.clearTimeout(tokenFlushTimer)
+  tokenFlushTimer = undefined
+  if (!tokenBuffer) return
+  const cur = currentAssistant.value
+  if (cur) cur.content += tokenBuffer
+  tokenBuffer = ''
+  scheduleScroll()
+  schedulePersist()
+}
+
+function scheduleTokenFlush() {
+  if (tokenFlushTimer !== undefined) return
+  tokenFlushTimer = window.setTimeout(flushTokens, 32)
+}
 
 /* ---------------- 问答流 ---------------- */
 
 function abort() {
+  flushTokens()
   abortCtrl.value?.abort()
   abortCtrl.value = null
+  const cur = currentAssistant.value
+  if (cur) cur.streaming = false
+  streaming.value = false
+  persist()
 }
 
 async function send(question?: string) {
@@ -137,7 +182,7 @@ async function send(question?: string) {
     createdAt: Date.now(),
   })
   persist()
-  scrollToBottom()
+  scheduleScroll()
 
   const ctrl = new AbortController()
   abortCtrl.value = ctrl
@@ -152,6 +197,7 @@ async function send(question?: string) {
     onEvent: (evt) => {
       const cur = currentAssistant.value
       if (!cur) return
+      if (evt.event !== 'token') flushTokens()
       switch (evt.event) {
         case 'meta':
           cur.meta = evt.data
@@ -164,7 +210,8 @@ async function send(question?: string) {
           cur.warning = evt.data.message
           break
         case 'token':
-          cur.content += evt.data.delta
+          tokenBuffer += evt.data.delta
+          scheduleTokenFlush()
           break
         case 'grounding':
           cur.grounding = evt.data
@@ -179,10 +226,11 @@ async function send(question?: string) {
           cur.streaming = false
           streaming.value = false
           abortCtrl.value = null
+          persist()
           break
       }
-      persist()
-      scrollToBottom()
+      if (evt.event !== 'token' && evt.event !== 'done') schedulePersist()
+      scheduleScroll()
     },
     onError: (err) => {
       const cur = currentAssistant.value
@@ -192,8 +240,9 @@ async function send(question?: string) {
       }
       streaming.value = false
       abortCtrl.value = null
+      flushTokens()
       persist()
-      ElMessage.error(err.message)
+      if (err.name !== 'AbortError') ElMessage.error(err.message)
     },
   })
 }
@@ -228,7 +277,12 @@ onMounted(() => {
   nextTick(() => inputEl.value?.focus())
 })
 
-onUnmounted(() => abort())
+onUnmounted(() => {
+  abort()
+  window.clearTimeout(tokenFlushTimer)
+  window.clearTimeout(persistTimer)
+  if (scrollFrame !== undefined) window.cancelAnimationFrame(scrollFrame)
+})
 </script>
 
 <template>

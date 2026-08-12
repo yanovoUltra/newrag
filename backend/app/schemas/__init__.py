@@ -21,6 +21,13 @@ class DocumentOut(BaseModel):
     updated_at: str
 
 
+class DocumentPage(BaseModel):
+    items: list[DocumentOut]
+    total: int
+    limit: int
+    offset: int
+
+
 class TaskOut(BaseModel):
     id: str
     type: str

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from pathlib import Path
 
 from app.core.config import get_settings
@@ -18,6 +19,8 @@ from app.store import qdrant as qdrant_store
 from app.store.registry import get_document, load_stage, save_stage, stage_done, update_document, update_task
 
 logger = get_logger(__name__)
+
+VECTOR_BATCH_SIZE = 128
 
 
 class PipelineError(Exception):
@@ -152,6 +155,23 @@ def run_ingest(
                 logger.warning("doc %s fields backfill 失败（跳过）: %s", doc_id, e)
         _check_deadline(deadline, doc_id)
 
+        # ---- 阶段 3.6：LLM 提炼（章节父块摘要 + 文档综述，只做检索锚点）----
+        # 摘要块 chunk_type=summary 入库（parent_id 指向原文父块）；检索命中由 search 层
+        # 展开为原文父块，摘要本身不进生成上下文（防 LLM 编造数字）。幂等 stage summaries。
+        if settings.summary_enabled and _summary_applies(doc_id):
+            t0 = time.monotonic()
+            summaries, doc_summary = _build_doc_summaries(
+                doc_id, chunks, file_path.stem, task_id,
+            )
+            if summaries or doc_summary:
+                chunks = _append_summary_chunks(doc_id, chunks, summaries, doc_summary)
+            _log_stage(doc_id, "summaries", t0, span)
+
+        # 解析/章节对象不再参与后续阶段，提前释放大型中间对象。
+        layout = None
+        sections = None
+        leaves = None
+
         # ---- 阶段 4：向量化（稠密 + 稀疏）----
         t0 = time.monotonic()
         if task_id:
@@ -159,26 +179,14 @@ def run_ingest(
         update_document(doc_id, status="embedding")
         if not stage_done(doc_id, "vectors"):
             embedder = get_embedder()
-            # 模型原生稠密 + 稀疏（text_type=document）；表格块用语义锚点增强文本嵌入
-            # （锚点仅用于向量，展示/上下文仍用 chunk.content 原文）
-            embed_texts = [embedding_text_for(c, doc_title=file_path.stem) for c in chunks]
-            vectors, sparse_vectors = embedder.embed_texts_with_sparse(
-                embed_texts, text_type="document"
+            vector_stage = _embed_chunks_batched(
+                doc_id,
+                chunks,
+                file_path.stem,
+                embedder,
             )
-            save_stage(doc_id, "vectors", {"vectors": vectors, "sparse": sparse_vectors})
         else:
-            stage = load_stage(doc_id, "vectors")
-            vectors = stage["vectors"]
-            sparse_vectors = stage.get("sparse")
-
-        # 文档侧 IDF 重写（稀疏路治本）：入库前对稀疏 index 乘 IDF
-        if sparse_vectors:
-            from app.retrieval.idf import apply_idf
-
-            sparse_vectors = [apply_idf(sv) for sv in sparse_vectors]
-
-        if len(vectors) != len(chunks):
-            raise PipelineError("向量数与分块数不一致，中止入库")
+            vector_stage = load_stage(doc_id, "vectors") or {}
         _check_deadline(deadline, doc_id)
         _log_stage(doc_id, "embed", t0, span)
 
@@ -188,17 +196,28 @@ def run_ingest(
             _update_task_progress(task_id, "index", 85, "正在写入向量库")
         doc = get_document(doc_id)
         qdrant_store.ensure_collection()
-        n = qdrant_store.upsert_chunks(
-            doc_id=doc_id,
-            chunks=chunks,
-            dense_vectors=vectors,
-            doc_name=doc.filename if doc else file_path.name,
-            org_id=org_id,
-            visibility=visibility,
-            fiscal_year=fiscal_year,
-            fiscal_quarter=fiscal_quarter,
-            sparse_vectors=sparse_vectors,
-        )
+        n = 0
+        for chunk_batch, vectors, sparse_vectors in _iter_vector_batches(
+            doc_id, chunks, vector_stage
+        ):
+            if sparse_vectors:
+                from app.retrieval.idf import apply_idf
+
+                sparse_vectors = [apply_idf(sv) for sv in sparse_vectors]
+            if len(vectors) != len(chunk_batch):
+                raise PipelineError("向量数与分块数不一致，中止入库")
+            n += qdrant_store.upsert_chunks(
+                doc_id=doc_id,
+                chunks=chunk_batch,
+                dense_vectors=vectors,
+                doc_name=doc.filename if doc else file_path.name,
+                org_id=org_id,
+                visibility=visibility,
+                fiscal_year=fiscal_year,
+                fiscal_quarter=fiscal_quarter,
+                sparse_vectors=sparse_vectors,
+            )
+            _check_deadline(deadline, doc_id)
         update_document(doc_id, status="indexed", chunk_count=n, error=None)
         if task_id:
             _update_task_progress(task_id, "index", 100, "入库完成")
@@ -235,3 +254,114 @@ def load_layout(doc_id: str) -> LayoutResult:
     if data is None:
         raise PipelineError("layout stage missing")
     return LayoutResult.from_dict(data)
+
+
+def _embed_chunks_batched(doc_id: str, chunks: list[Chunk], doc_title: str, embedder) -> dict:
+    """按有界批次向量化并落盘；最后写 manifest 作为阶段完成标记。"""
+    batch_stages: list[str] = []
+    for start in range(0, len(chunks), VECTOR_BATCH_SIZE):
+        chunk_batch = chunks[start : start + VECTOR_BATCH_SIZE]
+        texts = [embedding_text_for(c, doc_title=doc_title) for c in chunk_batch]
+        vectors, sparse = embedder.embed_texts_with_sparse(texts, text_type="document")
+        if len(vectors) != len(chunk_batch):
+            raise PipelineError("向量数与分块数不一致，中止入库")
+        stage_name = f"vectors_{start // VECTOR_BATCH_SIZE:05d}"
+        save_stage(doc_id, stage_name, {"vectors": vectors, "sparse": sparse})
+        batch_stages.append(stage_name)
+    manifest = {
+        "format": "batches-v1",
+        "count": len(chunks),
+        "batch_size": VECTOR_BATCH_SIZE,
+        "stages": batch_stages,
+    }
+    save_stage(doc_id, "vectors", manifest)
+    return manifest
+
+
+def _iter_vector_batches(doc_id: str, chunks: list[Chunk], stage: dict):
+    """读取新分批格式，并兼容存量单文件向量阶段。"""
+    if stage.get("format") == "batches-v1":
+        if int(stage.get("count", -1)) != len(chunks):
+            raise PipelineError("向量数与分块数不一致，中止入库")
+        offset = 0
+        for stage_name in stage.get("stages", []):
+            data = load_stage(doc_id, stage_name) or {}
+            vectors = data.get("vectors") or []
+            sparse = data.get("sparse")
+            end = offset + len(vectors)
+            yield chunks[offset:end], vectors, sparse
+            offset = end
+        if offset != len(chunks):
+            raise PipelineError("向量批次不完整，中止入库")
+        return
+
+    vectors = stage.get("vectors") or []
+    sparse = stage.get("sparse")
+    for start in range(0, len(vectors), VECTOR_BATCH_SIZE):
+        end = start + VECTOR_BATCH_SIZE
+        yield chunks[start:end], vectors[start:end], sparse[start:end] if sparse else None
+
+
+# ---------- 阶段 3.6：LLM 提炼（章节摘要 + 文档综述，只做检索锚点） ----------
+
+def _summary_applies(doc_id: str) -> bool:
+    """开关 + 按文档灰度：summary_doc_ids 为空 = 全部文档，否则仅白名单。"""
+    ids = [x.strip() for x in get_settings().summary_doc_ids.split(",") if x.strip()]
+    return not ids or doc_id in ids
+
+
+def _build_doc_summaries(
+    doc_id: str,
+    chunks: list[Chunk],
+    doc_title: str,
+    task_id: str | None = None,
+) -> tuple[list[tuple[str, str]], str]:
+    """生成/复用章节摘要 + 文档综述（幂等 stage summaries，断点续跑不重复调 LLM）。"""
+    from app.generation.summarize import summarize_doc_sections
+
+    if not stage_done(doc_id, "summaries"):
+        parents = [c for c in chunks if c.chunk_type == "section"]
+        sections = [(c.id, c.content) for c in parents]
+        chapters = "\n".join(f"- {c.section_path}" for c in parents[:80])
+        if not sections:
+            save_stage(doc_id, "summaries", {"sections": {}, "doc_summary": ""})
+            return [], ""
+        if task_id:
+            _update_task_progress(task_id, "summaries", 55, f"正在提炼 {len(sections)} 个章节")
+        ok, doc_summary = summarize_doc_sections(sections, doc_title, chapters)
+        save_stage(doc_id, "summaries", {"sections": dict(ok), "doc_summary": doc_summary})
+        return ok, doc_summary
+    data = load_stage(doc_id, "summaries") or {}
+    return list((data.get("sections") or {}).items()), data.get("doc_summary") or ""
+
+
+def _append_summary_chunks(
+    doc_id: str,
+    chunks: list[Chunk],
+    summaries: list[tuple[str, str]],
+    doc_summary: str,
+) -> list[Chunk]:
+    """构造摘要块（chunk_type=summary）追加到 chunks：章节摘要 parent_id=原文父块，
+    文档综述 parent_id=None（检索命中直接作为概览证据）。"""
+    parent_by_id = {c.id: c for c in chunks if c.chunk_type == "section"}
+    extra: list[Chunk] = []
+    for pid, text in summaries:
+        p = parent_by_id.get(pid)
+        if not p:
+            continue
+        extra.append(Chunk(
+            id=uuid.uuid4().hex, doc_id=doc_id, page=p.page,
+            section_path=p.section_path, chunk_type="summary",
+            content=text, token_count=max(1, len(text) // 2), parent_id=pid,
+        ))
+    if doc_summary:
+        extra.append(Chunk(
+            id=uuid.uuid4().hex, doc_id=doc_id, page=1,
+            section_path="文档综述", chunk_type="summary",
+            content=doc_summary, token_count=max(1, len(doc_summary) // 2),
+            parent_id=None,
+        ))
+    if extra:
+        logger.info("doc %s summaries appended: %d 块（摘要 %d + 综述 %d）",
+                    doc_id, len(extra), len(summaries), 1 if doc_summary else 0)
+    return chunks + extra

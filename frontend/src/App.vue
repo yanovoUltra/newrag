@@ -14,12 +14,17 @@ const health = ref<'ok' | 'down' | 'checking'>('checking')
 let timer: number | undefined
 
 async function checkHealth() {
+  const ctrl = new AbortController()
+  const timeout = window.setTimeout(() => ctrl.abort(), 3_000)
   try {
-    const res = await fetch('/healthz')
+    const res = await fetch('/healthz', { signal: ctrl.signal })
     const body = await res.json()
-    health.value = body.app === 'ok' ? 'ok' : 'down'
+    health.value =
+      body.app === 'ok' && body.qdrant === 'ok' && body.redis === 'ok' ? 'ok' : 'down'
   } catch {
     health.value = 'down'
+  } finally {
+    window.clearTimeout(timeout)
   }
 }
 
@@ -37,6 +42,7 @@ const navItems = [
 </script>
 
 <template>
+  <a class="skip-link" href="#main-content">跳到主内容</a>
   <div class="app-shell">
     <!-- 左侧导航 -->
     <aside class="sidebar">
@@ -64,7 +70,7 @@ const navItems = [
       </nav>
 
       <div class="sidebar-footer">
-        <div class="health" :class="health">
+        <div class="health" :class="health" role="status" aria-live="polite">
           <el-icon v-if="health === 'ok'" :size="14"><CircleCheckFilled /></el-icon>
           <el-icon v-else :size="14"><WarningFilled /></el-icon>
           <span v-if="health === 'ok'">服务正常</span>
@@ -75,7 +81,7 @@ const navItems = [
     </aside>
 
     <!-- 主内容 -->
-    <main class="main">
+    <main id="main-content" class="main" tabindex="-1">
       <router-view v-slot="{ Component }">
         <transition name="fade-slide" mode="out-in">
           <component :is="Component" />
@@ -86,6 +92,20 @@ const navItems = [
 </template>
 
 <style scoped>
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--color-accent);
+  color: white;
+  transform: translateY(-150%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
 .app-shell {
   display: flex;
   height: 100%;
@@ -199,7 +219,7 @@ const navItems = [
   background: var(--color-bg);
 }
 
-/* 响应式：窄屏时侧栏压缩为顶栏 */
+/* 窄屏：顶部精简品牌区 + 底部三项导航 */
 @media (max-width: 768px) {
   .app-shell {
     flex-direction: column;
@@ -221,15 +241,33 @@ const navItems = [
     display: none;
   }
   .nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
     flex-direction: row;
-    padding: 0;
-    gap: 2px;
+    gap: 0;
+    padding: 4px max(8px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    border-top: 1px solid var(--color-border);
+    background: var(--color-panel);
   }
   .nav-item {
-    padding: 8px 10px;
+    flex: 1;
+    min-height: 52px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 8px;
+    white-space: nowrap;
+    font-size: 12px;
   }
   .sidebar-footer {
     display: none;
+  }
+  .main {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
   }
 }
 </style>

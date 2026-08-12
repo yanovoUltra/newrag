@@ -19,6 +19,10 @@ os.environ["RERANK_BACKEND"] = "none"
 os.environ["LLM_LIGHT_API_KEY"] = ""
 os.environ["INTENT_ROUTING_ENABLED"] = "false"
 os.environ["HYDE_ENABLED"] = "false"
+# 阶段四：测试环境无 celery worker，任务强制走进程内 BackgroundTasks
+os.environ["TASK_BACKEND"] = "background"
+os.environ["OTEL_ENABLED"] = "false"
+os.environ["SUMMARY_ENABLED"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

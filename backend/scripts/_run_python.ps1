@@ -1,4 +1,4 @@
-﻿﻿# _run_python.ps1 - backend 统一 Python 调用约定
+﻿﻿﻿﻿# _run_python.ps1 - backend 统一 Python 调用约定
 #
 # 解决的问题（历史踩坑）：
 #   1. 系统 python 缺 pydantic_settings，必须用 venv python

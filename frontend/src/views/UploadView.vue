@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -11,7 +11,9 @@ import {
   ArrowRight,
 } from '@element-plus/icons-vue'
 import { pollTask, uploadDocument } from '@/api/documents'
+import { getPublicConfig } from '@/api/config'
 import type { TaskItem } from '@/types'
+import { getCurrentYear, MIN_FISCAL_YEAR } from '@/utils/date'
 
 const router = useRouter()
 
@@ -20,13 +22,20 @@ const orgId = ref(localStorage.getItem('newrag:chat:settings:org') ?? 'default')
 const visibility = ref('public')
 const fiscalYear = ref<number | null>(null)
 const fiscalQuarter = ref<number | null>(null)
+const currentYear = ref(getCurrentYear())
+const fiscalYearMin = ref(MIN_FISCAL_YEAR)
+const maxUploadMb = ref(50)
+const acceptedExtensions = ref(['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg'])
 
 const uploading = ref(false)
 const task = ref<TaskItem | null>(null)
 const taskAbort = ref<AbortController | null>(null)
 const duplicateDocId = ref<string | null>(null)
 
-const ACCEPT = '.pdf,.docx,.xlsx,.png,.jpg,.jpeg'
+const accept = computed(() => acceptedExtensions.value.join(','))
+const acceptedLabel = computed(() =>
+  acceptedExtensions.value.map((ext) => ext.replace('.', '').toUpperCase()).join(' / '),
+)
 
 const stageLabels: Record<string, string> = {
   queued: '排队等待',
@@ -64,6 +73,17 @@ const fileMeta = computed(() => {
 async function submit() {
   if (!file.value) {
     ElMessage.warning('请先选择文件')
+    return
+  }
+  if (file.value.size > maxUploadMb.value * 1024 * 1024) {
+    ElMessage.warning(`文件不能超过 ${maxUploadMb.value}MB`)
+    return
+  }
+  if (
+    fiscalYear.value !== null &&
+    (fiscalYear.value < fiscalYearMin.value || fiscalYear.value > currentYear.value)
+  ) {
+    ElMessage.warning(`财年须在 ${fiscalYearMin.value}–${currentYear.value} 之间`)
     return
   }
   uploading.value = true
@@ -104,6 +124,18 @@ async function submit() {
 function goDocuments() {
   router.push('/documents')
 }
+
+onMounted(async () => {
+  try {
+    const config = await getPublicConfig()
+    maxUploadMb.value = config.max_upload_mb
+    acceptedExtensions.value = config.accepted_extensions
+    fiscalYearMin.value = config.fiscal_year_min
+    currentYear.value = config.current_year
+  } catch {
+    // 保留与服务端默认一致的 50MB 与本地当前年。
+  }
+})
 </script>
 
 <template>
@@ -130,7 +162,7 @@ function goDocuments() {
         <input
           ref="fileInput"
           type="file"
-          :accept="ACCEPT"
+          :accept="accept"
           hidden
           @change="onFilePick"
         />
@@ -151,7 +183,7 @@ function goDocuments() {
         <template v-else>
           <el-icon :size="40" class="dz-icon"><UploadFilled /></el-icon>
           <div class="dz-main">拖拽文件到此处，或 <b>点击选择</b></div>
-          <div class="dz-meta muted">PDF / DOCX / XLSX / PNG / JPG，单文件 ≤ 200MB</div>
+          <div class="dz-meta muted">{{ acceptedLabel }}，单文件 ≤ {{ maxUploadMb }}MB</div>
         </template>
       </div>
 
@@ -175,14 +207,16 @@ function goDocuments() {
           <label>财年（可选）</label>
           <el-input-number
             v-model="fiscalYear"
-            :min="1990"
-            :max="2100"
+            :min="fiscalYearMin"
+            :max="currentYear"
             :disabled="uploading"
             placeholder="如 2024"
             controls-position="right"
             style="width: 100%"
           />
-          <span class="field-hint">用于问题中年份的精确过滤</span>
+          <span class="field-hint">
+            可填写 {{ fiscalYearMin }}–{{ currentYear }}，用于问题中年份的精确过滤
+          </span>
         </div>
         <div class="form-field">
           <label>财季（可选）</label>

@@ -26,6 +26,22 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/livez': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'vue-core', test: /node_modules[\\/]vue|node_modules[\\/]@vue|node_modules[\\/]vue-router/ },
+            { name: 'element-plus', test: /node_modules[\\/]element-plus|node_modules[\\/]@element-plus/ },
+          ],
+        },
+      },
     },
   },
 })

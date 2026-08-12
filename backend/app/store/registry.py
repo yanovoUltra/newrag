@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from sqlalchemy import create_engine, delete, select
+from sqlalchemy import create_engine, delete, event, func, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
@@ -34,9 +34,18 @@ def init_db() -> None:
     db_path = settings.resolved_registry_db
     db_path.parent.mkdir(parents=True, exist_ok=True)
     _engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+
+    @event.listens_for(_engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
     _session_factory = sessionmaker(bind=_engine, expire_on_commit=False)
     Base.metadata.create_all(_engine)
     _migrate_fields_company()
+    _ensure_indexes()
     logger.info("SQLite registry ready: %s", db_path)
 
 
@@ -55,6 +64,21 @@ def _migrate_fields_company() -> None:
                 logger.info("financial_fields: 已新增 source_chunk_id 列（待回填）")
     except Exception as e:  # noqa: BLE001
         logger.warning("financial_fields 列迁移跳过: %s", e)
+
+
+def _ensure_indexes() -> None:
+    """旧 SQLite 数据库补齐直查所需组合索引（幂等）。"""
+    statements = (
+        "CREATE INDEX IF NOT EXISTS ix_documents_org_sha256 ON documents (org_id, sha256)",
+        "CREATE INDEX IF NOT EXISTS ix_documents_org_filename ON documents (org_id, filename)",
+        "CREATE INDEX IF NOT EXISTS ix_financial_fields_lookup ON financial_fields "
+        "(org_id, visibility, company, metric, year)",
+        "CREATE INDEX IF NOT EXISTS ix_number_phrase_lookup ON number_phrase_index "
+        "(org_id, visibility, phrase, fiscal_year)",
+    )
+    with _engine.begin() as conn:
+        for statement in statements:
+            conn.execute(text(statement))
 
 
 def get_session() -> Session:
@@ -97,12 +121,68 @@ def get_document(doc_id: str) -> Document | None:
         return s.get(Document, doc_id)
 
 
-def list_documents(org_id: str | None = None, limit: int = 50, offset: int = 0) -> list[Document]:
+def find_document_by_sha256(org_id: str, sha256: str) -> Document | None:
     with get_session() as s:
-        stmt = select(Document).order_by(Document.created_at.desc()).limit(limit).offset(offset)
-        if org_id:
-            stmt = stmt.where(Document.org_id == org_id)
-        return list(s.scalars(stmt).all())
+        return s.scalar(
+            select(Document)
+            .where(
+                Document.org_id == org_id,
+                Document.sha256 == sha256,
+                Document.status != "archived",
+            )
+            .order_by(Document.created_at.desc())
+            .limit(1)
+        )
+
+
+def find_document_by_filename(org_id: str, filename: str) -> Document | None:
+    with get_session() as s:
+        return s.scalar(
+            select(Document)
+            .where(
+                Document.org_id == org_id,
+                Document.filename == filename,
+                Document.status != "archived",
+            )
+            .order_by(Document.created_at.desc())
+            .limit(1)
+        )
+
+
+def list_documents(org_id: str | None = None, limit: int = 50, offset: int = 0) -> list[Document]:
+    docs, _ = query_documents_page(
+        org_id=org_id,
+        limit=limit,
+        offset=offset,
+        include_archived=True,
+    )
+    return docs
+
+
+def query_documents_page(
+    org_id: str | None = None,
+    filename: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    include_archived: bool = False,
+) -> tuple[list[Document], int]:
+    filters = []
+    if org_id:
+        filters.append(Document.org_id == org_id)
+    if filename:
+        filters.append(Document.filename.ilike(f"%{filename.strip()}%"))
+    if status:
+        filters.append(Document.status == status)
+    if not include_archived:
+        filters.append(Document.status != "archived")
+
+    with get_session() as s:
+        stmt = select(Document).where(*filters).order_by(Document.created_at.desc())
+        count_stmt = select(func.count()).select_from(Document).where(*filters)
+        docs = list(s.scalars(stmt.limit(limit).offset(offset)).all())
+        total = int(s.scalar(count_stmt) or 0)
+        return docs, total
 
 
 def update_document(doc_id: str, **fields) -> None:

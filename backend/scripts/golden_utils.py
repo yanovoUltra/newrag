@@ -74,10 +74,17 @@ class FingerprintIndex:
         return idx
 
     def resolve(self, fingerprints: list[str] | None) -> set[str]:
-        """指纹 → 当前语料 chunk_id 集合（缺失的指纹忽略）。"""
+        """指纹 → 当前语料 chunk_id 集合（缺失的指纹忽略）。
+
+        2026-08-12 同指纹去重：同一内容的多副本块（签名页/重复表格等）本质等价，
+        相关集只保留一个，避免"同指纹匹配 N 块"把 rel 撑大、稀释 NDCG/Rec。
+        取 _fp_to_ids 中的首个 id（build 顺序稳定，进程内一致）。
+        """
         ids: set[str] = set()
         for fp in fingerprints or []:
-            ids.update(self._fp_to_ids.get(fp, []))
+            lst = self._fp_to_ids.get(fp)
+            if lst:
+                ids.add(lst[0])
         return ids
 
     def missing(self, fingerprints: list[str] | None) -> int:

@@ -131,13 +131,15 @@ def _table_meta(t: ParsedTable | None) -> tuple[list[str] | None, int | None, in
 
 
 def embedding_text_for(chunk: Chunk, doc_title: str = "") -> str:
-    """表格块的嵌入文本增强：拼接语义锚点（文档标题/公司名 + 章节路径）。
+    """表格/章节父块的嵌入文本增强：拼接语义锚点（文档标题/公司名 + 章节路径）。
 
     数字密集的"主要财务指标"表，原始内容只有表头+数值，嵌入向量与语义问句（"某公司某年
-    某指标是多少"）相似度低。这里仅对**嵌入文本**（dense/sparse 向量）补充语义锚点，
-    展示/上下文仍用 chunk.content 原文——让表格在语义空间里能被公司/指标/章节命中。
+    某指标是多少"）相似度低；章节父块正文 2~4K token，标题词占比极低被正文稀释，dense
+    检索召不回相关父块（§18 父块路教训、P2-1）——前缀 section_path 让查询的实体+主题词
+    在向量空间与标题对齐。仅对**嵌入文本**（dense/sparse 向量）增强，
+    展示/上下文仍用 chunk.content 原文。
     """
-    if chunk.chunk_type != "table":
+    if chunk.chunk_type not in ("table", "section"):
         return chunk.content
     anchors: list[str] = []
     if doc_title:

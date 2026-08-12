@@ -183,6 +183,7 @@ class Settings(BaseSettings):
     # 外部 API 缓解（缓存 + 限流 + 重试）
     semantic_cache_enabled: bool = True  # 语义答案缓存（仅无 session_id 的单轮问答生效）
     embed_cache_ttl: int = 86400  # 嵌入结果缓存秒数（相同文本复用向量，省外部调用）
+    embed_document_cache_ttl: int = 0  # 入库文本默认不写 Redis，避免大文档向量缓存放大
     answer_cache_ttl: int = 3600  # 答案缓存秒数
     answer_cache_max_entries: int = 50  # 每 org+visibility 桶内最大缓存条目
     max_embed_concurrency: int = 8  # 嵌入 API 并发上限（超限排队，防 429；实测 8 为吞吐/稳定性平衡点）
@@ -198,6 +199,12 @@ class Settings(BaseSettings):
 
     # 字段抽取（结构化指标 → 独立索引）：入库时抽取财务指标，支撑"某年某指标"类问答精确取值
     fields_enabled: bool = True
+
+    # 阶段四验证：入库阶段 LLM 提炼（章节父块摘要 + 文档综述，只做检索锚点）
+    summary_enabled: bool = False  # 总开关（验证期按文档灰度，默认关）
+    summary_doc_ids: str = ""  # 逗号分隔 doc_id；空 = 全部文档（仅 summary_enabled 时生效）
+    summary_max_tokens: int = 256  # 摘要块目标 token（生成上限，超长截断）
+    summary_route_top_k: int = 10  # 摘要锚点独立召回路 top-N（摘要 RRF 单路分低，需独立路）
 
     @property
     def cors_origin_list(self) -> list[str]:

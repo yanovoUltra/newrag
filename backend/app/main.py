@@ -2,26 +2,69 @@
 
 from __future__ import annotations
 
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from contextlib import asynccontextmanager
 
-import redis
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from qdrant_client import QdrantClient
-
-from app.api.v1 import chat, documents, tasks
+from app.api.v1 import chat, config_public, documents, metrics, tasks
 from app.core.config import get_settings
 from app.core.logging import get_logger, set_trace_id, setup_logging
 from app.core.otel import setup_otel
 from app.core.security import AuthMiddleware
 from app.store import qdrant as qdrant_store
+from app.store.redisx import get_redis
 from app.store.registry import init_db
 
 logger = get_logger(__name__)
+
+_health_lock = threading.Lock()
+_health_cached_at = 0.0
+_health_cached: dict[str, str] | None = None
+_health_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="health")
+
+
+def _dependency_health() -> dict[str, str]:
+    """依赖检查最多等待 1 秒；复用已有 Qdrant/Redis 单例。"""
+    def qdrant_check() -> None:
+        qdrant_store.get_client().get_collections()
+
+    def redis_check() -> None:
+        client = get_redis()
+        if client is None:
+            raise RuntimeError("unavailable")
+        client.ping()
+
+    futures = {
+        "qdrant": _health_executor.submit(qdrant_check),
+        "redis": _health_executor.submit(redis_check),
+    }
+    checks = {"app": "ok"}
+    for name, future in futures.items():
+        try:
+            future.result(timeout=1.0)
+            checks[name] = "ok"
+        except TimeoutError:
+            checks[name] = "down(timeout)"
+        except Exception as exc:  # noqa: BLE001
+            checks[name] = f"down({exc})"
+    return checks
+
+
+def _cached_dependency_health() -> dict[str, str]:
+    global _health_cached_at, _health_cached
+    now = time.monotonic()
+    with _health_lock:
+        if _health_cached is not None and now - _health_cached_at < 5.0:
+            return dict(_health_cached)
+        _health_cached = _dependency_health()
+        _health_cached_at = time.monotonic()
+        return dict(_health_cached)
 
 
 @asynccontextmanager
@@ -110,23 +153,16 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix="/api/v1")
     app.include_router(tasks.router, prefix="/api/v1")
     app.include_router(chat.router, prefix="/api/v1")
+    app.include_router(config_public.router, prefix="/api/v1")
+    app.include_router(metrics.router, prefix="/api/v1")
+
+    @app.get("/livez")
+    def livez():
+        return {"app": "ok"}
 
     @app.get("/healthz")
     def healthz():
-        settings = get_settings()
-        checks: dict[str, str] = {"app": "ok"}
-        try:
-            QdrantClient(url=settings.qdrant_url, timeout=3).get_collections()
-            checks["qdrant"] = "ok"
-        except Exception as e:
-            checks["qdrant"] = f"down({e})"
-        try:
-            r = redis.Redis.from_url(settings.redis_url, socket_timeout=3)
-            r.ping()
-            checks["redis"] = "ok"
-        except Exception as e:
-            checks["redis"] = f"down({e})"
-        return checks
+        return _cached_dependency_health()
 
     return app
 
