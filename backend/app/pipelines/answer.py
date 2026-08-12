@@ -721,7 +721,7 @@ async def stream_answer(
     t_retrieval = time.perf_counter()
     year = _extract_year(question)
     with make_span("answer.search", attributes={
-        "question": question[:120], "org_id": org_id, "year": year, "top_k": k,
+        "year": year, "top_k": k, "query_chars": len(question),
     }):
         blocks = await _search_plan(plan, question, org_id, user_visibility, k, fiscal_year=year)
         year_fell_back = False
@@ -801,7 +801,7 @@ async def stream_answer(
     had_error = False
     t_gen = time.perf_counter()
     with make_span("answer.generate", attributes={
-        "question": question[:120], "model": getattr(llm, "_model", ""), "complexity": plan.complexity,
+        "model": getattr(llm, "_model", ""), "complexity": plan.complexity,
     }) as gen_span:
         try:
             async for delta in llm.stream_chat(messages):

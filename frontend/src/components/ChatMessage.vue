@@ -10,7 +10,7 @@ import {
 import MarkdownText from './MarkdownText.vue'
 import type { CitationData, MessageTurn } from '@/types'
 
-const props = defineProps<{ message: MessageTurn; citeIndex: number }>()
+defineProps<{ message: MessageTurn; citeIndex: number }>()
 
 const emit = defineEmits<{ cite: [citation: CitationData] }>()
 
@@ -56,7 +56,9 @@ function intentLabel(v: string | undefined): string {
             <span class="chip">
               复杂度 <b>{{ message.meta.complexity }}</b>
             </span>
-            <span class="chip">知识块 <b>{{ message.meta.top_k }}</b></span>
+            <span class="chip"
+              >知识块 <b>{{ message.meta.top_k }}</b></span
+            >
             <span v-if="message.meta.year" class="chip">
               年份过滤 <b>{{ message.meta.year }}</b>
             </span>
@@ -83,7 +85,11 @@ function intentLabel(v: string | undefined): string {
           <!-- 字段抽取命中（结构化指标精确取值） -->
           <div v-if="message.fields?.length" class="field-hits">
             <span class="field-hits-label">字段命中</span>
-            <div v-for="(f, fi) in message.fields" :key="`${f.doc_id}-${f.metric}-${f.year}-${fi}`" class="field-hit">
+            <div
+              v-for="(f, fi) in message.fields"
+              :key="`${f.doc_id}-${f.metric}-${f.year}-${fi}`"
+              class="field-hit"
+            >
               <span class="field-name">{{ f.metric_label }}</span>
               <span class="field-year">{{ f.year }}年</span>
               <span class="field-value">{{ f.raw }}</span>
@@ -98,7 +104,11 @@ function intentLabel(v: string | undefined): string {
           </div>
 
           <!-- 流式光标 -->
-          <span v-if="message.streaming && message.content" class="stream-caret" aria-hidden="true"></span>
+          <span
+            v-if="message.streaming && message.content"
+            class="stream-caret"
+            aria-hidden="true"
+          ></span>
 
           <!-- 生成失败 -->
           <el-alert
@@ -132,9 +142,10 @@ function intentLabel(v: string | undefined): string {
           <!-- 引用 -->
           <div v-if="message.citations.length" class="citations">
             <span class="citations-label">引用来源</span>
-            <span
+            <button
               v-for="(c, i) in message.citations"
               :key="`${c.doc_id}-${i}`"
+              type="button"
               class="cite-chip"
               :class="{ hover: hoverIndex === i }"
               @mouseenter="hoverIndex = i"
@@ -146,7 +157,7 @@ function intentLabel(v: string | undefined): string {
               <span class="cite-name">{{ c.doc_name }}</span>
               <span v-if="c.chunk_type === 'table'" class="cite-type">表格</span>
               <span class="cite-score">{{ c.score.toFixed(3) }}</span>
-            </span>
+            </button>
           </div>
         </div>
       </template>
@@ -334,9 +345,17 @@ function intentLabel(v: string | undefined): string {
   border: 1px solid rgba(59, 130, 246, 0.35);
   border-radius: 6px;
   padding: 3px 9px;
+  min-height: 44px;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
   user-select: none;
+}
+.cite-chip:focus-visible {
+  border-color: var(--color-accent);
 }
 .cite-chip.hover {
   background: rgba(37, 99, 235, 0.28);

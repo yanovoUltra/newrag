@@ -1,0 +1,11 @@
+[Unit]
+Description=Renew NewRAG IP certificate twice daily
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=12h
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

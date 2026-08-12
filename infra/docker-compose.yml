@@ -14,18 +14,110 @@ services:
       retries: 10
       start_period: 10s
 
-  redis:
-    image: redis:7-alpine
-    container_name: newrag-redis
+  redis-cache:
+    image: redis:7.4-alpine
+    container_name: newrag-redis-cache
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "384mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis_cache_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  redis-broker:
+    image: redis:7.4-alpine
+    container_name: newrag-redis-broker
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_broker_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: newrag-api
+    env_file: ../.env
+    environment:
+      APP_ENV: production
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis-broker:6379/0
+      REDIS_CACHE_URL: redis://redis-cache:6379/0
+      TASK_BACKEND: celery
+      # 容器内 config ROOT_DIR 错位（BACKEND_DIR=/app → ROOT_DIR=/），
+      # data 路径必须显式绝对化，否则 resolved_* 解析到 /data 导致权限失败
+      UPLOAD_DIR: /app/data/uploads
+      PIPELINE_DIR: /app/data/pipeline
+      REGISTRY_DB: /app/data/registry.db
+      EMBEDDING_CACHE_DIR: /app/data/models
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-broker:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: 2.0
+
+  worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: newrag-worker
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    env_file: ../.env
+    environment:
+      APP_ENV: production
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis-broker:6379/0
+      REDIS_CACHE_URL: redis://redis-cache:6379/0
+      TASK_BACKEND: celery
+      UPLOAD_DIR: /app/data/uploads
+      PIPELINE_DIR: /app/data/pipeline
+      REGISTRY_DB: /app/data/registry.db
+      EMBEDDING_CACHE_DIR: /app/data/models
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 3g
+    cpus: 2.0
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: newrag-frontend
+    ports:
+      - "5173:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
 
   phoenix:
     image: arizephoenix/phoenix:latest
@@ -38,5 +130,7 @@ services:
 
 volumes:
   qdrant_data:
-  redis_data:
+  redis_cache_data:
+  redis_broker_data:
+  app_data:
   phoenix_data:

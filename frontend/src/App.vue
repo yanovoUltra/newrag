@@ -19,8 +19,7 @@ async function checkHealth() {
   try {
     const res = await fetch('/healthz', { signal: ctrl.signal })
     const body = await res.json()
-    health.value =
-      body.app === 'ok' && body.qdrant === 'ok' && body.redis === 'ok' ? 'ok' : 'down'
+    health.value = body.app === 'ok' && body.qdrant === 'ok' && body.redis === 'ok' ? 'ok' : 'down'
   } catch {
     health.value = 'down'
   } finally {
@@ -178,7 +177,9 @@ const navItems = [
   color: var(--color-fg-muted);
   text-decoration: none;
   font-size: 14px;
-  transition: background 160ms ease, color 160ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
   cursor: pointer;
 }
 .nav-item:hover {
@@ -248,7 +249,8 @@ const navItems = [
     z-index: 20;
     flex-direction: row;
     gap: 0;
-    padding: 4px max(8px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    padding: 4px max(8px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
     border-top: 1px solid var(--color-border);
     background: var(--color-panel);
   }

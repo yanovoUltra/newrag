@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NewRAG 全链路技术教学报告</title>
+  <style>
+    :root{--ink:#172033;--muted:#5c6b80;--line:#dce4ef;--paper:#fff;--soft:#f4f7fb;--blue:#1769e0;--navy:#0b1730;--green:#0b8f65;--amber:#a35d00;--red:#b42318}
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:#edf2f8;color:var(--ink);font:15px/1.75 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+    a{color:var(--blue)} code{font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#edf2f8;padding:.12em .35em;border-radius:4px} pre{overflow:auto;background:#0d1728;color:#dce8ff;padding:18px;border-radius:10px;line-height:1.6}
+    .shell{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1500px;margin:auto;background:var(--paper);min-height:100vh;box-shadow:0 0 40px #24375718}
+    nav{position:sticky;top:0;height:100vh;overflow:auto;padding:28px 20px;background:var(--navy);color:#cbd8ec} nav strong{display:block;color:#fff;font-size:20px;margin-bottom:18px} nav a{display:block;color:#b7c7df;text-decoration:none;padding:5px 8px;border-radius:5px} nav a:hover{background:#ffffff12;color:#fff}
+    main{padding:56px clamp(28px,5vw,78px) 90px;min-width:0}.hero{padding:42px;border-radius:18px;background:linear-gradient(135deg,#0b1730,#15427e);color:#fff}.hero h1{font-size:38px;line-height:1.25;margin:0 0 14px}.hero p{max-width:850px;color:#d4e3fa}.badge{display:inline-block;margin:5px 6px 0 0;padding:4px 10px;border:1px solid #ffffff42;border-radius:999px;font-size:12px}
+    h2{margin-top:58px;padding-bottom:10px;border-bottom:2px solid var(--line);font-size:27px} h3{margin-top:34px;color:#173d76;font-size:20px} h4{margin-top:25px;font-size:16px}.lead{font-size:17px;color:#34445e}.note,.warn,.good{padding:14px 18px;border-left:4px solid var(--blue);background:#f0f6ff;border-radius:6px;margin:18px 0}.warn{border-color:var(--amber);background:#fff8ed}.good{border-color:var(--green);background:#effbf6}
+    table{width:100%;border-collapse:collapse;margin:16px 0 28px;font-size:14px} th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top} th{background:#edf3fb;color:#173d76} tr:nth-child(even) td{background:#fbfcfe}.small{font-size:13px;color:var(--muted)}
+    .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin:20px 0}.step{flex:1 1 145px;min-width:135px;padding:14px;border:1px solid #c9d8ec;border-radius:10px;background:#f7faff}.step b{display:block;color:#1558b0}.arrow{align-self:center;color:var(--blue);font-size:20px}.metric-grid,.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0}.metric,.card{padding:16px;border:1px solid var(--line);border-radius:10px;background:#fff}.metric b{display:block;font-size:24px;color:var(--blue)}.tree{font-family:ui-monospace,Consolas,monospace;background:var(--soft);padding:18px;border-radius:10px;white-space:pre-wrap}.tag{white-space:nowrap;padding:2px 7px;border-radius:999px;background:#e7f0ff;color:#1454a3;font-size:12px}.ok{color:var(--green)}.limit{color:var(--amber)} footer{margin-top:70px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted)}
+    @media(max-width:900px){.shell{display:block}.shell nav{position:relative;height:auto}.shell nav a{display:inline-block}.hero{padding:26px}.hero h1{font-size:30px}main{padding:28px 18px 60px}table{display:block;overflow-x:auto}.arrow{display:none}}
+    @media print{body{background:#fff}.shell{display:block;box-shadow:none}nav{display:none}main{padding:0}.hero{break-after:page}h2{break-before:page}table{font-size:10px}a{color:inherit;text-decoration:none}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <nav aria-label="目录">
+    <strong>NewRAG 技术教学</strong>
+    <a href="#truth">0. 阅读口径</a><a href="#overview">1. 项目是什么</a><a href="#concepts">2. RAG 基础</a>
+    <a href="#architecture">3. 系统架构</a><a href="#ingest">4. 文档入库链路</a><a href="#retrieval">5. 检索与问答链路</a>
+    <a href="#data">6. 数据与存储</a><a href="#api">7. API 协议</a><a href="#backend">8. 后端逐文件</a>
+    <a href="#classes">9. 类与数据结构</a><a href="#frontend">10. 前端逐文件</a><a href="#scripts">11. 脚本与评测</a>
+    <a href="#tests">12. 测试逐文件</a><a href="#infra">13. 工程与部署</a><a href="#metrics">14. 量化结果</a>
+    <a href="#limits">15. 真实边界</a><a href="#roadmap">16. 后续优化</a><a href="#runbook">17. 学生实践</a>
+  </nav>
+  <main>
+    <section class="hero">
+      <div class="badge">源码审计版</div><div class="badge">面向初学者</div><div class="badge">更新：2026-08-13</div>
+      <h1>NewRAG 全链路技术教学报告</h1>
+      <p>从“上传一份财报”到“回答一个带引用的问题”，解释系统的技术栈、模块边界、每个受维护文件、每个生产类、核心数据流、评测方法、部署方式和仍然存在的工程边界。</p>
+      <p><b>一句话定位：</b>NewRAG 是一个面向中英文财报的多格式文档 RAG 系统，结合结构化财务字段、稠密/稀疏向量、多路召回、RRF、可选 rerank、SSE 流式生成和证据引用。</p>
+    </section>
+
+    <section id="truth">
+      <h2>0. 阅读口径：哪些是事实，哪些不是</h2>
+      <p class="lead">本报告以当前工作树中的源码、配置、测试、评测报告和部署文件为依据。为了避免“写得很全但不真实”，先说明边界。</p>
+      <div class="good"><b>纳入：</b>业务源码、配置、Docker/网关/systemd、前端页面、评测脚本、golden 数据、测试、项目设计文档。</div>
+      <div class="warn"><b>不逐文件展开：</b><code>.git</code>、<code>node_modules</code>、<code>.venv</code>、<code>dist</code>、缓存、日志、临时目录、上传原文、SQLite/Qdrant/Redis 运行数据和任何密钥。它们是生成物、第三方依赖、运行数据或秘密，不是项目手写源码。</div>
+      <p>当前仓库没有根目录 <code>README.md</code>，因此不能把历史进展报告中“已更新 README”的陈述当作当前文件事实。生产 Compose 默认是<b>演示后端</b>：Mock Embedding、Mock LLM、无 rerank；真实模型适配代码存在，但需要在服务器端配置密钥并切换环境变量。</p>
+    </section>
+
+    <section id="overview">
+      <h2>1. 项目是什么</h2>
+      <div class="cards">
+        <div class="card"><b>输入</b><br>PDF、DOCX、XLSX、PNG、JPG/JPEG；可附机构、权限、财年、财季。</div>
+        <div class="card"><b>处理</b><br>解析版面、必要时 OCR、清洗、章节识别、Small-to-Big 切块、字段抽取、向量化、索引。</div>
+        <div class="card"><b>检索</b><br>问题路由、主体/年份识别、dense+sparse+表格/字段/数字短语/父章节候选、RRF、可选 rerank。</div>
+        <div class="card"><b>输出</b><br>SSE 流式回答、引用页码与章节、字段命中、grounding 警告、用量与状态。</div>
+      </div>
+      <h3>技术栈总览</h3>
+      <table><thead><tr><th>层</th><th>真实技术</th><th>在项目中的作用</th></tr></thead><tbody>
+        <tr><td>Web/API</td><td>Python、FastAPI、Pydantic、Uvicorn、sse-starlette</td><td>REST 上传/列表/任务接口与 POST-SSE 问答。</td></tr>
+        <tr><td>异步任务</td><td>Celery + 独立 Redis broker</td><td>把耗时入库从 API 进程移到 worker；开发环境也可用 FastAPI BackgroundTasks。</td></tr>
+        <tr><td>解析</td><td>PyMuPDF、pdfplumber、python-docx、openpyxl、可选 PaddleOCR API</td><td>读取 PDF 文本和表格、Word、Excel、图片与扫描页。</td></tr>
+        <tr><td>AI</td><td>OpenAI 兼容 SDK、DashScope/DeepSeek 适配、Mock 后端</td><td>Embedding、轻量路由/摘要、回答生成、可选 qwen3-rerank。</td></tr>
+        <tr><td>检索</td><td>Qdrant dense/sparse、多路 RRF、结构化字段 relay、数字短语索引、父子块</td><td>兼顾语义、关键词、精确数值与长上下文。</td></tr>
+        <tr><td>元数据</td><td>SQLAlchemy + SQLite</td><td>文档、任务、问答、评测、财务字段、数字短语和降级日志。</td></tr>
+        <tr><td>缓存/会话</td><td>Redis</td><td>查询 embedding、语义答案缓存、会话窗口、nonce 防重放；文档 embedding 默认不缓存。</td></tr>
+        <tr><td>前端</td><td>Vue 3、TypeScript、Vue Router、Element Plus、Vite</td><td>聊天、文档库、上传三个页面；页面级懒加载。</td></tr>
+        <tr><td>安全渲染</td><td>marked + DOMPurify</td><td>Markdown 转 HTML 后消毒，降低 XSS 风险。</td></tr>
+        <tr><td>质量</td><td>pytest、Vitest、Playwright、axe、Ruff、ESLint、Prettier</td><td>单元/接口/E2E/无障碍与静态规范。</td></tr>
+        <tr><td>部署</td><td>Docker Compose、Nginx、Caddy、Certbot、systemd</td><td>容器化、Basic Auth 入口、反向代理、可信 HTTPS 与自动续期。</td></tr>
+        <tr><td>观测</td><td>JSON 日志、trace id、OpenTelemetry/OTLP</td><td>请求与入库阶段耗时串联；可配置采样和导出。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="concepts">
+      <h2>2. 先懂这些 RAG 基础</h2>
+      <table><thead><tr><th>术语</th><th>学生版解释</th><th>NewRAG 中的实现</th></tr></thead><tbody>
+        <tr><td>RAG</td><td>先从自己的资料中找证据，再让大模型依据证据回答。</td><td><code>pipelines/answer.py</code> 组织检索、生成与保存。</td></tr>
+        <tr><td>Chunk</td><td>把长文档切成可检索的小片段。</td><td>叶子块用于精确召回，章节父块用于补足上下文，形成 Small-to-Big。</td></tr>
+        <tr><td>Embedding</td><td>把文字映射为数字向量，相似含义在向量空间距离较近。</td><td>查询和文档都有 dense 向量；API 原生支持时还会获得 sparse 向量。</td></tr>
+        <tr><td>Dense / Sparse</td><td>dense 擅长语义近义，sparse 擅长词面和稀有词。</td><td>Qdrant 内分别搜索，再用 RRF 融合名次。</td></tr>
+        <tr><td>RRF</td><td>不直接比较不同检索器的分数，而是按各自排名投票。</td><td><code>rrf.py</code> 用 <code>1/(k+rank)</code> 累加并去重。</td></tr>
+        <tr><td>Rerank</td><td>对已召回的少量候选做更贵、更准确的相关性重排。</td><td><code>ApiReranker</code> 可调用 qwen3-rerank；<code>NoneReranker</code> 直接保留融合顺序。</td></tr>
+        <tr><td>HyDE</td><td>先生成一段“理想答案样文”，再拿它辅助向量检索。</td><td>路由判断需要时由轻量 LLM 生成，配置权重参与 dense 路。</td></tr>
+        <tr><td>Relay</td><td>确定性证据不要完全服从概率排序，直接接力到前排。</td><td>公司+指标+年份命中 <code>financial_fields</code> 后回填来源 chunk。</td></tr>
+        <tr><td>Grounding</td><td>检查回答中的数字是否能在引用证据中找到。</td><td><code>generation/grounding.py</code> 统一数值单位后比对并发出警告。</td></tr>
+        <tr><td>NDCG / Recall / MRR</td><td>分别看排序质量、找全程度、第一条正确结果出现得多早。</td><td><code>eval_metrics.py</code>、<code>eval_ablation.py</code> 计算。</td></tr>
+        <tr><td>All-Hit@k</td><td>一个问题的所有相关证据是否都在前 k 内；适合多证据非指标题，但应和 NDCG/MRR/Recall 一起看。</td><td>严格 All-Hit、可达子集和 Parent All-Hit 用于定位覆盖瓶颈。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="architecture">
+      <h2>3. 系统架构与运行关系</h2>
+      <div class="tree">浏览器（Vue 3）
+  ├─ /upload ───── multipart ──┐
+  ├─ /documents ── REST ───────┤→ Caddy:443 → Nginx:8080 → FastAPI:8000
+  └─ /chat ─────── POST + SSE ─┘                          │
+                                                         ├─ SQLite：业务元数据/字段/评测
+                                                         ├─ Redis Cache：缓存/会话/nonce
+                                                         ├─ Redis Broker：Celery 消息
+                                                         ├─ Qdrant：dense+sparse 向量与 payload
+                                                         └─ Celery Worker：解析/切块/嵌入/入库
+
+外部模型（按配置启用）：Embedding API / rerank API / LLM API / PaddleOCR API</div>
+      <h3>为什么分两个 Redis</h3>
+      <p>缓存可淘汰，队列消息不能随便淘汰，所以职责必须分离。<code>redis-cache</code> 限制 384MB、策略 <code>allkeys-lru</code>；<code>redis-broker</code> 使用 <code>noeviction</code>。这避免缓存向量挤掉 Celery 消息。</p>
+      <h3>进程边界</h3>
+      <ul><li>API 负责短请求和 SSE 协调，不在请求线程内硬扛生产入库。</li><li>worker 消费入库任务，生产并发为 2。</li><li>Nginx 服务静态前端并将 API 转发给 FastAPI；Caddy 负责公网 TLS 与安全响应头。</li><li>Qdrant、两个 Redis、API 和 worker 不直接暴露公网端口。</li></ul>
+    </section>
+
+    <section id="ingest">
+      <h2>4. 文档入库全链路</h2>
+      <div class="flow"><div class="step"><b>1. 接收</b>扩展名、权限、财年校验</div><span class="arrow">→</span><div class="step"><b>2. 分块落盘</b>1MB 读取、累计大小、SHA-256</div><span class="arrow">→</span><div class="step"><b>3. 幂等</b>同哈希去重、同名新版本归档</div><span class="arrow">→</span><div class="step"><b>4. 派发</b>Celery 或后台任务</div></div>
+      <div class="flow"><div class="step"><b>5. 解析</b>PDF/DOCX/XLSX/图片</div><span class="arrow">→</span><div class="step"><b>6. OCR/清洗</b>低提取率按需 OCR；NFKC、页眉页脚</div><span class="arrow">→</span><div class="step"><b>7. 结构</b>章节树、财务字段</div><span class="arrow">→</span><div class="step"><b>8. 切块</b>叶子块+父章节+可选摘要</div></div>
+      <div class="flow"><div class="step"><b>9. 向量化</b>每批最多 128，dense+sparse</div><span class="arrow">→</span><div class="step"><b>10. Qdrant</b>分批 upsert，权限/年份写 payload</div><span class="arrow">→</span><div class="step"><b>11. 完成</b>文档 indexed，任务 100%</div><span class="arrow">→</span><div class="step"><b>失败补偿</b>回滚已写向量，保留断点材料</div></div>
+      <h3>上传为什么不是 <code>await file.read()</code></h3>
+      <p>接口每次只读 1MB，在写临时文件的同时计算 SHA-256，超过 50MB 时尽早停止。成功后用 <code>os.replace</code> 原子移动到正式路径。同一份内容直接返回 duplicate；同机构同名不同内容先把旧记录标为 archived 并删除其检索点。</p>
+      <h3>断点续跑如何工作</h3>
+      <p><code>registry.save_stage/load_stage/stage_done</code> 将 layout、sections、chunks、分批 vectors 和 manifest 落到 <code>data/pipeline/{doc_id}</code>。重试时已完成阶段直接读取。向量批次写成 <code>vectors_00000</code> 等文件，最终 manifest 才表示整个向量阶段完成；老的单文件格式仍可读取。</p>
+      <h3>切块策略</h3>
+      <ul><li>正文目标约 200 tokens，边界为 128–256；相邻正文块保留约 10% 重叠。</li><li>表格保留表头、单位与分页元信息；超长表采用摘要+分页，而不是粗暴截断。</li><li>章节父块默认目标 3072 tokens，为叶子命中补长上下文。</li><li>语义精切只处理足够长的散文块；Mock embedding 时跳过，避免伪相似度。</li><li>可选摘要块只当检索锚点；章节摘要命中后展开原文父块，降低模型编造数字的风险。</li></ul>
+    </section>
+
+    <section id="retrieval">
+      <h2>5. 检索与问答全链路</h2>
+      <div class="flow"><div class="step"><b>守卫</b>提示注入与会话循环</div><span class="arrow">→</span><div class="step"><b>缓存</b>无 session 单轮语义答案查找</div><span class="arrow">→</span><div class="step"><b>路由</b>intent/复杂度/题型/HyDE</div><span class="arrow">→</span><div class="step"><b>解析约束</b>公司、指标、年份、数值、否定词</div></div>
+      <div class="flow"><div class="step"><b>候选生成</b>dense/sparse/表格/字段/短语/父块</div><span class="arrow">→</span><div class="step"><b>融合</b>RRF、结构权重、权限和年份过滤</div><span class="arrow">→</span><div class="step"><b>精排</b>可选 API rerank，强证据保持优先</div><span class="arrow">→</span><div class="step"><b>降级</b>按层放宽年份、路由和主体约束</div></div>
+      <div class="flow"><div class="step"><b>生成</b>引用编号知识块喂给 LLM</div><span class="arrow">→</span><div class="step"><b>SSE</b>meta/field/token/citation/warning/done</div><span class="arrow">→</span><div class="step"><b>校验</b>答案数字与证据 grounding</div><span class="arrow">→</span><div class="step"><b>持久化</b>会话、答案缓存、ChatRecord</div></div>
+      <h3>六类候选各解决什么问题</h3>
+      <table><thead><tr><th>候选路</th><th>擅长</th><th>容易失败的地方</th></tr></thead><tbody>
+        <tr><td>Dense</td><td>同义表达、解释性问题、跨语言语义。</td><td>对 1.20% 与 1.23% 等精确数字不敏感。</td></tr><tr><td>Sparse + IDF</td><td>术语、专名、关键词。</td><td>指标标签类题目可能被 IDF 扭曲，所以 metric 题可中和 IDF。</td></tr>
+        <tr><td>表格路</td><td>财务表、指标行、单位。</td><td>表头/跨页结构复杂时需解析和元信息辅助。</td></tr><tr><td>字段 relay</td><td>“某公司某年某指标是多少”。</td><td>依赖字段抽取正确；不确定主体时不会强行注入。</td></tr>
+        <tr><td>数字短语</td><td>精确百分比、金额、范围。</td><td>普通年份和无单位裸数字会被排除，减少污染。</td></tr><tr><td>章节父块</td><td>趋势、多跳、综述和分散证据。</td><td>父块过多会拖累前排精度与延迟。</td></tr>
+      </tbody></table>
+      <h3>分级降级不是“无限放宽”</h3>
+      <p>当真实命中不足时，答案编排按照受控层级放宽条件，例如年份窗口、精确年份、主体过滤等；每级写入 <code>RetrievalFallbackLog</code>，连续没有改善可熔断。目标是“多找一点”，不是把不相关文档全部塞给模型。</p>
+    </section>
+
+    <section id="data">
+      <h2>6. 数据模型与存储</h2>
+      <table><thead><tr><th>存储</th><th>内容</th><th>关键设计</th></tr></thead><tbody>
+        <tr><td>SQLite / documents</td><td>文件名、SHA-256、大小、状态、机构、权限、财年/财季、块数。</td><td>同机构 SHA 查重；同机构文件名查替换；archived 保留版本记录。</td></tr>
+        <tr><td>SQLite / tasks</td><td>入库任务的 stage、progress、message。</td><td>前端轮询，worker/API 均可更新。</td></tr>
+        <tr><td>SQLite / chat_records</td><td>问题、答案、引用、intent、usage。</td><td>用于离线复盘和后续评测。</td></tr>
+        <tr><td>SQLite / eval_results</td><td>评测名称、范围、metrics JSON、明细 JSON。</td><td>让消融结果可追溯。</td></tr>
+        <tr><td>SQLite / financial_fields</td><td>公司、规范指标、年份、数值、单位、来源块/页/章节。</td><td>结构化精确查询与来源回填。</td></tr>
+        <tr><td>SQLite / number_phrase_index</td><td>归一化数字+单位到 chunk/doc 的倒排。</td><td>解决向量对精确数字不敏感。</td></tr>
+        <tr><td>SQLite / retrieval_fallback_log</td><td>降级级别、触发原因、真实命中数、候选数、参数。</td><td>定位召回不足和规则副作用。</td></tr>
+        <tr><td>Qdrant</td><td>chunk dense/sparse 向量与正文、页码、章节、父子关系、权限等 payload。</td><td>服务端过滤先隔离 org/visibility/year/doc，再做向量搜索。</td></tr>
+        <tr><td>Redis cache</td><td>查询向量、语义答案、会话、nonce、命中统计。</td><td>文档向量 TTL 默认为 0；缓存实例可 LRU 淘汰。</td></tr>
+        <tr><td>文件系统/volume</td><td>上传文件和 pipeline 阶段 JSON。</td><td>支持断点续跑；生产由 <code>app_data</code> 持久卷保存。</td></tr>
+      </tbody></table>
+      <p class="note">SQLite 初始化时启用 WAL、<code>synchronous=NORMAL</code> 和 5 秒 <code>busy_timeout</code>，并创建组合索引。这能改善单机并发，但它仍不是多 API 节点的高可用数据库。</p>
+    </section>
+
+    <section id="api">
+      <h2>7. API 与 SSE 协议</h2>
+      <table><thead><tr><th>方法与路径</th><th>用途</th><th>主要返回</th></tr></thead><tbody>
+        <tr><td>GET <code>/livez</code></td><td>只判断应用进程存活，不访问依赖。</td><td><code>{app:"ok"}</code></td></tr>
+        <tr><td>GET <code>/healthz</code></td><td>并发检查 Qdrant/Redis，每项最多 1 秒，结果缓存 5 秒。</td><td>app/qdrant/redis 状态，保持旧结构。</td></tr>
+        <tr><td>GET <code>/api/v1/config/public</code></td><td>前端读取上传大小、扩展名、财年下限和服务器当前年。</td><td>只读公共配置。</td></tr>
+        <tr><td>POST <code>/api/v1/documents</code></td><td>multipart 上传并派发入库。</td><td>task_id、doc_id、status；重复文件不改响应形状。</td></tr>
+        <tr><td>GET <code>/api/v1/documents</code></td><td>兼容旧列表。</td><td>DocumentOut 数组。</td></tr>
+        <tr><td>GET <code>/api/v1/documents/page</code></td><td>服务端筛选和分页，limit 1–100。</td><td>items/total/limit/offset。</td></tr>
+        <tr><td>GET/DELETE <code>/api/v1/documents/{id}</code></td><td>详情/彻底删除文档、向量、字段和阶段目录。</td><td>文档 DTO 或删除确认。</td></tr>
+        <tr><td>GET <code>/api/v1/tasks/{id}</code></td><td>读取入库任务进度。</td><td>TaskOut。</td></tr>
+        <tr><td>POST <code>/api/v1/chat</code></td><td>问题长度 1–2000；返回 text/event-stream。</td><td>多种 SSE 事件。</td></tr>
+        <tr><td>GET <code>/api/v1/metrics/cache</code></td><td>只读缓存键数、内存与命中统计。</td><td>缓存指标快照。</td></tr>
+      </tbody></table>
+      <h3>SSE 事件顺序</h3>
+      <p><code>meta</code> 描述 intent/检索计划；<code>field</code> 给出结构化指标证据；多个 <code>token</code> 组成答案；<code>citation</code> 提供引用；<code>grounding</code>/<code>warning</code> 表示证据检查；<code>error</code> 表示异常；<code>done</code> 收尾并给 usage。前端使用 fetch 读取 ReadableStream，因为原生 EventSource 不能 POST JSON。</p>
+    </section>
+
+    <section id="backend">
+      <h2>8. 后端模块与每份生产文件</h2>
+      <p class="small">所有空的 <code>__init__.py</code> 都负责把目录声明为 Python 包，本身不承载业务；<code>fields/__init__.py</code> 和 <code>tasks/__init__.py</code> 仅有极少包级说明。</p>
+      <h3>入口、配置与 API</h3>
+      <table><thead><tr><th>文件</th><th>职责</th><th>怎样参与运行</th></tr></thead><tbody>
+        <tr><td><code>backend/app/main.py</code></td><td>创建 FastAPI、生命周期、CORS、认证和 trace 中间件、异常处理、路由、livez/healthz。</td><td>Uvicorn 导入 <code>app.main:app</code>；启动时建目录、初始化 SQLite/Qdrant/OTel。</td></tr>
+        <tr><td><code>core/config.py</code></td><td><code>Settings</code> 汇总环境变量并解析路径/CORS。</td><td><code>get_settings()</code> 用缓存提供全局配置。</td></tr><tr><td><code>core/logging.py</code></td><td>JSON 日志、trace_id 上下文。</td><td>请求和后台文档链路都能按 trace 串联。</td></tr>
+        <tr><td><code>core/metrics.py</code></td><td>可选 OTel API 调用计数与耗时记录。</td><td>延迟创建 meter/instruments，OTel 关闭时低开销。</td></tr><tr><td><code>core/otel.py</code></td><td>构建 tracer/meter provider，支持 console 或 OTLP HTTP、采样率。</td><td>由 lifespan 安装 FastAPI instrumentation。</td></tr>
+        <tr><td><code>core/security.py</code></td><td>HMAC 请求签名、时间窗、Redis nonce 防重放、ASGI 认证中间件。</td><td>只保护 <code>/api/v1/*</code>；健康检查与 OPTIONS 开放；默认可关闭。</td></tr>
+        <tr><td><code>api/v1/documents.py</code></td><td>上传、动态财年、分块写盘/哈希、去重替换、列表分页、详情和删除。</td><td>是文档生命周期 HTTP 入口。</td></tr><tr><td><code>api/v1/chat.py</code></td><td>校验问题并把 <code>stream_answer</code> 包成 SSE，整流设置超时。</td><td>超时发 error+done，不让连接无期限占用。</td></tr>
+        <tr><td><code>api/v1/tasks.py</code></td><td>查询任务并映射成 DTO。</td><td>上传页据此轮询入库进度。</td></tr><tr><td><code>api/v1/config_public.py</code></td><td>公开非敏感上传配置和当前年份。</td><td>前端不再硬编码 200MB/年份上限。</td></tr><tr><td><code>api/v1/metrics.py</code></td><td>返回 Redis/embedding 缓存快照。</td><td>只读运维接口。</td></tr>
+        <tr><td><code>schemas/__init__.py</code></td><td>DocumentOut、DocumentPage、TaskOut、ChatRequest。</td><td>约束输入输出并生成 OpenAPI schema。</td></tr>
+      </tbody></table>
+
+      <h3>解析、结构和切块</h3>
+      <table><thead><tr><th>文件</th><th>职责</th><th>关键点</th></tr></thead><tbody>
+        <tr><td><code>parsers/base.py</code></td><td>ParsedTable、ParsedPage、LayoutResult 统一中间模型与 <code>parse_layout</code> 分派。</td><td>不同文件格式进入同一后续管线。</td></tr>
+        <tr><td><code>parsers/layout.py</code></td><td>PDF/DOCX/XLSX/图片解析、表格质量判断、双栏重排、提取率。</td><td>PDF 用 PyMuPDF 文本和 pdfplumber 表格；扫描页可被标记。</td></tr>
+        <tr><td><code>parsers/ocr.py</code></td><td>PaddleOCR 任务提交、轮询、JSONL 解析和图片页 OCR。</td><td>只有开关开启且 PDF 文本提取率低于 80% 才触发。</td></tr>
+        <tr><td><code>parsers/clean.py</code></td><td>NFKC、页码、重复页眉页脚清洗。</td><td>只在页边缘删除，防止误删正文中的数字行。</td></tr>
+        <tr><td><code>parsers/structure.py</code></td><td>识别标题并构建 Section 树，按页找章节路径。</td><td>给 chunk 添加层级语境。</td></tr>
+        <tr><td><code>parsers/structural.py</code></td><td>判断纯结构/表头类 chunk。</td><td>检索后处理中降权，而非维护多种复杂模式。</td></tr>
+        <tr><td><code>splitter/tokens.py</code></td><td>tiktoken 计数、按 token 切文本、单行硬切。</td><td>避免字符数与模型 token 数错位。</td></tr>
+        <tr><td><code>splitter/chunker.py</code></td><td>Chunk 模型、叶子构建、父章节构建、表格分页与 embedding 文本。</td><td>Small-to-Big 的主要实现。</td></tr>
+        <tr><td><code>splitter/semantic.py</code></td><td>句子切分、相邻相似度、低谷断点、叶子语义细分。</td><td>只对满足条件的长散文块执行。</td></tr>
+      </tbody></table>
+
+      <h3>字段、嵌入、检索与生成</h3>
+      <table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody>
+        <tr><td><code>fields/metrics.py</code></td><td>财务指标字典与别名、单位转元、数字/年份解析、从问题提取指标。</td></tr><tr><td><code>fields/extract.py</code></td><td>从普通/转置表格和正文抽取 FieldRecord，做数值合理性、货币/百分比和去重校验。</td></tr>
+        <tr><td><code>fields/backfill.py</code></td><td>把已抽取字段匹配回真实叶子 chunk_id，供 relay 获取原文。</td></tr><tr><td><code>fields/subject.py</code></td><td>清理指标词后识别问题中的公司，处理中文简称、英文名和多个实体。</td></tr>
+        <tr><td><code>fields/numeric.py</code></td><td>解析“大于一亿/不低于 10%”等范围并计算候选数值匹配分。</td></tr><tr><td><code>fields/phrases.py</code></td><td>提取与归一化数字单位短语，过滤年份和无意义裸数。</td></tr>
+        <tr><td><code>embed/embedder.py</code></td><td>EmbeddingBackend 抽象、Mock、FlagEmbedding、本地/兼容 API 后端；批并发、429 重试、缓存和 sparse 解析。</td></tr>
+        <tr><td><code>retrieval/router.py</code></td><td>LLM JSON 路由与关键词兜底，生成 RoutePlan 和可选 HyDE 文本。</td></tr><tr><td><code>retrieval/rrf.py</code></td><td>多路候选按排名融合并去重。</td></tr>
+        <tr><td><code>retrieval/idf.py</code></td><td>离线 IDF 构建、Qdrant 稀疏向量重写、查询侧中和。</td></tr><tr><td><code>retrieval/reranker.py</code></td><td>Reranker 抽象、DashScope API 精排、无精排实现；并发受信号量限制。</td></tr>
+        <tr><td><code>retrieval/search.py</code></td><td>混合检索主函数：权限/公司/年份、dense/sparse/表格、字段 relay、精确数字、否定词、父块、融合、精排和后处理。</td></tr>
+        <tr><td><code>generation/guard.py</code></td><td>提示注入规则和重复问题循环检测。</td></tr><tr><td><code>generation/prompts.py</code></td><td>将问题、会话与编号知识块组成回答 messages，约束引用和未知处理。</td></tr>
+        <tr><td><code>generation/llm.py</code></td><td>公平 FIFO 信号量、OpenAI 兼容流式/普通客户端、重试和 Mock 客户端。</td></tr><tr><td><code>generation/grounding.py</code></td><td>抽取并归一化回答/证据数字，识别未被证据支持的数值。</td></tr>
+        <tr><td><code>generation/summarize.py</code></td><td>章节摘要、文档总览与批量异步包装；摘要功能默认关闭。</td></tr>
+      </tbody></table>
+
+      <h3>流水线、存储和任务</h3>
+      <table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody>
+        <tr><td><code>pipelines/ingest.py</code></td><td>入库总编排、阶段进度/超时/OTel、断点、128 块批嵌入与写入、失败向量回滚。</td></tr>
+        <tr><td><code>pipelines/answer.py</code></td><td>答案总编排：字段证据、多计划检索、依赖实体、比较平衡、分级降级、缓存、SSE、grounding、持久化。</td></tr>
+        <tr><td><code>store/registry.py</code></td><td>SQLite 初始化/WAL/索引、所有实体 CRUD、分页查询、阶段 JSON 保存与加载。</td></tr>
+        <tr><td><code>store/qdrant.py</code></td><td>Qdrant 单例、collection schema、批写、删除、权限/年份过滤、dense/sparse 搜索、父 payload 拉取。</td></tr>
+        <tr><td><code>store/cache.py</code></td><td>embedding 缓存统计与读写、语义答案桶查找/去重/容量限制。</td></tr>
+        <tr><td><code>store/redisx.py</code></td><td>缓存 Redis 单例；优先 <code>REDIS_CACHE_URL</code>，为空回退旧 <code>REDIS_URL</code>。</td></tr>
+        <tr><td><code>store/session.py</code></td><td>Redis 会话历史读取和窗口化追加。</td></tr>
+        <tr><td><code>models/entities.py</code></td><td>7 张 SQLAlchemy 表的实体定义。</td></tr>
+        <tr><td><code>tasks/celery_app.py</code></td><td>创建 Celery、配置 broker/result、worker 启动时初始化数据库。</td></tr>
+        <tr><td><code>tasks/ingest_task.py</code></td><td>把 Celery 参数还原为 Path 并调用 <code>run_ingest</code>。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="classes">
+      <h2>9. 每个生产类和数据结构</h2>
+      <table><thead><tr><th>类</th><th>所在文件</th><th>学生版职责</th></tr></thead><tbody>
+        <tr><td>Settings</td><td>core/config.py</td><td>所有环境变量的“总配置表”，并把相对路径转为项目可用的绝对 Path。</td></tr><tr><td>JsonFormatter</td><td>core/logging.py</td><td>把日志变成包含时间、级别、trace_id 等字段的 JSON。</td></tr>
+        <tr><td>AuthMiddleware</td><td>core/security.py</td><td>ASGI 门卫：读取请求体、验 HMAC/时间戳/nonce，失败直接返回 401。</td></tr><tr><td>_Request / _JSONResponse</td><td>core/security.py</td><td>认证中间件内部的轻量请求体缓存和 JSON 响应工具，不是公开业务模型。</td></tr>
+        <tr><td>EmbeddingBackend</td><td>embed/embedder.py</td><td>向量模型统一接口。</td></tr><tr><td>MockEmbeddingBackend</td><td>同上</td><td>不调用外部 API 的确定性测试/演示向量。</td></tr><tr><td>FlagEmbeddingBackend</td><td>同上</td><td>可选本地 FlagEmbedding 模型包装。</td></tr><tr><td>ApiEmbedBackend</td><td>同上</td><td>外部 embedding API，含缓存、分批并发、重试和 sparse 解析。</td></tr>
+        <tr><td>FieldRecord</td><td>fields/extract.py</td><td>尚未写入数据库的财务字段传输对象。</td></tr><tr><td>InjectionVerdict</td><td>generation/guard.py</td><td>提示注入检测的通过/原因结果。</td></tr>
+        <tr><td>FairSemaphore</td><td>generation/llm.py</td><td>先进先出地限制模型并发，减少后来请求插队。</td></tr><tr><td>LLMClient</td><td>同上</td><td>LLM 统一接口。</td></tr><tr><td>OpenAICompatClient</td><td>同上</td><td>兼容 DeepSeek/DashScope 等 OpenAI 协议服务，支持流式与重试。</td></tr><tr><td>MockLLMClient</td><td>同上</td><td>演示/测试回答，不产生真实模型费用。</td></tr>
+        <tr><td>Base</td><td>models/entities.py</td><td>SQLAlchemy 所有表类的基类。</td></tr><tr><td>Document</td><td>同上</td><td>文档注册表。</td></tr><tr><td>Task</td><td>同上</td><td>后台任务状态。</td></tr><tr><td>ChatRecord</td><td>同上</td><td>问答审计记录。</td></tr><tr><td>EvalResult</td><td>同上</td><td>评测结果记录。</td></tr><tr><td>FinancialField</td><td>同上</td><td>结构化财务指标。</td></tr><tr><td>NumberPhraseIndex</td><td>同上</td><td>精确数字短语倒排。</td></tr><tr><td>RetrievalFallbackLog</td><td>同上</td><td>检索降级过程日志。</td></tr>
+        <tr><td>ParsedTable</td><td>parsers/base.py</td><td>表格行列与页内位置，能转成检索文本。</td></tr><tr><td>ParsedPage</td><td>同上</td><td>一页的文本、表格、扫描状态。</td></tr><tr><td>LayoutResult</td><td>同上</td><td>整份文档统一解析结果，可 JSON 序列化恢复。</td></tr><tr><td>PaddleOcr</td><td>parsers/ocr.py</td><td>OCR 远程任务客户端。</td></tr><tr><td>Section</td><td>parsers/structure.py</td><td>章节标题、层级、页区间。</td></tr>
+        <tr><td>PipelineError</td><td>pipelines/ingest.py</td><td>可识别的入库流程异常。</td></tr><tr><td>Reranker</td><td>retrieval/reranker.py</td><td>精排统一接口。</td></tr><tr><td>ApiReranker</td><td>同上</td><td>调用 rerank API 并把分数写回候选。</td></tr><tr><td>NoneReranker</td><td>同上</td><td>关闭精排时的无操作实现，避免到处写 if。</td></tr><tr><td>RoutePlan</td><td>retrieval/router.py</td><td>路由产生的 intent、复杂度、题型、子查询和依赖关系。</td></tr>
+        <tr><td>DocumentOut / DocumentPage / TaskOut / ChatRequest</td><td>schemas/__init__.py</td><td>Pydantic API 输出/输入合同。</td></tr><tr><td>Chunk</td><td>splitter/chunker.py</td><td>检索最核心的数据对象：正文、页、章节、类型、token 数、parent_id。</td></tr><tr><td>RequestIdMiddleware</td><td>main.py</td><td>给每个请求注入 trace id、响应头并记录耗时。</td></tr>
+      </tbody></table>
+      <p class="small">脚本类：<code>golden_utils.FingerprintIndex</code> 用内容 SHA-256 指纹把 golden 相关证据从易变的 chunk_id 解耦。测试辅助类（TestVerifyRequest、TestAuthMiddlewareHTTP、_FakeResp、_MockReranker、_MockEmbedder）只用于组织断言或模拟依赖，不参与生产运行。</p>
+    </section>
+
+    <section id="frontend">
+      <h2>10. 前端模块与每份文件</h2>
+      <table><thead><tr><th>文件</th><th>作用</th></tr></thead><tbody>
+        <tr><td><code>frontend/index.html</code></td><td>Vite HTML 壳和挂载点。</td></tr><tr><td><code>src/main.ts</code></td><td>创建 Vue 应用，注册路由和按需 Element Plus 组件/样式，避免整包全局引入。</td></tr>
+        <tr><td><code>src/App.vue</code></td><td>全局品牌、桌面/移动导航、跳到主内容链接、每 30 秒健康检查；3 秒 AbortController 超时，必须 app/qdrant/redis 全 ok 才显示正常。</td></tr>
+        <tr><td><code>src/router/index.ts</code></td><td>三个页面的懒加载路由、404 回聊天、动态标题。</td></tr><tr><td><code>src/styles/theme.css</code></td><td>设计 token、深色主题、响应式布局、44px 点击区、移动端底部导航和表格卡片样式。</td></tr>
+        <tr><td><code>src/types.ts</code></td><td>文档、任务、消息、引用和全部 SSE 事件的 TypeScript 合同。</td></tr><tr><td><code>src/utils/date.ts</code></td><td><code>MIN_FISCAL_YEAR=1990</code> 与可注入 Date 的 <code>getCurrentYear</code>。</td></tr>
+        <tr><td><code>src/api/client.ts</code></td><td>通用 JSON 请求、ApiError、FastAPI detail 提取和 UI 错误提示。</td></tr><tr><td><code>src/api/config.ts</code></td><td>公共配置接口类型和调用。</td></tr><tr><td><code>src/api/documents.ts</code></td><td>上传、分页/旧列表、详情、删除、任务轮询；支持 AbortSignal。</td></tr><tr><td><code>src/api/chat.ts</code></td><td>把聊天参数映射到 SSE POST。</td></tr><tr><td><code>src/api/sse.ts</code></td><td>fetch+ReadableStream 解析 SSE，兼容 CRLF、多 data 行、JSON 和中止。</td></tr>
+        <tr><td><code>src/views/UploadView.vue</code></td><td>拖放/键盘选文件、真实 label、服务器限制回退、动态年份、提交校验、任务进度与重复提示。</td></tr>
+        <tr><td><code>src/views/DocumentsView.vue</code></td><td>服务端文件名/机构/状态筛选，250ms 防抖，取消旧请求，分页、删除；小屏改卡片。</td></tr>
+        <tr><td><code>src/views/ChatView.vue</code></td><td>问答状态机、token 缓冲、每帧更新/滚动、用户上滚停跟随、Abort、引用抽屉、历史上限 40 条或 1MB、关键点持久化和无障碍播报。</td></tr>
+        <tr><td><code>src/components/ChatMessage.vue</code></td><td>呈现用户/AI 消息、intent、字段、grounding、引用按钮和 AI 生成标识。</td></tr><tr><td><code>src/components/MarkdownText.vue</code></td><td>marked 渲染后交给 DOMPurify 消毒。</td></tr>
+        <tr><td><code>src/utils/date.test.ts</code></td><td>固定日期验证当前年份方法。</td></tr><tr><td><code>src/api/sse.test.ts</code></td><td>SSE 分块、CRLF、多行、错误、中止等单测。</td></tr>
+        <tr><td><code>e2e/chat.spec.ts</code></td><td>聊天页基础 E2E；后端可用时验证真实交互。</td></tr><tr><td><code>e2e/accessibility.spec.ts</code></td><td>chat/documents/upload 在 375、768、1440 三种宽度执行 axe 和水平溢出检查。</td></tr>
+        <tr><td><code>vite.config.ts</code></td><td>Vue/Vitest 配置、别名、开发代理、Element Plus vendor 分包。</td></tr><tr><td><code>playwright.config.ts</code></td><td>E2E 浏览器、baseURL、开发服务器设置。</td></tr>
+        <tr><td><code>package.json / package-lock.json</code></td><td>依赖、脚本与精确锁文件。</td></tr><tr><td><code>tsconfig.json / tsconfig.app.json / tsconfig.node.json</code></td><td>TypeScript 项目引用、浏览器源码与 Node 配置。</td></tr>
+        <tr><td><code>eslint.config.js / .prettierrc.json</code></td><td>增量代码规范与格式规则。</td></tr><tr><td><code>public/favicon.svg</code></td><td>浏览器图标。</td></tr><tr><td><code>frontend/README.md</code></td><td>前端脚手架开发说明，不是完整项目架构文档。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="scripts">
+      <h2>11. 运维、数据与评测脚本逐文件</h2>
+      <table><thead><tr><th>文件</th><th>用途</th></tr></thead><tbody>
+        <tr><td><code>scripts/_run_python.ps1</code></td><td>Windows 下统一选择虚拟环境 Python、编码和参数调用。</td></tr><tr><td><code>fetch_reports.py</code></td><td>从巨潮/SEC 检索报告，筛选 A 股 PDF，或把 SEC HTML 清洗成 DOCX。</td></tr>
+        <tr><td><code>ingest_batch.py</code></td><td>按文件名推断财年并批量调用入库流程。</td></tr><tr><td><code>make_scanned_pdf.py</code></td><td>制作测试扫描 PDF，验证 OCR 路径。</td></tr>
+        <tr><td><code>backfill_fields.py</code></td><td>为已入库文档重新抽取/补齐财务字段。</td></tr><tr><td><code>enrich_field_chunks.py</code></td><td>把字段来源和相关 chunk 信息补充完善。</td></tr>
+        <tr><td><code>build_number_phrase_index.py</code></td><td>离线扫描 chunk，重建数字短语倒排。</td></tr><tr><td><code>rebuild_idf_from_pipeline.py</code></td><td>从 pipeline 产物重建 sparse IDF 并可重写向量点。</td></tr>
+        <tr><td><code>reembed_tables.py</code></td><td>只重嵌表格块，适合表格锚点策略变化后的维护。</td></tr><tr><td><code>migrate_structural.py</code></td><td>给存量点迁移结构块标识。</td></tr><tr><td><code>stat_structural.py</code></td><td>统计结构块比例。</td></tr>
+        <tr><td><code>index_maintenance.py</code></td><td>索引统计、一致性检查、恢复和重建命令。</td></tr><tr><td><code>worker_bench.py</code></td><td>启动本地服务、并发发问并汇总吞吐/延迟。</td></tr>
+        <tr><td><code>golden_utils.py</code></td><td>golden 加载、内容指纹索引、相关证据解析。</td></tr><tr><td><code>gen_holdout_golden.py</code></td><td>从未调参财报生成 holdout 问题/答案标注。</td></tr>
+        <tr><td><code>eval_metrics.py</code></td><td>主评测：NDCG、MRR、Precision、Recall、All-Hit 和指标抽取准确率。</td></tr><tr><td><code>eval_ablation.py</code></td><td>切换检索配置做消融，含生产真实检索包装。</td></tr><tr><td><code>eval_ragas.py</code></td><td>上下文精度、语义/LLM judge 等 RAGAS 风格评测；外部模型调用由配置决定。</td></tr>
+        <tr><td><code>golden/eval_set.json</code></td><td>主评测集，含问题、题型、相关证据等。</td></tr><tr><td><code>golden/holdout_40.json</code></td><td>未参与调参的保留集，用于观察泛化。</td></tr><tr><td><code>ablation_report.md</code></td><td>历次检索消融过程、负优化和决策记录。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="tests">
+      <h2>12. 后端测试逐文件覆盖什么</h2>
+      <table><thead><tr><th>测试文件</th><th>覆盖内容</th></tr></thead><tbody>
+        <tr><td><code>conftest.py</code></td><td>TestClient、临时目录/配置、Qdrant 可用性和样例 PDF fixture。</td></tr><tr><td><code>test_api_flow.py</code></td><td>上传→入库→聊天、权限隔离、文件/财年边界、分页合同、同名归档。</td></tr>
+        <tr><td><code>test_auth.py</code></td><td>HMAC 正常/缺头/篡改/过期/重放，以及 ASGI HTTP 认证行为。</td></tr><tr><td><code>test_cache_ratelimit.py</code></td><td>embedding/答案缓存、文档缓存关闭、指标、公平信号量、429 重试。</td></tr>
+        <tr><td><code>test_chunker.py</code></td><td>章节、正文/表格、token 上下界、重叠、父块、超长表分页和序列化。</td></tr><tr><td><code>test_embedder.py</code></td><td>API base 变换、dense/sparse 响应解析和缺失字段异常。</td></tr>
+        <tr><td><code>test_eval_metrics.py</code></td><td>严格 All-Hit 定义、k 不可达情况、百分比 golden。</td></tr><tr><td><code>test_fields.py</code></td><td>数字/单位/年份/指标解析、普通/转置表字段抽取、去重和 IDF 中和。</td></tr>
+        <tr><td><code>test_guard.py</code></td><td>中英文提示注入特征、正常问题和会话循环。</td></tr><tr><td><code>test_idf_structural.py</code></td><td>结构块识别、IDF 重写开关和降权。</td></tr>
+        <tr><td><code>test_ingest_batches.py</code></td><td>向量/索引批次不越界以及老阶段格式兼容。</td></tr><tr><td><code>test_layout.py</code></td><td>双栏 PDF 重排和单栏不误判。</td></tr>
+        <tr><td><code>test_negation.py</code></td><td>“除了/排除”等否定实体解析与查询改写。</td></tr><tr><td><code>test_new_features.py</code></td><td>数字 grounding、语义切分、会话、NFKC、页眉页码、财年助手、同名键。</td></tr>
+        <tr><td><code>test_ocr.py</code></td><td>OCR JSONL 解析和图片开关。</td></tr><tr><td><code>test_permission.py</code></td><td>可见级别计算。</td></tr>
+        <tr><td><code>test_public_config_health.py</code></td><td>公共配置一致性、livez 快速、缓存指标只读。</td></tr><tr><td><code>test_retrieval_extras.py</code></td><td>数值范围、章节权重、比较实体平衡、真实命中和降级层级。</td></tr>
+        <tr><td><code>test_router.py</code></td><td>路由 JSON/代码块/错误兜底、子查询 DAG、题型关键词和摘要题。</td></tr><tr><td><code>test_rrf.py</code></td><td>融合排序、去重、路由计数和 top-n。</td></tr>
+        <tr><td><code>test_search_enhance.py</code></td><td>父块路、数字短语路、relay 顺序、百分比/金额/范围短语。</td></tr><tr><td><code>test_subject_mentions.py</code></td><td>问题公司识别、中文/英文简称、多公司比较和地域前缀。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="infra">
+      <h2>13. 根目录、工程配置与生产部署逐文件</h2>
+      <table><thead><tr><th>文件</th><th>作用</th></tr></thead><tbody>
+        <tr><td><code>.env.example</code></td><td>所有可配置项的安全模板，不含真实密钥。</td></tr><tr><td><code>.gitignore</code></td><td>排除 .env、数据、模型、缓存、密钥等。</td></tr><tr><td><code>.dockerignore</code></td><td>根构建上下文排除项；<code>backend/.dockerignore</code> 与 <code>frontend/.dockerignore</code> 分别收窄 Python、Node 镜像上下文，避免带入本地依赖和缓存。</td></tr>
+        <tr><td><code>backend/Dockerfile</code></td><td>固定 Python 基础镜像、安装依赖、非 root 用户、启动 Uvicorn。</td></tr><tr><td><code>backend/requirements.txt</code></td><td>生产依赖范围；Qdrant client 锁到 1.13 系列。</td></tr><tr><td><code>backend/requirements-dev.txt</code></td><td>Ruff 等开发依赖。</td></tr><tr><td><code>backend/pyproject.toml</code></td><td>Ruff lint/format 规则。</td></tr>
+        <tr><td><code>frontend/Dockerfile</code></td><td>Node 构建静态资源，再复制到非特权 Nginx 镜像；<code>frontend/.gitignore</code> 排除生成物，<code>frontend/.vscode/extensions.json</code> 只提供编辑器扩展建议。</td></tr><tr><td><code>frontend/nginx.conf</code></td><td>本地 Compose 的 SPA fallback、API 代理和 SSE 关闭缓冲。</td></tr><tr><td><code>infra/nginx.production.conf</code></td><td>生产 Nginx：Basic Auth、静态文件、API 代理、健康端点与 SSE 参数。</td></tr>
+        <tr><td><code>infra/docker-compose.yml</code></td><td>本地完整栈：API、worker、frontend、Qdrant、cache Redis、broker Redis；Phoenix 是可选 profile。</td></tr>
+        <tr><td><code>infra/docker-compose.production.yml</code></td><td>生产 7 个常驻服务 + 维护型 certbot；资源限制、健康检查、日志轮转、持久卷和内部网络。</td></tr>
+        <tr><td><code>infra/Caddyfile</code></td><td>80→443 永久跳转、ACME challenge、IP 证书、zstd/gzip、安全头、反代前端。</td></tr>
+        <tr><td><code>infra/systemd/newrag-cert-renew.service</code></td><td>运行 certbot renew，成功后让 Caddy 重载证书。</td></tr><tr><td><code>infra/systemd/newrag-cert-renew.timer</code></td><td>每 12 小时触发续期检查。</td></tr><tr><td><code>infra/DEPLOY_PRODUCTION.md</code></td><td>服务器要求、首次部署、更新/回滚、备份、HTTPS 和生产限制。</td></tr>
+        <tr><td><code>PROGRESS_REPORT.md</code></td><td>2026-08-10 的阶段进度记录；是历史快照，不代表所有数字仍是最新口径。</td></tr><tr><td><code>简历_检索召回量化报告.md</code></td><td>检索消融与最新严格口径，明确区分指标题和非指标题。</td></tr><tr><td><code>design-system/newrag/MASTER.md</code></td><td>颜色、字体、间距、组件、反模式和交付检查清单。</td></tr>
+        <tr><td><code>.serena/project.yml / project.local.yml / .gitignore</code></td><td>Serena 代码工具的项目索引偏好与本机覆盖，不参与应用运行。</td></tr>
+      </tbody></table>
+      <h3>已经上线的拓扑</h3>
+      <p>生产文档登记的可信入口为 <code>https://8.134.222.143</code>。公网只开放 80/443（SSH 22 用于管理）；Caddy 终止 TLS，Nginx 做 Basic Auth 和应用代理。API、worker、Qdrant 和两个 Redis 只走 Compose 内网。当前演示模式不使用外部模型密钥。</p>
+      <div class="warn"><b>证书注意：</b>该地址使用 Let's Encrypt 短生命周期公网 IP 证书，依赖 systemd timer 每 12 小时检查续期。运维上必须监控 timer、证书到期日和 Caddy reload；长期业务更推荐绑定域名。</div>
+    </section>
+
+    <section id="metrics">
+      <h2>14. 可核实的质量与工程结果</h2>
+      <p>以下数字来自仓库中的量化报告和已记录验证。不同数据集、题型和 k 不能混为一谈。</p>
+      <div class="metric-grid"><div class="metric"><b>1.0000</b>168 道指标题 NDCG@1 / P@1 / MRR</div><div class="metric"><b>0.9232</b>非指标 dense@500∪sparse@500 Recall</div><div class="metric"><b>0.9968</b>父章节 Recall@100</div><div class="metric"><b>0.5045</b>非指标稳定路径 NDCG@8</div><div class="metric"><b>0.8404</b>非指标稳定路径 MRR</div><div class="metric"><b>3.2×</b>历史嵌入吞吐 3.1→9.9 texts/s</div></div>
+      <table><thead><tr><th>口径</th><th>NDCG</th><th>Recall</th><th>Precision/MRR/All-Hit</th><th>结论</th></tr></thead><tbody>
+        <tr><td>指标题最终排序，168 题</td><td>NDCG@1 1.0000</td><td>—</td><td>P@1 1.0000；MRR 1.0000</td><td>结构化字段 relay 已达很强生产口径。</td></tr>
+        <tr><td>指标抽取</td><td>—</td><td>—</td><td>科目 98.21%；年份 100%；数值 98.21%</td><td>排序满分不等于抽取规则绝对无误。</td></tr>
+        <tr><td>非指标稳定 Top-8</td><td>0.5045</td><td>0.4807</td><td>MRR 0.8404</td><td>前排排序尚未达到 0.9。</td></tr>
+        <tr><td>大候选池</td><td>—</td><td>dense@500∪sparse@500 0.9232</td><td>—</td><td>瓶颈已由“找不到”转向“把多方面证据排进前面”。</td></tr>
+        <tr><td>父章节</td><td>—</td><td>@50 0.9367；@100 0.9968</td><td>—</td><td>分层召回非常有效，但不能把 100 个父块直接喂给模型。</td></tr>
+        <tr><td>方面级实验</td><td>—</td><td>Parent@50 0.9260</td><td>All-Hit@50 0.8286</td><td>覆盖提升，但延迟和 MRR 未达上线要求，未冒充生产结果。</td></tr>
+      </tbody></table>
+      <p class="note"><b>关于“非指标题能否用 All-Hit@k”：</b>可以，尤其适合趋势、多跳、比较等需要多份证据的问题；但它非常严格，相关集大小超过 k 时天然不可达，而且不关心结果次序。因此项目同时报告 NDCG、Recall、MRR、严格 All-Hit、可达子集 All-Hit 和 Parent All-Hit。</p>
+      <h3>测试基线</h3>
+      <p>本次交付对当前工作树复测：后端 pytest <b>167/167</b> 通过（26.82s），前端 Vitest <b>13/13</b> 通过，生产构建通过，npm audit 为 <b>0</b> 个已知漏洞；构建后的公共核心 JS（入口、Vue 核心与 Element Plus vendor）gzip 合计约 <b>148.1KB</b>。Playwright+axe 的 <b>9</b> 个页面/视口组合来自上一轮同一改动集的完整浏览器验收，本轮未重复下载浏览器执行。</p>
+    </section>
+
+    <section id="limits">
+      <h2>15. 真实边界：目前还不是什么</h2>
+      <ul>
+        <li><b>不是开箱即用的真实 AI 公网服务：</b>生产配置当前为 mock/mock/none。它验证全栈运行、安全入口和数据流程，但真实高质量回答仍需安全配置 embedding、LLM、rerank。</li>
+        <li><b>不是多节点高可用：</b>SQLite 和本地/单卷 pipeline 适合单机。横向扩容需要 PostgreSQL、对象存储、共享任务状态与集群化依赖。</li>
+        <li><b>非指标题最终排序没有 0.9：</b>深召回已超过 0.9，但稳定 Top-8 NDCG/Recall 尚未达到。不能把 Recall@500 写成 NDCG@8。</li>
+        <li><b>不是完整身份系统：</b>应用内 HMAC 可选，公网入口用 Basic Auth；没有用户注册、JWT、RBAC 管理后台、密码找回或审计控制台。</li>
+        <li><b>不是全格式无损解析：</b>复杂合并单元格、图片表格、特殊字体和极差扫描件仍可能需要 OCR/解析器专项适配。</li>
+        <li><b>不是完备可观测平台：</b>已有 JSON trace 和 OTel 接口，但告警、仪表盘、SLO、在线反馈和自动回归闭环仍需部署。</li>
+      </ul>
+    </section>
+
+    <section id="roadmap">
+      <h2>16. 仍值得做的优化（按优先级）</h2>
+      <table><thead><tr><th>优先级</th><th>优化</th><th>实施步骤</th><th>预期</th></tr></thead><tbody>
+        <tr><td>P0</td><td>把生产从 Mock 切到真实模型并建立密钥管理</td><td>选定 embedding/LLM/rerank；密钥进云 Secret；小流量回归 239 题；设置并发、超时、费用上限和熔断。</td><td>从“可部署演示”变成真正可答的服务。</td></tr>
+        <tr><td>P0</td><td>备份、恢复、监控和证书告警</td><td>SQLite+Qdrant 一致性快照；恢复演练；Prometheus/OTLP 仪表盘；证书、容器重启、队列堆积告警。</td><td>避免单机故障和短期 IP 证书失效。</td></tr>
+        <tr><td>P0</td><td>非指标覆盖感知 reranker</td><td>以问题方面为单位构造监督样本；训练/微调领域 cross-encoder 或 listwise reranker；优化 NDCG@8、All-Hit@k 与延迟的联合目标；按未见公司 holdout 验收。</td><td>把 0.9+ 候选覆盖转化为更高的前排覆盖；不能预先承诺 0.9 NDCG。</td></tr>
+        <tr><td>P1</td><td>迁移 PostgreSQL + Alembic</td><td>建立正式 migration；双写/校验；停机切换；连接池和事务隔离测试。</td><td>支持多 API/worker、减少 SQLite 写锁风险。</td></tr>
+        <tr><td>P1</td><td>对象存储与无状态 worker</td><td>原文/阶段产物转 S3/OSS；任务只传对象 key；幂等 checkpoint；生命周期策略。</td><td>容器可横向扩缩，数据不依赖单机卷。</td></tr>
+        <tr><td>P1</td><td>拆分超长核心函数</td><td>将 <code>hybrid_search</code> 拆候选/融合/精排/后处理；<code>stream_answer</code> 拆缓存/检索/生成/持久化；以现有测试保护行为。</td><td>降低回归风险，提高可维护性。</td></tr>
+        <tr><td>P1</td><td>真实用户体系和细粒度授权</td><td>OIDC/JWT、用户/组织/角色表、服务端从令牌推导 org 和权限，禁止客户端自报。</td><td>从入口共享密码升级为可审计多租户。</td></tr>
+        <tr><td>P1</td><td>在线反馈闭环</td><td>点赞/纠错/引用命中埋点；负反馈脱敏回灌；周度离线回归和小流量 A/B。</td><td>让优化由真实问题驱动。</td></tr>
+        <tr><td>P2</td><td>OpenAPI 自动生成前端类型</td><td>CI 导出 schema，生成 TS client，替换手写重复 DTO。</td><td>减少前后端协议漂移。</td></tr>
+        <tr><td>P2</td><td>解析与字段抽取增强</td><td>合并表头/跨页表专项集；版面模型；LLM 抽取只做候选并用规则校验。</td><td>改善复杂财报字段覆盖而不牺牲可解释性。</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="runbook">
+      <h2>17. 给学生的阅读与实践顺序</h2>
+      <ol>
+        <li>先读 <code>frontend/src/views/UploadView.vue</code> 和 <code>api/v1/documents.py</code>，跟踪一次上传。</li>
+        <li>再读 <code>pipelines/ingest.py</code>，每看到一个阶段就跳到 parsers/fields/splitter/store 对应文件。</li>
+        <li>用 SQLite 查看 Document/Task 状态，再去 Qdrant 看 chunk payload，理解“元数据”和“向量点”为什么分开。</li>
+        <li>从 <code>ChatView.vue → api/chat.ts → api/v1/chat.py → pipelines/answer.py</code> 跟踪一条问题。</li>
+        <li>单独阅读 <code>retrieval/search.py</code> 前先跑 <code>test_rrf.py</code>、<code>test_router.py</code> 和 <code>test_search_enhance.py</code>，用测试理解规则。</li>
+        <li>最后读 <code>eval_metrics.py</code> 与量化报告，学会区分“召回池找到了”和“最终 Top-k 排好了”。</li>
+      </ol>
+      <h3>本地启动（开发）</h3>
+      <pre>copy .env.example .env
+docker compose -f infra/docker-compose.yml up -d --build
+
+# 验证
+curl http://127.0.0.1:8000/livez
+curl http://127.0.0.1:8000/healthz
+# 浏览器打开 http://127.0.0.1:5173</pre>
+      <h3>生产更新原则</h3>
+      <p>保留数据卷，先备份，再构建和滚动更新；验证 livez、healthz、worker pong、前端和日志。不要使用 <code>down -v</code>，它会删除持久卷。真实模型密钥只放服务器 Secret/环境变量，不写进仓库、镜像、报告或日志。</p>
+    </section>
+    <footer>报告来源：当前 NewRAG 工作树源码、测试、<code>PROGRESS_REPORT.md</code>、<code>简历_检索召回量化报告.md</code> 与生产部署配置。本文不包含密钥和登录凭据。</footer>
+  </main>
+</div>
+</body>
+</html>

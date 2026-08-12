@@ -39,6 +39,7 @@ const stickToBottom = ref(true)
 const citeDrawer = ref(false)
 const activeCitation = ref<CitationData | null>(null)
 const showSettings = ref(false)
+const announcement = ref('')
 let tokenBuffer = ''
 let tokenFlushTimer: number | undefined
 let persistTimer: number | undefined
@@ -146,6 +147,7 @@ function abort() {
   const cur = currentAssistant.value
   if (cur) cur.streaming = false
   streaming.value = false
+  announcement.value = '已停止生成'
   persist()
 }
 
@@ -221,11 +223,13 @@ async function send(question?: string) {
           break
         case 'error':
           cur.error = evt.data.message
+          announcement.value = `生成失败：${evt.data.message}`
           break
         case 'done':
           cur.streaming = false
           streaming.value = false
           abortCtrl.value = null
+          announcement.value = 'AI 回答生成完成'
           persist()
           break
       }
@@ -243,6 +247,7 @@ async function send(question?: string) {
       flushTokens()
       persist()
       if (err.name !== 'AbortError') ElMessage.error(err.message)
+      if (err.name !== 'AbortError') announcement.value = `生成失败：${err.message}`
     },
   })
 }
@@ -287,6 +292,9 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-view">
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {{ announcement }}
+    </div>
     <!-- 顶部栏 -->
     <header class="chat-header">
       <div class="header-title">
@@ -309,18 +317,34 @@ onUnmounted(() => {
     <!-- 检索设置（org/visibility） -->
     <div v-if="showSettings" class="settings-bar">
       <div class="settings-field">
-        <label>机构 ID</label>
-        <el-input v-model="orgId" size="small" placeholder="default" style="width: 180px" />
+        <label for="chat-org">机构 ID</label>
+        <el-input
+          id="chat-org"
+          v-model="orgId"
+          name="org_id"
+          autocomplete="off"
+          size="small"
+          placeholder="例如 default…"
+          style="width: 180px"
+        />
       </div>
       <div class="settings-field">
-        <label>可见性</label>
-        <el-select v-model="visibility" size="small" style="width: 140px">
+        <label for="chat-visibility">可见性</label>
+        <el-select
+          id="chat-visibility"
+          v-model="visibility"
+          name="visibility"
+          size="small"
+          style="width: 140px"
+        >
           <el-option label="公开 public" value="public" />
           <el-option label="内部 internal" value="internal" />
           <el-option label="受限 restricted" value="restricted" />
         </el-select>
       </div>
-      <div class="settings-hint">权限过滤：仅检索「org={{ orgId }}」下可见性不高于所选档位的知识块</div>
+      <div class="settings-hint">
+        权限过滤：仅检索「org={{ orgId }}」下可见性不高于所选档位的知识块
+      </div>
     </div>
 
     <!-- 消息区 -->
@@ -368,6 +392,9 @@ onUnmounted(() => {
           :rows="2"
           :autosize="{ minRows: 1, maxRows: 6 }"
           placeholder="输入你的问题，Enter 发送 / Shift+Enter 换行"
+          aria-label="输入财报问题"
+          name="question"
+          autocomplete="off"
           resize="none"
           :disabled="streaming"
           @keydown="onKeydown"
@@ -375,14 +402,11 @@ onUnmounted(() => {
         <div class="input-actions">
           <span v-if="sessionId" class="session-tag">
             会话 #{{ sessionId.slice(0, 8) }}
-            <el-icon class="refresh-icon" :size="13" @click="newChat"><Refresh /></el-icon>
+            <button class="refresh-button" type="button" aria-label="清空当前会话" @click="newChat">
+              <el-icon :size="13" aria-hidden="true"><Refresh /></el-icon>
+            </button>
           </span>
-          <el-button
-            v-if="streaming"
-            type="danger"
-            :icon="VideoPause"
-            @click="abort"
-          >
+          <el-button v-if="streaming" type="danger" :icon="VideoPause" @click="abort">
             停止
           </el-button>
           <el-button
@@ -548,7 +572,10 @@ onUnmounted(() => {
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 .sample-card:hover:not(:disabled) {
   border-color: var(--color-accent);
@@ -573,7 +600,9 @@ onUnmounted(() => {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 10px 12px 8px;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 .input-box:focus-within {
   border-color: var(--color-accent);
@@ -593,12 +622,22 @@ onUnmounted(() => {
   color: var(--color-fg-faint);
   font-family: var(--font-mono);
 }
-.refresh-icon {
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   cursor: pointer;
   color: var(--color-fg-muted);
   transition: color 150ms ease;
 }
-.refresh-icon:hover {
+.refresh-button:hover,
+.refresh-button:focus-visible {
   color: var(--color-accent);
 }
 

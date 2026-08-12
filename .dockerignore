@@ -1,0 +1,15 @@
+.git
+.codegraph
+.serena
+.env
+**/.env
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/dist
+**/test-results
+data
+backend/data
+frontend/test-results
+*.log

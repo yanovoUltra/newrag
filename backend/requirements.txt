@@ -30,6 +30,7 @@ beautifulsoup4>=4.12  # 财报抓取工具（SEC HTML 清洗）
 opentelemetry-sdk>=1.44,<2.0
 opentelemetry-api>=1.44,<2.0
 opentelemetry-instrumentation-fastapi>=0.65b0,<0.66
+opentelemetry-exporter-otlp-proto-http>=1.44,<2.0
 
 # ===== 测试 =====
 pytest>=8.0
