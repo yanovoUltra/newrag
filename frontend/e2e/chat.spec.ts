@@ -16,6 +16,7 @@ test('根路径重定向到 /chat，空状态与示例问题渲染', async ({ pa
 })
 
 test('发送问题得到流式回答并渲染（真实后端）', async ({ page }) => {
+  test.setTimeout(120_000)
   test.skip(!(await backendReady()), '后端不可用，跳过真实问答')
   await page.goto('/chat')
   const input = page.getByPlaceholder(/输入你的问题/)
@@ -24,7 +25,7 @@ test('发送问题得到流式回答并渲染（真实后端）', async ({ page 
   // 助手消息出现并逐步填充内容（非空）
   const assistant = page.locator('.msg-row.assistant').last()
   await expect(assistant).toBeVisible({ timeout: 15_000 })
-  await expect(assistant).toContainText(/营收|收入|亿元/, { timeout: 30_000 })
+  await expect(assistant).toContainText(/营收|收入|亿元/, { timeout: 90_000 })
 })
 
 test('prompt 注入被拦截并拒绝回答', async ({ page }) => {

@@ -171,12 +171,13 @@ def main() -> int:
                 try:
                     res = pick_ashare_pdf(code, is_prospectus)
                     break
-                except Exception as e:
+                except Exception:
                     if attempt == 3:
                         raise
                     time.sleep(2 * (attempt + 1))
             if not res:
-                fail.append((code, "未匹配到年报/招股书")); continue
+                fail.append((code, "未匹配到年报/招股书"))
+                continue
             url, title = res
             ext = ".pdf"
             name = f"{code}_{title[:40]}{ext}"
@@ -189,12 +190,14 @@ def main() -> int:
                             for chunk in r.iter_bytes():
                                 f.write(chunk)
                     break
-                except Exception as e:
+                except Exception:
                     if attempt == 3:
                         raise
                     time.sleep(2 * (attempt + 1))
             if path.stat().st_size < 20_000:
-                fail.append((code, f"文件过小 {path.stat().st_size}B")); path.unlink(missing_ok=True); continue
+                fail.append((code, f"文件过小 {path.stat().st_size}B"))
+                path.unlink(missing_ok=True)
+                continue
             ok.append((code, name, path.stat().st_size))
         except Exception as e:
             fail.append((code, f"{type(e).__name__}: {str(e)[:100]}"))
@@ -204,15 +207,19 @@ def main() -> int:
         try:
             cik = sec_cik_by_name(name)
             if not cik:
-                fail.append((ticker, "SEC 未找到公司")); continue
+                fail.append((ticker, "SEC 未找到公司"))
+                continue
             res = sec_latest_10k(cik)
             if not res:
-                fail.append((ticker, "未找到 10-K")); continue
+                fail.append((ticker, "未找到 10-K"))
+                continue
             url, _ = res
             path = outdir / f"{ticker}_10-K.docx"
             html_to_docx(url, path)
             if path.stat().st_size < 20_000:
-                fail.append((ticker, f"转换过小 {path.stat().st_size}B")); path.unlink(missing_ok=True); continue
+                fail.append((ticker, f"转换过小 {path.stat().st_size}B"))
+                path.unlink(missing_ok=True)
+                continue
             ok.append((ticker, path.name, path.stat().st_size))
         except Exception as e:
             fail.append((ticker, f"{type(e).__name__}: {str(e)[:100]}"))

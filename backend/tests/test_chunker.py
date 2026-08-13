@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.parsers.base import LayoutResult, ParsedPage, ParsedTable
-from app.parsers.structure import Section, build_section_tree, section_path_for_page
+from app.parsers.structure import build_section_tree, section_path_for_page
 from app.splitter.chunker import Chunk, build_chunks
 from app.splitter.tokens import count_tokens
 

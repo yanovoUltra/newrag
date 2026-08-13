@@ -84,7 +84,9 @@ def _nonce_seen(key: str, nonce: str) -> bool:
         _inmem_nonces[mem_key] = now
         while len(_inmem_nonces) > _INMEM_MAX:
             _inmem_nonces.popitem(last=False)
-        _inmem_nonces = OrderedDict((k, v) for k, v in _inmem_nonces.items() if now - v <= settings.auth_nonce_ttl)
+        expired = [k for k, v in _inmem_nonces.items() if now - v > settings.auth_nonce_ttl]
+        for expired_key in expired:
+            _inmem_nonces.pop(expired_key, None)
         return False
 
 

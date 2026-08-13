@@ -27,11 +27,9 @@ os.environ["SUMMARY_ENABLED"] = "false"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.core.config import get_settings  # noqa: E402
 from app.main import app  # noqa: E402
-from app.store.registry import init_db  # noqa: E402
-
 from app.store import qdrant as qdrant_store  # noqa: E402
+from app.store.registry import init_db  # noqa: E402
 
 
 def qdrant_available() -> bool:
@@ -54,7 +52,6 @@ def sample_pdf():
     """生成合成财报 PDF（fixture 级）。"""
     import fitz
 
-    settings = get_settings()
     path = os.path.join(_TMP, "sample_report.pdf")
     doc = fitz.open()
     p = doc.new_page()

@@ -21,10 +21,10 @@ BACKEND_DIR = SCRIPT_DIR.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+import golden_utils  # noqa: E402
+
 from app.core.config import get_settings  # noqa: E402
 from app.store import qdrant as qdrant_store  # noqa: E402
-
-import golden_utils  # noqa: E402
 
 # 英文指标表述（与 eval_set 现有英文题风格一致，extract 可匹配）
 _EN_METRIC = {

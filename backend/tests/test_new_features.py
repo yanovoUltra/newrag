@@ -6,11 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.core.config import get_settings
 from app.generation.grounding import extract_numbers, ground_answer
 from app.splitter.chunker import Chunk
 from app.splitter.semantic import _split_at_valleys, _split_sentences, refine_leaves_semantically
-from app.core.config import get_settings
-
 
 # ---- 接地校验 ----
 
@@ -93,8 +92,8 @@ def test_session_roundtrip():
 # ---- 数据清洗：NFKC 归一化 + 页眉页脚去重 ----
 
 def test_clean_nfkc_normalizes_numbers():
-    from app.parsers.clean import clean_layout, normalize_text
     from app.parsers.base import LayoutResult, ParsedPage
+    from app.parsers.clean import clean_layout, normalize_text
 
     assert normalize_text("营收１，７０７．４８亿元，增长１８．２％") == "营收1,707.48亿元,增长18.2%"
     layout = LayoutResult(
@@ -106,8 +105,8 @@ def test_clean_nfkc_normalizes_numbers():
 
 
 def test_clean_strips_repeated_headers_only_at_edges():
-    from app.parsers.clean import clean_layout
     from app.parsers.base import LayoutResult, ParsedPage
+    from app.parsers.clean import clean_layout
 
     header = "上海浦东发展银行股份有限公司 2024年年度报告"
     footer = "第 1 页 共 50 页"
@@ -148,8 +147,8 @@ def test_same_file_key():
 # ---- 数据清洗：页码剔除 + 接地校验单位归一化 ----
 
 def test_clean_strips_page_numbers_only_at_edges():
-    from app.parsers.clean import clean_layout
     from app.parsers.base import LayoutResult, ParsedPage
+    from app.parsers.clean import clean_layout
 
     settings = SimpleNamespace(
         clean_enable=True, clean_nfkc=True, clean_header_footer=False,

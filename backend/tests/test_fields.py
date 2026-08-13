@@ -11,7 +11,6 @@ from app.fields.metrics import (
 )
 from app.parsers.base import LayoutResult, ParsedPage, ParsedTable
 
-
 # ---------- metrics：数值/年份/目录 ----------
 
 def test_parse_number_commas_and_percent():

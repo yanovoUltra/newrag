@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.tasks.celery_app import celery_app
 from app.pipelines.ingest import run_ingest
+from app.tasks.celery_app import celery_app
 
 
 @celery_app.task(name="ingest.run", bind=True)

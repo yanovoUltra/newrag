@@ -1,4 +1,0 @@
-interface:
-  display_name: "NewRAG È«Á´Â·½»¸¶"
-  short_description: "Audit, optimize, deploy, and migrate financial RAG"
-  default_prompt: "Use $newrag-full-lifecycle to audit, optimize, deploy, migrate, and verify this financial-report RAG system end to end."

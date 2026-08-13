@@ -17,7 +17,6 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from app.core.config import get_settings  # noqa: E402
 from app.pipelines.ingest import run_ingest  # noqa: E402
 from app.store import qdrant as qdrant_store  # noqa: E402
 from app.store.registry import (  # noqa: E402
@@ -39,7 +38,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="批量入库财报")
     parser.add_argument("--dir", default=str(BACKEND_DIR.parent / "data" / "uploads"))
     args = parser.parse_args()
-    settings = get_settings()
     init_db()
 
     src = Path(args.dir).resolve()

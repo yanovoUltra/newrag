@@ -32,16 +32,20 @@ if str(BACKEND_DIR) not in sys.path:
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import golden_utils  # noqa: E402
+
 from app.core.config import get_settings  # noqa: E402
-from app.embed.embedder import get_embedder  # noqa: E402
 from app.fields.metrics import extract_metric_from_question  # noqa: E402
 from app.fields.subject import find_subject_company  # noqa: E402
 from app.pipelines.answer import _extract_year, _search_plan  # noqa: E402
 from app.retrieval.router import _is_summary_query, classify_query_type_keyword  # noqa: E402
 from app.store import qdrant as qdrant_store  # noqa: E402
-from app.store.registry import init_db, list_field_companies, query_fields, save_eval_result  # noqa: E402
-
-import golden_utils  # noqa: E402
+from app.store.registry import (  # noqa: E402
+    init_db,
+    list_field_companies,
+    query_fields,
+    save_eval_result,
+)
 
 GOLDEN_FILE = SCRIPT_DIR / "golden" / "eval_set.json"
 
@@ -202,7 +206,6 @@ async def main() -> int:
         items = [it for it in items if it["is_metric"]]
     print(f"有效条目: {len(items)}/{len(golden)}\n")
 
-    embedder = get_embedder()
     sem = asyncio.Semaphore(args.concurrency)
     t0 = time.perf_counter()
 

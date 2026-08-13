@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.core.logging import get_logger
 from app.fields.metrics import (
@@ -208,7 +208,6 @@ def _row_year_values(
 def _extract_from_table(doc_id: str, page_no: int, headers: list[str], rows: list[list]) -> list[FieldRecord]:
     """从单张表格抽取字段（模式 A + 模式 B）。"""
     out: list[FieldRecord] = []
-    n_cols = len(headers) if headers else (len(rows[0]) if rows else 0)
     # 整表金额单位（如"单位：人民币百万元"），用于金额类指标补全 unit
     tunit = table_unit(headers)
 

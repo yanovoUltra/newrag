@@ -31,6 +31,8 @@ BACKEND_DIR = SCRIPT_DIR.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+import golden_utils  # noqa: E402  (scripts/golden_utils.py：指纹化相关集解析)
+
 from app.core.config import get_settings  # noqa: E402
 from app.embed.embedder import get_embedder  # noqa: E402
 from app.pipelines.answer import _extract_year, _is_trend_query, _search_plan  # noqa: E402
@@ -44,8 +46,6 @@ from app.retrieval.rrf import rrf_fuse  # noqa: E402
 from app.retrieval.search import hybrid_search  # noqa: E402
 from app.store import qdrant as qdrant_store  # noqa: E402
 from app.store.registry import init_db, save_eval_result  # noqa: E402
-
-import golden_utils  # noqa: E402  (scripts/golden_utils.py：指纹化相关集解析)
 
 GOLDEN_FILE = SCRIPT_DIR / "golden" / "eval_set.json"
 _EXCLUDE = {"section"}

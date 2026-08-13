@@ -52,11 +52,12 @@ def _load_docs() -> list:
     return docs
 
 
-def _qdrant_doc_counts() -> dict[str, int]:
-    """Qdrant 全量 scroll：按 doc_id 统计点数。"""
+def _qdrant_doc_counts() -> tuple[dict[str, int], dict[str, int]]:
+    """Qdrant 全量 scroll：按 doc_id 统计总点数与摘要点数。"""
     client = qdrant_store.get_client()
     settings = get_settings()
     counts: dict[str, int] = {}
+    summary_counts: dict[str, int] = {}
     offset = None
     t0 = time.perf_counter()
     while True:
@@ -64,19 +65,21 @@ def _qdrant_doc_counts() -> dict[str, int]:
             collection_name=settings.qdrant_collection,
             limit=2000,
             offset=offset,
-            with_payload=["doc_id"],
+            with_payload=["doc_id", "chunk_type"],
             with_vectors=False,
         )
         for p in res[0]:
             did = (p.payload or {}).get("doc_id")
             if did:
                 counts[did] = counts.get(did, 0) + 1
+                if (p.payload or {}).get("chunk_type") == "summary":
+                    summary_counts[did] = summary_counts.get(did, 0) + 1
         if res[1] is None:
             break
         offset = res[1]
     logger.info("Qdrant 全量扫描完成: %d 点 / %d doc_id，耗时 %.1fs",
                 sum(counts.values()), len(counts), time.perf_counter() - t0)
-    return counts
+    return counts, summary_counts
 
 
 def _qdrant_doc_chunk_ids(doc_id: str) -> list[str]:
@@ -90,7 +93,7 @@ def _qdrant_doc_chunk_ids(doc_id: str) -> list[str]:
             collection_name=settings.qdrant_collection,
             limit=2000,
             offset=offset,
-            with_payload=False,
+            with_payload=["chunk_id"],
             with_vectors=False,
             scroll_filter=models.Filter(
                 must=[models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id))]
@@ -118,9 +121,14 @@ def _doc_summary(d) -> str:
     )
 
 
+def _count_matches(expected: int, total: int, summaries: int) -> bool:
+    """兼容摘要功能上线前后两种 registry.chunk_count 口径。"""
+    return expected == total or expected == total - summaries
+
+
 def cmd_stats(_args) -> int:
     docs = _load_docs()
-    counts = _qdrant_doc_counts()
+    counts, summary_counts = _qdrant_doc_counts()
     total_q = sum(counts.values())
     indexed = [d for d in docs if d.status == "indexed"]
     print(f"Qdrant 点数: {total_q}（{len(counts)} 个 doc_id）")
@@ -129,7 +137,9 @@ def cmd_stats(_args) -> int:
     bad = 0
     for d in sorted(docs, key=lambda x: x.created_at):
         q = counts.get(d.id, 0)
-        ok = (d.status == "indexed" and q == (d.chunk_count or 0))
+        ok = d.status == "indexed" and _count_matches(
+            d.chunk_count or 0, q, summary_counts.get(d.id, 0)
+        )
         if not ok and d.status == "indexed":
             bad += 1
         print(f"{d.id:<36}{d.status:<10}{d.chunk_count or 0:<10}{q:<10}{'OK' if ok else '!':<5}")
@@ -146,14 +156,15 @@ def cmd_stats(_args) -> int:
 def cmd_check(_args) -> int:
     """对账：输出每个不一致项的详细日志（doc 元数据 + 块级抽样），便于排查。"""
     docs = _load_docs()
-    counts = _qdrant_doc_counts()
+    counts, summary_counts = _qdrant_doc_counts()
     doc_ids = {d.id for d in docs}
     problems: list[str] = []
 
     for d in docs:
         q = counts.get(d.id, 0)
         expected = d.chunk_count or 0
-        if d.status == "indexed" and q != expected:
+        summaries = summary_counts.get(d.id, 0)
+        if d.status == "indexed" and not _count_matches(expected, q, summaries):
             diff = q - expected
             chunk_ids = _qdrant_doc_chunk_ids(d.id) if q > 0 else []
             logger.error(
@@ -172,8 +183,11 @@ def cmd_check(_args) -> int:
             problems.append(
                 f"残留点: {d.id} status={d.status} 但 qdrant={q} 点（reindex/手动清理）"
             )
-        elif d.status == "indexed" and q == expected:
-            logger.info("索引一致[OK] %s（%d 点）", _doc_summary(d), q)
+        elif d.status == "indexed":
+            logger.info(
+                "索引一致[OK] %s（%d 点，其中摘要 %d）",
+                _doc_summary(d), q, summaries,
+            )
 
     orphan = set(counts) - doc_ids
     for oid in sorted(orphan):

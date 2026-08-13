@@ -87,6 +87,16 @@ class TestVerifyRequest:
             ok, reason = verify_request("POST", "/api/v1/chat", body, {k.lower(): v for k, v in h.items()})
             assert ok, reason
 
+    def test_nonce_replay_fallback_without_redis(self, monkeypatch):
+        monkeypatch.setattr("app.store.redisx.get_redis", lambda: None)
+        body = b"{}"
+        nonce = f"fallback-{time.time_ns()}"
+        h = sign_headers("POST", "/api/v1/chat", body, nonce=nonce)
+        lowered = {k.lower(): v for k, v in h.items()}
+        assert verify_request("POST", "/api/v1/chat", body, lowered)[0]
+        ok, reason = verify_request("POST", "/api/v1/chat", body, lowered)
+        assert not ok and "重放" in reason
+
 
 class TestAuthMiddlewareHTTP:
     """HTTP 层：最小 FastAPI 应用 + AuthMiddleware（默认关闭时放行，开启时拦截）。"""
@@ -94,7 +104,6 @@ class TestAuthMiddlewareHTTP:
     @pytest.fixture()
     def http_app(self, monkeypatch):
         from fastapi import FastAPI
-        from fastapi.responses import JSONResponse
 
         from app.core.security import AuthMiddleware
 

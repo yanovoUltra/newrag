@@ -1,6 +1,5 @@
 from app.fields.subject import find_mentioned_companies, find_subject_company
 
-
 COMPANIES = [
     "中国工商银行",
     "中国建设银行",

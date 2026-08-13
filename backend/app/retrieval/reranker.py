@@ -62,7 +62,7 @@ class ApiReranker:
                         resp.raise_for_status()
                         data = resp.json()
                         break
-                    except Exception as e:
+                    except Exception:
                         if attempt >= 2:
                             raise
                         time.sleep(0.5 * (attempt + 1))

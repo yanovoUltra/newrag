@@ -37,16 +37,20 @@ if str(BACKEND_DIR) not in sys.path:
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import golden_utils  # noqa: E402
+
 from app.core.config import get_settings  # noqa: E402
 from app.embed.embedder import get_embedder  # noqa: E402
 from app.generation.llm import get_llm  # noqa: E402
 from app.generation.prompts import build_answer_messages  # noqa: E402
 from app.pipelines.answer import _extract_year, _search_plan  # noqa: E402
-from app.retrieval.router import _is_summary_query, classify_query_type_keyword, RoutePlan  # noqa: E402
+from app.retrieval.router import (  # noqa: E402
+    RoutePlan,
+    _is_summary_query,
+    classify_query_type_keyword,
+)
 from app.store import qdrant as qdrant_store  # noqa: E402
 from app.store.registry import init_db, save_eval_result  # noqa: E402
-
-import golden_utils  # noqa: E402
 
 GOLDEN_FILE = SCRIPT_DIR / "golden" / "eval_set.json"
 
