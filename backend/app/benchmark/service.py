@@ -75,7 +75,8 @@ def _normalize(row: FinancialField, kind: str) -> tuple[float | None, str, bool,
         unit = row.unit or "单位缺失"
         return None, f"{value:,.4g} {unit}", False, ["金额单位未知，未参与换算和排名"]
     normalized = value * factor / 1e8
-    return normalized, f"{normalized:,.2f} 亿元", True, warnings
+    precision = 4 if normalized and abs(normalized) < 0.01 else 2
+    return normalized, f"{normalized:,.{precision}f} 亿元", True, warnings
 
 
 def _is_conflict(values: list[float]) -> bool:
@@ -219,7 +220,9 @@ def analyze(req: BenchmarkRequest) -> BenchmarkAnalysis:
             and item["comparable"]
             and item["normalized_value"] is not None
         ]
-        if len(latest) >= 2 and profile["direction"] != "neutral":
+        # 金额字段尚未结构化保存币种、会计准则与合并范围，只允许同公司
+        # 同单位的年度变化计算，不生成可能误导的跨公司金额排名。
+        if len(latest) >= 2 and profile["kind"] != "amount" and profile["direction"] != "neutral":
             reverse = profile["direction"] == "higher"
             leader = sorted(latest, key=lambda item: item["normalized_value"], reverse=reverse)[0]
             direction_text = "最高" if reverse else "最低"
@@ -263,7 +266,7 @@ def analyze(req: BenchmarkRequest) -> BenchmarkAnalysis:
     if has_amount_metrics:
         warnings.append(
             "金额已统一数量级，但当前字段索引尚未结构化保存币种、会计准则与合并范围；"
-            "跨币种或跨口径公司的金额排名仅供初筛。"
+            "因此不生成跨公司金额排名，只保留同公司同单位的年度变化。"
         )
 
     if coverage >= 0.9 and evidence_coverage >= 0.95 and conflicts == 0 and not has_amount_metrics:

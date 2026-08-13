@@ -139,6 +139,21 @@ def test_amount_without_unit_is_not_ranked(client):
     assert metric["insights"] == []
 
 
+def test_amount_metrics_do_not_generate_cross_company_rankings(client):
+    _seed(client)
+    body = client.post(
+        "/api/v1/benchmark/analyze",
+        json={
+            "org_id": "benchmark-test",
+            "companies": ["甲公司", "乙公司"],
+            "years": [2024],
+            "metrics": ["revenue"],
+        },
+    ).json()
+    assert body["metrics"][0]["insights"] == []
+    assert any("不生成跨公司金额排名" in warning for warning in body["warnings"])
+
+
 def test_analysis_rejects_unknown_company_and_duplicate_inputs(client):
     _seed(client)
     unknown = client.post(

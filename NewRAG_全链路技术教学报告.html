@@ -42,23 +42,24 @@
       <p class="lead">本报告以当前工作树中的源码、配置、测试、评测报告和部署文件为依据。为了避免“写得很全但不真实”，先说明边界。</p>
       <div class="good"><b>纳入：</b>业务源码、配置、Docker/网关/systemd、前端页面、评测脚本、golden 数据、测试、项目设计文档。</div>
       <div class="warn"><b>不逐文件展开：</b><code>.git</code>、<code>node_modules</code>、<code>.venv</code>、<code>dist</code>、缓存、日志、临时目录、上传原文、SQLite/Qdrant/Redis 运行数据和任何密钥。它们是生成物、第三方依赖、运行数据或秘密，不是项目手写源码。</div>
-      <p>当前工作树存在根目录 <code>README.md</code>，但它和本报告在当前 <code>main</code> 分支尚未形成可在 GitHub 查看的一次提交；本文只陈述本轮实际复测结果。生产 Compose 默认是<b>演示后端</b>：Mock Embedding、Mock LLM、无 rerank；本地环境已验证真实模型问答，但生产切换仍需要在服务器端安全配置密钥和环境变量。</p>
+      <p>本报告及当前清理结果已经提交到本地 <code>main</code>；推送到 GitHub 后才会在远程主分支可见。本文只陈述本轮实际复测结果。生产 Compose 默认是<b>演示后端</b>：Mock Embedding、Mock LLM、无 rerank；本地环境已验证真实模型问答，但生产切换仍需要在服务器端安全配置密钥和环境变量。</p>
     </section>
 
     <section id="current">
       <h2>0.1 当前系统验收快照</h2>
       <p class="lead">截至 2026-08-13，本地完整栈已通过代码、浏览器、服务和数据四层验收；“本地开发完成”不等于“生产最终验收完成”。</p>
       <div class="metric-grid">
-        <div class="metric"><b>168/168</b>后端 pytest 全部通过</div>
-        <div class="metric"><b>13/13</b>前端 Vitest 全部通过</div>
-        <div class="metric"><b>13/13</b>Playwright E2E 全部通过</div>
+        <div class="metric"><b>173/173</b>后端 pytest 全部通过</div>
+        <div class="metric"><b>16/16</b>前端 Vitest 全部通过</div>
+        <div class="metric"><b>18/18</b>Playwright E2E 全部通过</div>
         <div class="metric"><b>31,421</b>Qdrant 向量点完成一致性对账</div>
         <div class="metric"><b>292</b>财务字段全部关联来源块</div>
         <div class="metric"><b>0</b>npm audit 已知漏洞</div>
       </div>
       <table><thead><tr><th>验收层</th><th>本轮实测</th><th>结论</th></tr></thead><tbody>
         <tr><td>代码质量</td><td>Ruff、ESLint、Prettier、TypeScript/Vite 构建、Python <code>pip check</code> 全部通过。</td><td class="ok">开发门禁通过。</td></tr>
-        <tr><td>浏览器行为</td><td>真实后端流式回答、提示注入拦截、导航，以及 375/768/1440 三种宽度下 9 组 axe/横向溢出检查通过。</td><td class="ok">13 个 E2E 全通过。</td></tr>
+        <tr><td>浏览器行为</td><td>真实后端流式回答、提示注入拦截、竞品对标与证据抽屉，以及 375/768/1440 三种宽度下 12 组 axe/横向溢出检查通过。</td><td class="ok">18 个 E2E 全通过。</td></tr>
+        <tr><td>竞品分析</td><td><code>/api/v1/benchmark</code> 已提供目录、分析、历史快照和详情接口；前端 <code>/benchmark</code> 支持公司/财年/指标选择、口径归一、同比、缺失/冲突提示及原始证据查看。</td><td class="ok">功能与专项测试已并入 main。</td></tr>
         <tr><td>运行服务</td><td>API、frontend、Qdrant、cache Redis、broker Redis、worker 六个容器 healthy；<code>/healthz</code> 的 app/qdrant/redis 均为 ok，Celery 返回 pong。</td><td class="ok">本地完整栈可用。</td></tr>
         <tr><td>数据一致性</td><td>16 份 indexed 文档；31,421 个向量点，其中 2,997 个摘要块；13,602 条数字短语索引；无孤儿点、缺块或残留点。</td><td class="ok">新旧摘要计数口径已兼容。</td></tr>
         <tr><td>清理结果</td><td>删除 5 个已集成的一次性迁移脚本、7 个重复技能文件、6 个临时二进制和 1 份陈旧进度报告，共 19 个文件。</td><td>保留评测、IDF、数字短语和索引维护等可重复运维脚本。</td></tr>
@@ -72,7 +73,7 @@
         <div class="card"><b>输入</b><br>PDF、DOCX、XLSX、PNG、JPG/JPEG；可附机构、权限、财年、财季。</div>
         <div class="card"><b>处理</b><br>解析版面、必要时 OCR、清洗、章节识别、Small-to-Big 切块、字段抽取、向量化、索引。</div>
         <div class="card"><b>检索</b><br>问题路由、主体/年份识别、dense+sparse+表格/字段/数字短语/父章节候选、RRF、可选 rerank。</div>
-        <div class="card"><b>输出</b><br>SSE 流式回答、引用页码与章节、字段命中、grounding 警告、用量与状态。</div>
+        <div class="card"><b>输出</b><br>SSE 流式回答、引用页码与章节，以及可保存、可追溯证据的多公司财报竞品对标报告。</div>
       </div>
       <h3>技术栈总览</h3>
       <table><thead><tr><th>层</th><th>真实技术</th><th>在项目中的作用</th></tr></thead><tbody>
@@ -81,9 +82,9 @@
         <tr><td>解析</td><td>PyMuPDF、pdfplumber、python-docx、openpyxl、可选 PaddleOCR API</td><td>读取 PDF 文本和表格、Word、Excel、图片与扫描页。</td></tr>
         <tr><td>AI</td><td>OpenAI 兼容 SDK、DashScope/DeepSeek 适配、Mock 后端</td><td>Embedding、轻量路由/摘要、回答生成、可选 qwen3-rerank。</td></tr>
         <tr><td>检索</td><td>Qdrant dense/sparse、多路 RRF、结构化字段 relay、数字短语索引、父子块</td><td>兼顾语义、关键词、精确数值与长上下文。</td></tr>
-        <tr><td>元数据</td><td>SQLAlchemy + SQLite</td><td>文档、任务、问答、评测、财务字段、数字短语和降级日志。</td></tr>
+        <tr><td>元数据</td><td>SQLAlchemy + SQLite</td><td>文档、任务、问答、评测、财务字段、竞品分析快照、数字短语和降级日志。</td></tr>
         <tr><td>缓存/会话</td><td>Redis</td><td>查询 embedding、语义答案缓存、会话窗口、nonce 防重放；文档 embedding 默认不缓存。</td></tr>
-        <tr><td>前端</td><td>Vue 3、TypeScript、Vue Router、Element Plus、Vite</td><td>聊天、文档库、上传三个页面；页面级懒加载。</td></tr>
+        <tr><td>前端</td><td>Vue 3、TypeScript、Vue Router、Element Plus、Vite</td><td>聊天、竞品对标、文档库、上传四个页面；页面级懒加载。</td></tr>
         <tr><td>安全渲染</td><td>marked + DOMPurify</td><td>Markdown 转 HTML 后消毒，降低 XSS 风险。</td></tr>
         <tr><td>质量</td><td>pytest、Vitest、Playwright、axe、Ruff、ESLint、Prettier</td><td>单元/接口/E2E/无障碍与静态规范。</td></tr>
         <tr><td>部署</td><td>Docker Compose、Nginx、Caddy、Certbot、systemd</td><td>容器化、Basic Auth 入口、反向代理、可信 HTTPS 与自动续期。</td></tr>
@@ -113,6 +114,7 @@
       <div class="tree">浏览器（Vue 3）
   ├─ /upload ───── multipart ──┐
   ├─ /documents ── REST ───────┤→ Caddy:443 → Nginx:8080 → FastAPI:8000
+  ├─ /benchmark ── REST ───────┤                          │
   └─ /chat ─────── POST + SSE ─┘                          │
                                                          ├─ SQLite：业务元数据/字段/评测
                                                          ├─ Redis Cache：缓存/会话/nonce
@@ -345,7 +347,7 @@
       </tbody></table>
       <p class="note"><b>关于“非指标题能否用 All-Hit@k”：</b>可以，尤其适合趋势、多跳、比较等需要多份证据的问题；但它非常严格，相关集大小超过 k 时天然不可达，而且不关心结果次序。因此项目同时报告 NDCG、Recall、MRR、严格 All-Hit、可达子集 All-Hit 和 Parent All-Hit。</p>
       <h3>测试基线</h3>
-      <p>本次交付对当前工作树复测：后端 pytest <b>168/168</b> 通过，Ruff 与 <code>pip check</code> 通过；前端 Vitest <b>13/13</b>、Playwright <b>13/13</b> 通过，ESLint、Prettier、TypeScript/Vite 生产构建通过，npm audit 为 <b>0</b> 个已知漏洞。Playwright 包含 <b>9</b> 组页面/视口无障碍与水平溢出检查，以及真实后端流式回答、提示注入和导航测试。构建最大单个 JS 包为 315.62KB，gzip 104.33KB。</p>
+      <p>合入竞品对标 Agent 并补上金额口径防线后复测：后端 pytest <b>173/173</b> 通过；前端 Vitest <b>16/16</b>、Playwright <b>18/18</b> 通过，TypeScript/Vite 生产构建通过。Playwright 包含 <b>12</b> 组页面/视口 axe 检查、竞品报告生成与证据查看、375px 竞品页无横向溢出，以及真实后端流式回答、提示注入和导航测试。构建新增独立懒加载的 BenchmarkView 包 14.15KB（gzip 5.69KB），最大单个 JS 包为 317.23KB（gzip 104.69KB）。</p>
     </section>
 
     <section id="limits">
@@ -358,6 +360,7 @@
         <li><b>不是全格式无损解析：</b>复杂合并单元格、图片表格、特殊字体和极差扫描件仍可能需要 OCR/解析器专项适配。</li>
         <li><b>不是完备可观测平台：</b>已有 JSON trace 和 OTel 接口，但告警、仪表盘、SLO、在线反馈和自动回归闭环仍需部署。</li>
         <li><b>不是已经完成全部离线评测：</b>检索消融和 RAGAS 小样本已有记录，但全量 RAGAS 基线尚未补跑，不能把小样本数字当最终总体结论。</li>
+        <li><b>竞品金额不是天然跨公司可比：</b>系统会换算数量级并拒绝未知单位，但币种、会计准则和合并范围尚未完全结构化；因此当前不生成跨公司金额排名，只保留同公司同单位同比，缺失、冲突和不可比单元格会明确标记。</li>
         <li><b>真实问答延迟仍有波动：</b>本轮真实 E2E 最终通过，但相同链路观察到约 21–72 秒耗时；功能正确不等于首字体验已经达标。</li>
       </ul>
     </section>
@@ -366,7 +369,7 @@
       <h2>16. 仍值得做的优化（按优先级）</h2>
       <table><thead><tr><th>优先级</th><th>优化</th><th>实施步骤</th><th>预期</th></tr></thead><tbody>
         <tr><td>P0</td><td>把生产从 Mock 切到真实模型并建立密钥管理</td><td>复用本地已验证的真实模型适配；密钥进云 Secret；先跑小流量与 holdout，再执行完整评测；设置并发、超时、费用上限和熔断。</td><td>从“可部署演示”变成真正可答的生产服务。</td></tr>
-        <tr><td>P0</td><td>降低真实问答首字延迟</td><td>拆分检索、路由、rerank、LLM 首 token 耗时；缓存稳定路由结果；限制不必要的 HyDE/多计划；为 E2E 建立首字和总时长预算。</td><td>在保持 13/13 E2E 正确性的同时稳定交互体验。</td></tr>
+        <tr><td>P0</td><td>降低真实问答首字延迟</td><td>拆分检索、路由、rerank、LLM 首 token 耗时；缓存稳定路由结果；限制不必要的 HyDE/多计划；为 E2E 建立首字和总时长预算。</td><td>在保持 18/18 E2E 正确性的同时稳定交互体验。</td></tr>
         <tr><td>P0</td><td>备份、恢复、监控和证书告警</td><td>SQLite+Qdrant 一致性快照；恢复演练；Prometheus/OTLP 仪表盘；证书、容器重启、队列堆积告警。</td><td>避免单机故障和短期 IP 证书失效。</td></tr>
         <tr><td>P0</td><td>非指标覆盖感知 reranker</td><td>以问题方面为单位构造监督样本；训练/微调领域 cross-encoder 或 listwise reranker；优化 NDCG@8、All-Hit@k 与延迟的联合目标；按未见公司 holdout 验收。</td><td>把 0.9+ 候选覆盖转化为更高的前排覆盖；不能预先承诺 0.9 NDCG。</td></tr>
         <tr><td>P1</td><td>迁移 PostgreSQL + Alembic</td><td>建立正式 migration；双写/校验；停机切换；连接池和事务隔离测试。</td><td>支持多 API/worker、减少 SQLite 写锁风险。</td></tr>
