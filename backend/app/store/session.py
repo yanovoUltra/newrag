@@ -38,8 +38,8 @@ def get_history(session_id: str) -> list[dict]:
             return []
         data = json.loads(raw)
         return data if isinstance(data, list) else []
-    except Exception as e:
-        logger.warning("读取会话历史失败: %s", e)
+    except Exception as exc:
+        logger.warning("读取会话历史失败: type=%s", type(exc).__name__)
         return []
 
 
@@ -58,5 +58,5 @@ def append_turn(session_id: str, question: str, answer: str) -> None:
         if window > 0:
             history = history[-window * 2 :]
         r.set(_key(session_id), json.dumps(history, ensure_ascii=False), ex=SESSION_TTL)
-    except Exception as e:
-        logger.warning("写入会话历史失败: %s", e)
+    except Exception as exc:
+        logger.warning("写入会话历史失败: type=%s", type(exc).__name__)

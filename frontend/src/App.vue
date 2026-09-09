@@ -4,14 +4,17 @@ import { useRoute } from 'vue-router'
 import {
   ChatDotRound,
   DataAnalysis,
+  Histogram,
   TrendCharts,
   UploadFilled,
   CircleCheckFilled,
   WarningFilled,
 } from '@element-plus/icons-vue'
+import { getPublicConfig } from '@/api/config'
 
 const route = useRoute()
 const health = ref<'ok' | 'down' | 'checking'>('checking')
+const runtimeMode = ref<'demo' | 'real' | 'unknown'>('unknown')
 let timer: number | undefined
 
 async function checkHealth() {
@@ -28,8 +31,17 @@ async function checkHealth() {
   }
 }
 
+async function loadRuntimeMode() {
+  try {
+    runtimeMode.value = (await getPublicConfig()).runtime_mode
+  } catch {
+    runtimeMode.value = 'unknown'
+  }
+}
+
 onMounted(() => {
   checkHealth()
+  loadRuntimeMode()
   timer = window.setInterval(checkHealth, 30_000)
 })
 onUnmounted(() => window.clearInterval(timer))
@@ -37,6 +49,7 @@ onUnmounted(() => window.clearInterval(timer))
 const navItems = [
   { path: '/chat', label: '智能问答', icon: ChatDotRound },
   { path: '/benchmark', label: '竞品对标', icon: TrendCharts },
+  { path: '/evaluations', label: '模型评估', icon: Histogram },
   { path: '/documents', label: '文档库', icon: DataAnalysis },
   { path: '/upload', label: '上传文档', icon: UploadFilled },
 ]
@@ -83,11 +96,16 @@ const navItems = [
 
     <!-- 主内容 -->
     <main id="main-content" class="main" tabindex="-1">
-      <router-view v-slot="{ Component }">
-        <transition name="fade-slide" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+      <div v-if="runtimeMode === 'demo'" class="demo-banner" role="status">
+        演示模式：公网环境使用 Mock 模型，仅展示系统流程；模型评测数据来自本地真实实验。
+      </div>
+      <div class="route-content">
+        <router-view v-slot="{ Component }">
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </div>
     </main>
   </div>
 </template>
@@ -216,10 +234,29 @@ const navItems = [
 }
 
 .main {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   background: var(--color-bg);
+}
+
+.demo-banner {
+  flex: none;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.route-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 窄屏：顶部精简品牌区 + 底部三项导航 */

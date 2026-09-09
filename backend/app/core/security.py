@@ -14,6 +14,7 @@ nonce 去重：优先 Redis SETNX（跨 worker 生效）；Redis 不可用退化
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import threading
@@ -21,7 +22,8 @@ import time
 from collections import OrderedDict
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.identity import IdentityError, authenticate_bearer
+from app.core.logging import get_logger, get_trace_id
 
 logger = get_logger(__name__)
 
@@ -73,8 +75,8 @@ def _nonce_seen(key: str, nonce: str) -> bool:
         r = get_redis()
         if r is not None:
             return not r.set(f"auth:nonce:{key}:{nonce}", 1, ex=settings.auth_nonce_ttl, nx=True)
-    except Exception as e:
-        logger.warning("nonce 去重降级到进程内: %s", e)
+    except Exception as exc:
+        logger.warning("nonce 去重降级到进程内: type=%s", type(exc).__name__)
     # 进程内兜底
     now = time.time()
     mem_key = f"{key}:{nonce}"
@@ -116,10 +118,10 @@ def verify_request(method: str, path: str, body: bytes, headers: dict[str, str])
 
 
 class AuthMiddleware:
-    """FastAPI 中间件：开启 AUTH_ENABLED 后保护 /api/v1/*。
+    """FastAPI 中间件：按 AUTH_MODE 保护 /api/v1/*。
 
     放行：/healthz、/livez、/api/v1/config/public、OpenAPI 文档、CORS 预检。
-    未开启或未配置密钥时完全放行（默认开发行为，不影响既有流程）。
+    disabled 为开发兼容模式；生产使用 OIDC，HMAC 仅保留给内部服务。
     """
 
     def __init__(self, app, *, protected_prefix: str = "/api/v1"):
@@ -131,7 +133,10 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
         settings = get_settings()
-        if not settings.auth_enabled or not settings.auth_client_key or not settings.auth_secret:
+        mode = settings.auth_mode.lower().strip()
+        if mode == "disabled" and settings.auth_enabled:
+            mode = "hmac"
+        if mode == "disabled":
             await self.app(scope, receive, send)
             return
         request = _Request(scope, receive, send)
@@ -145,14 +150,40 @@ class AuthMiddleware:
         ):
             await self.app(scope, receive, send)
             return
-        body = await request.body()
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
-        ok, reason = verify_request(method, path, body, headers)
-        if not ok:
-            response = _JSONResponse(401, {"detail": f"认证失败: {reason}"})
+        if mode == "oidc":
+            authorization = headers.get("authorization", "")
+            scheme, _, token = authorization.partition(" ")
+            if scheme.lower() != "bearer" or not token:
+                response = _auth_error(401, "missing_bearer")
+                await response(scope, receive, send)
+                return
+            try:
+                principal = await asyncio.to_thread(authenticate_bearer, token)
+            except IdentityError:
+                response = _auth_error(401, "invalid_bearer")
+                await response(scope, receive, send)
+                return
+            scope.setdefault("state", {})["principal"] = principal
+            await self.app(scope, receive, send)
+            return
+        if mode != "hmac" or not settings.auth_client_key or not settings.auth_secret:
+            response = _auth_error(503, "auth_unavailable")
             await response(scope, receive, send)
             return
-        # 验签通过：验签已消费请求体，包装 receive 将 body 重放给下游（下游只需读一次）
+        # multipart 上传使用 TLS + 头部签名，不缓存完整文件；JSON 等小请求继续签正文。
+        content_type = headers.get("content-type", "").lower()
+        body = b"" if content_type.startswith("multipart/form-data") else await request.body()
+        ok, reason = verify_request(method, path, body, headers)
+        if not ok:
+            logger.warning("HMAC auth rejected: reason=%s", _reason_code(reason))
+            response = _auth_error(401, "invalid_hmac")
+            await response(scope, receive, send)
+            return
+        if content_type.startswith("multipart/form-data"):
+            await self.app(scope, receive, send)
+            return
+        # 验签通过：JSON 验签已消费请求体，包装 receive 将 body 重放给下游。
         sent = False
 
         async def replay_receive():
@@ -163,6 +194,27 @@ class AuthMiddleware:
             return {"type": "http.disconnect"}
 
         await self.app(scope, replay_receive, send)
+
+
+def _reason_code(reason: str) -> str:
+    if "缺少" in reason:
+        return "missing_headers"
+    if "timestamp" in reason or "窗口" in reason:
+        return "expired_timestamp"
+    if "nonce" in reason or "重放" in reason:
+        return "nonce_replay"
+    return "invalid_signature"
+
+
+def _auth_error(status: int, code: str) -> "_JSONResponse":
+    return _JSONResponse(
+        status,
+        {
+            "detail": "认证失败" if status == 401 else "认证服务暂不可用",
+            "code": code,
+            "request_id": get_trace_id(),
+        },
+    )
 
 
 class _Request:

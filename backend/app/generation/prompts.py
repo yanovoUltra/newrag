@@ -26,7 +26,7 @@ ROUTER_PROMPT = """你是检索路由引擎。根据用户问题，输出 JSON�
   "intent": "factual | abstract | multi_hop | table",
   "complexity": "simple | complex",
   "query_type": "metric | entity | general",
-  "rewritten_query": "改写后的精准检索查询（去除口语、补充指代），
+  "rewritten_query": "改写后的精准检索查询（去除口语、补充指代）",
   "sub_queries": [
     {"step": 1, "question": "原子子查询1（尽量用单一文档片段直接回答）", "dependency": null},
     {"step": 1, "question": "原子子查询2", "dependency": null},
@@ -56,6 +56,23 @@ query_type 判定规则（用于稀疏路检索的 IDF 动态开关）：
 
 complexity：问题简单（单数字/单事实）为 simple，涉及推理/多文档/多步骤为 complex。"""
 
+# 方面检索只用于显式消融。默认 ROUTER_PROMPT 保持优化前的生产基线，避免仅仅
+# “不执行方面召回”却仍因提示词变化造成路由漂移。
+ASPECT_ROUTER_PROMPT = ROUTER_PROMPT.replace(
+    '  "needs_hyde": true | false',
+    '  "evidence_aspects": ["证据方面1", "证据方面2"],\n'
+    '  "needs_hyde": true | false',
+).replace(
+    "query_type 判定规则（用于稀疏路检索的 IDF 动态开关）：",
+    """evidence_aspects 规则：
+-- factual/metric 单点题返回空数组；
+-- abstract、比较、趋势、原因、风险、治理、战略或分部题，拆成 2~5 个互不重复且可由证据支持的方面，
+   例如“战略、原因、影响、风险、时间变化”；每项只写方面名称，不写答案、不编造财务事实；
+-- multi_hop 已由 sub_queries 拆解时返回空数组，避免重复检索。
+
+query_type 判定规则（用于稀疏路检索的 IDF 动态开关）：""",
+)
+
 HYDE_PROMPT = """请根据问题生成一段约 80~100 字、符合中国上市公司年报表述风格的假设性文本（供检索扩写，非最终答案）。要求：
 1. 严格保留问题中的实体、指标、年份，不得编造任何具体数值、比例、金额；
 2. 用正式财报话术组织语言（如"报告期内，公司……""较上年……"），补充合理的上下文句式；
@@ -83,6 +100,13 @@ def build_answer_messages(
     for i, b in enumerate(context_blocks, start=1):
         source = f"{b['doc_name']}-{b['section_path']}-第{b['page']}页"
         content = b["content"]
+        refs = b.get('contained_citations') or []
+        if refs:
+            content += '\n【正文内来源定位：偏移从0开始，区间左闭右开；引用对应原页】\n' + '\n'.join(
+                f"字符[{r['start']}:{r['start'] + r['length']}] "
+                f"[{r['doc_name']}-{r['section_path']}-第{r['page']}页]"
+                for r in refs
+            )
         parent = b.get("parent_content") or ""
         if parent and b.get("chunk_type") != "section":
             blocks.append(

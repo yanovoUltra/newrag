@@ -12,14 +12,17 @@ import {
 } from '@element-plus/icons-vue'
 import { pollTask, uploadDocument } from '@/api/documents'
 import { getPublicConfig } from '@/api/config'
+import { getIdentityContext } from '@/auth'
 import type { TaskItem } from '@/types'
 import { getCurrentYear, MIN_FISCAL_YEAR } from '@/utils/date'
 
 const router = useRouter()
+const identity = getIdentityContext()
+const identityLocked = identity !== null
 
 const file = ref<File | null>(null)
-const orgId = ref(localStorage.getItem('newrag:chat:settings:org') ?? 'default')
-const visibility = ref('public')
+const orgId = ref(identity?.orgId ?? localStorage.getItem('newrag:chat:settings:org') ?? 'default')
+const visibility = ref(identity?.visibility ?? 'public')
 const fiscalYear = ref<number | null>(null)
 const fiscalQuarter = ref<number | null>(null)
 const currentYear = ref(getCurrentYear())
@@ -167,7 +170,7 @@ onMounted(async () => {
             link
             type="danger"
             :icon="Delete"
-            :disabled="uploading"
+            :disabled="uploading || identityLocked"
             @click.stop="clearFile"
           >
             移除文件
@@ -190,7 +193,7 @@ onMounted(async () => {
             name="org_id"
             autocomplete="off"
             placeholder="例如 default…"
-            :disabled="uploading"
+            :disabled="uploading || identityLocked"
           />
           <span class="field-hint">检索按此维度做权限隔离</span>
         </div>

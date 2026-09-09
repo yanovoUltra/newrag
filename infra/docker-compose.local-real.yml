@@ -1,0 +1,40 @@
+services:
+  api:
+    environment: &local-real-models
+      RUNTIME_PROFILE: local-real
+      MODEL_RUNTIME_MODE: real
+      EMBEDDING_BACKEND: api
+      LLM_PROVIDER: openai
+      RUNTIME_ENDPOINT_PROBE: "true"
+      EMBEDDING_API_KEY: ""
+      EMBEDDING_API_KEY_FILE: /run/secrets/embedding_api_key
+      LLM_API_KEY: ""
+      LLM_API_SECRET_NAME: LLM_API_KEY
+      LLM_API_KEY_FILE: /run/secrets/llm_api_key
+      LLM_BASE_URL: https://api.deepseek.com
+      LLM_MODEL: deepseek-v4-flash-vision-exp
+      LLM_LIGHT_API_KEY: ""
+      LLM_LIGHT_API_SECRET_NAME: LLM_API_KEY
+      LLM_LIGHT_BASE_URL: https://api.deepseek.com
+      LLM_LIGHT_MODEL: deepseek-v4-flash
+      LLM_ROUTER_FALLBACK_MODEL: ""
+      RERANK_BACKEND: api
+      RERANK_API_BASE: http://host.docker.internal:8010
+      RERANK_API_AUTH_REQUIRED: "false"
+      RERANK_HEALTH_PATH: /healthz
+      OCR_ENABLED: "false"
+      PPOCR_TOKEN: ""
+    secrets:
+      - embedding_api_key
+      - llm_api_key
+  worker:
+    environment: *local-real-models
+    secrets:
+      - embedding_api_key
+      - llm_api_key
+
+secrets:
+  embedding_api_key:
+    environment: NEWRAG_EMBEDDING_API_KEY
+  llm_api_key:
+    environment: NEWRAG_LLM_API_KEY

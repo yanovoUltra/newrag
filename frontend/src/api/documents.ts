@@ -1,5 +1,6 @@
 // ---- 文档 & 任务 API ----
 import { request, extractDetail } from './client'
+import { authorizationHeaders } from '@/auth'
 import type { DocumentItem, DocumentPage, TaskItem } from '@/types'
 
 export interface UploadResult {
@@ -54,7 +55,11 @@ export async function uploadDocument(form: UploadForm): Promise<UploadResult> {
   fd.append('visibility', form.visibility)
   if (form.fiscal_year) fd.append('fiscal_year', String(form.fiscal_year))
   if (form.fiscal_quarter) fd.append('fiscal_quarter', String(form.fiscal_quarter))
-  const res = await fetch('/api/v1/documents', { method: 'POST', body: fd })
+  const res = await fetch('/api/v1/documents', {
+    method: 'POST',
+    body: fd,
+    headers: await authorizationHeaders(),
+  })
   if (!res.ok) {
     throw new Error(await extractDetail(res))
   }

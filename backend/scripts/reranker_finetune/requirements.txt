@@ -1,0 +1,10 @@
+# Qwen3-Reranker-8B was published with Transformers 4.51.3.  Newer loading
+# refactors ignore offload_state_dict on native Windows and can exhaust 16 GiB
+# system RAM while converting the official BF16 weights to bitsandbytes NF4.
+transformers==4.51.3
+accelerate==1.14.0
+bitsandbytes==0.50.1
+peft==0.20.0
+modelscope==1.39.1
+fastapi==0.116.1
+uvicorn==0.35.0

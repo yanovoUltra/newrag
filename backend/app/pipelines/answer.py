@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.logging import get_logger, get_trace_id, safe_ref
 from app.core.otel import make_span
 from app.embed.embedder import get_embedder
 from app.fields.metrics import extract_metric_from_question
@@ -44,8 +44,104 @@ def _extract_year(text: str) -> int | None:
     return int(m.group(0)) if m else None
 
 
+def _query_metric_keys(text: str) -> set[str]:
+    """Find independent explicit metrics, suppressing nested generic aliases."""
+    from app.fields.metrics import METRIC_CATALOG
+
+    text = text.casefold()
+    matches = [
+        (match.start(), match.end(), metric["key"])
+        for metric in METRIC_CATALOG
+        for alias in metric["aliases"] if alias
+        for match in re.finditer(re.escape(alias.casefold()), text)
+    ]
+    return {key for start, end, key in matches if not any(
+        other_start <= start and end <= other_end
+        and other_end - other_start > end - start
+        for other_start, other_end, _ in matches
+    )}
+
+
+def _direct_field_relay_eligible(question: str, org_id: str, visibility: str) -> bool:
+    """Permit a direct fact despite an abstract route only with exact field proof.
+
+    No classifier label, Gold value or company-specific exception is used.
+    Ambiguity, missing provenance and analytical requests retain normal routing.
+    """
+    from app.fields.subject import find_mentioned_companies
+    from app.store.registry import query_fields
+
+    if not re.search(r"多少|几元|\bwhat\s+(?:is|was|were|are)\b|\bhow\s+much\b", question, re.I):
+        return False
+    if re.search(
+        r"趋势|变化|增长|下降|增加|减少|原因|影响|风险|战略|治理|比较|对比|分析|为什么|如何|"
+        r"是否|不是|不含|不包括|除外|计算|占比|差额|差值|分别|各自|哪些|"
+        r"\b(?:trend|change|growth|increase|decrease|why|risk|compare|comparison|"
+        r"difference|calculate|not|excluding|except|versus|ratio|percentage|each)\b",
+        question, re.I,
+    ):
+        return False
+    metrics = _query_metric_keys(question)
+    years = {int(m.group()) for m in _YEAR_RE.finditer(question)}
+    if len(metrics) != 1 or len(years) != 1:
+        return False
+    try:
+        companies = list_field_companies(org_id, visibility)
+        company = find_subject_company(question, companies)
+        if company is None or len(find_mentioned_companies(question, companies)) > 1:
+            return False
+        year = next(iter(years))
+        rows = query_fields(list(metrics), org_id, visibility, year=year, company=company, limit=2)
+        return (len(rows) == 1 and rows[0].year == year
+                and bool(rows[0].source_chunk_id))
+    except Exception:
+        return False
+
+
+def _constraint_preserving_query(
+    original: str, rewritten: str | None, org_id: str, user_visibility: str,
+) -> str:
+    """Reject a rewrite that changes explicit metric/year/company identities.
+
+    This is a retrieval guard, not a new answer classifier. It reads no labels
+    or values, never changes the route intent, and leaves subquery DAGs alone.
+    Unknown company metadata fails closed to the original question.
+    """
+    if not rewritten or rewritten == original:
+        return original
+    from app.fields.subject import find_mentioned_companies
+
+    if (_query_metric_keys(original) != _query_metric_keys(rewritten)
+            or {m.group() for m in _YEAR_RE.finditer(original)}
+            != {m.group() for m in _YEAR_RE.finditer(rewritten)}):
+        return original
+    try:
+        companies = list_field_companies(org_id, user_visibility)
+        old = set(find_mentioned_companies(original, companies))
+        new = set(find_mentioned_companies(rewritten, companies))
+        old_subject = find_subject_company(original, companies)
+        new_subject = find_subject_company(rewritten, companies)
+        if old != new or old_subject != new_subject:
+            return original
+    except Exception:
+        return original
+    return rewritten
+
+
 _TREND_KEYWORDS = ("相比", "对比", "趋势", "变化", "演进", "逐年", "同期", "变动", "增长情况")
 _YEAR_RANGE_RE = re.compile(r"(19|20)\d{2}\s*年?\s*(?:至|到|~|—|-)\s*(?:19|20)\d{2}")
+_VERIFICATION_KEYWORDS = (
+    "辨析",
+    "核实",
+    "传闻",
+    "市场观点",
+    "说法",
+    "准确性",
+    "是否属实",
+    "verify",
+    "claim",
+    "rumor",
+)
 
 
 def _is_trend_query(text: str) -> bool:
@@ -57,6 +153,23 @@ def _is_trend_query(text: str) -> bool:
     if any(k in text for k in _TREND_KEYWORDS):
         return True
     return bool(_YEAR_RANGE_RE.search(text or ""))
+
+
+def _is_verification_query(text: str) -> bool:
+    """Whether a mentioned year may belong to the claim rather than the source report."""
+
+    normalized = (text or "").casefold()
+    return any(keyword in normalized for keyword in _VERIFICATION_KEYWORDS)
+
+
+def _effective_fiscal_year(text: str, fiscal_year: int | None) -> int | None:
+    """Keep strict years for facts, but relax cross-period and claim-verification queries."""
+
+    if fiscal_year is not None and (
+        _is_trend_query(text) or _is_verification_query(text)
+    ):
+        return None
+    return fiscal_year
 
 
 def _lookup_field_evidence(
@@ -283,7 +396,7 @@ def _is_narrative_query(q: str) -> bool:
 
 
 def _merge_grouped(per_group: dict[int, list[dict]], order: list[int], top_k: int) -> list[dict]:
-    """按子查询分组保活合并：每组独立取 Top-N，再全局按分补齐到 top_k。
+    """基线分组合并：每个多跳子查询独立取 Top-N，再全局按分补齐。
 
     保证每个子查询都有代表证据（多跳/对比题信息均衡，避免单一子查询高相关结果
     占满全部上下文）；组内按 rerank/fused 分排序。
@@ -292,12 +405,71 @@ def _merge_grouped(per_group: dict[int, list[dict]], order: list[int], top_k: in
     group_k = max(2, top_k // n)
     chosen: list[dict] = []
     seen: set[str] = set()
-    for i in order:
-        for h in _merge_blocks(per_group.get(i, []), group_k):
-            if h["chunk_id"] in seen:
+
+    for index in order:
+        for hit in _merge_blocks(per_group.get(index, []), group_k):
+            if hit["chunk_id"] in seen:
                 continue
-            seen.add(h["chunk_id"])
-            chosen.append(h)
+            seen.add(hit["chunk_id"])
+            chosen.append(hit)
+    if len(chosen) < top_k:
+        all_sorted = sorted(
+            (hit for group in per_group.values() for hit in group),
+            key=lambda hit: hit.get("rerank_score")
+            or hit.get("fused_score")
+            or 0.0,
+            reverse=True,
+        )
+        for hit in all_sorted:
+            if len(chosen) >= top_k:
+                break
+            if hit["chunk_id"] in seen:
+                continue
+            seen.add(hit["chunk_id"])
+            chosen.append(hit)
+    return chosen[:top_k]
+
+
+def _merge_coverage_groups(
+    per_group: dict[int, list[dict]], order: list[int], top_k: int
+) -> list[dict]:
+    """方面实验专用：每组先保活一个，再轮转补齐并去除近重复。"""
+    ranked_groups = {
+        index: _merge_blocks(per_group.get(index, []), top_k) for index in order
+    }
+    chosen: list[dict] = []
+    seen: set[str] = set()
+    content_keys: set[str] = set()
+
+    def add(hit: dict) -> bool:
+        content_key = re.sub(r"[^\w]+", "", str(hit.get("content") or "").casefold())[:240]
+        if hit["chunk_id"] in seen or (content_key and content_key in content_keys):
+            return False
+        seen.add(hit["chunk_id"])
+        if content_key:
+            content_keys.add(content_key)
+        chosen.append(hit)
+        return True
+
+    # Coverage pass: every aspect/sub-query gets one slot before any group gets a second.
+    for index in order[:top_k]:
+        for hit in ranked_groups.get(index, []):
+            if add(hit):
+                break
+    # Round-robin pass prevents the first group from consuming the whole budget.
+    depth = 1
+    while len(chosen) < top_k:
+        progressed = False
+        for index in order:
+            group = ranked_groups.get(index, [])
+            if depth >= len(group):
+                continue
+            progressed = add(group[depth]) or progressed
+            if len(chosen) >= top_k:
+                break
+        if not progressed and all(depth >= len(ranked_groups.get(index, [])) - 1 for index in order):
+            break
+        depth += 1
     if len(chosen) < top_k:
         all_sorted = sorted(
             (h for g in per_group.values() for h in g),
@@ -307,10 +479,7 @@ def _merge_grouped(per_group: dict[int, list[dict]], order: list[int], top_k: in
         for h in all_sorted:
             if len(chosen) >= top_k:
                 break
-            if h["chunk_id"] in seen:
-                continue
-            seen.add(h["chunk_id"])
-            chosen.append(h)
+            add(h)
     return chosen[:top_k]
 
 
@@ -380,7 +549,7 @@ def _rebalance_comparison(hits: list[dict], entities: list[str], top_k: int) -> 
     seen: set[str] = set()
     for e in entities:
         if not groups[e]:
-            logger.warning("对比实体 %s 相关信息不足（top-%d 无命中）", e, top_k)
+            logger.warning("对比实体相关信息不足: top_k=%d", top_k)
         for h in groups[e][:m]:
             if h["chunk_id"] in seen:
                 continue
@@ -482,6 +651,13 @@ async def _search_plan(
 
     async def _search_one(q: str) -> list[dict]:
         nonlocal hyde_doc
+        direct_field = (
+            settings.fields_enabled and not plan.sub_queries and not plan.evidence_aspects
+            and plan.intent != "multi_hop"
+            and await asyncio.to_thread(
+                _direct_field_relay_eligible, question, org_id, user_visibility,
+            )
+        )
         # §15.5 P0 生产路由：分析/综合型问题关闭表格路与字段 relay——表格块在 RRF
         # 三路累加虚高抢占候选、relay 表格块顶位挤掉相关叙述块（§15.5 P0 实证）。
         # 判定三层：LLM intent(abstract/multi_hop) + 综述触发词 + 叙述型兜底
@@ -531,12 +707,15 @@ async def _search_plan(
         # §18 章节父块检索：综述/总结/分析型问题额外召回 section 父块并入 RRF——
         # 相关块分散多页时叶子单点命中率低，父块命中代表"章节整体相关"（父块路
         # 对综合类问题为正收益、对单点事实题无影响，见 ablation_report §18）
-        use_parent = analysis and summary_trigger
-        # §17.4 趋势/跨年对比题放宽年份过滤：趋势触发即放宽（不依赖 analysis——
-        # 纯趋势题被路由成 factual 时同样受益；relay 年份取自问题提取、不受影响）
-        fy = fiscal_year
-        if fy is not None and _is_trend_query(q):
-            fy = None
+        # 已判定为复杂摘要的问题不能因改写后缺少触发词而失去 section 入口。
+        # 保留旧触发路径；精确字段直查不因 abstract 误分类而扩大候选。
+        use_parent = (analysis and summary_trigger) or (
+            plan.intent == "abstract" and plan.complexity == "complex" and not direct_field
+        )
+        # 趋势/跨年对比题与对抗核实题放宽年份过滤。后者的问题年份可能属于
+        # 待核实断言，而证据位于下一年度披露的报告中；将断言年份当文档年份会
+        # 把正确公司报告完整过滤掉。精确事实题仍保留严格年份约束。
+        fy = _effective_fiscal_year(q, fiscal_year)
 
         # 分级降级兜底（§11）：向量/路由参数只算一次，各级仅重跑 hybrid_search
         # 过滤参数（短语硬插→年份窗口→无年份→实体→纯 dense），达标即停并记日志。
@@ -552,9 +731,14 @@ async def _search_plan(
                 "recall_depth": depth,
                 "fiscal_year": fy,
                 "use_table_route": not analysis,
-                "use_field_relay": not analysis,
+                "use_field_relay": not analysis or direct_field,
+                "field_relay_exact_year": direct_field,
                 "use_phrase_route": settings.phrase_route_enabled,
                 "use_parent_route": use_parent,
+                "use_adjacent_route": settings.adjacent_page_enabled and analysis,
+                "use_document_section_coverage": (
+                    settings.document_section_coverage_enabled and analysis
+                ),
                 "rerank_candidates": rerank_candidates,
             }
             params.update(overrides)
@@ -580,7 +764,7 @@ async def _search_plan(
             changed = cur_set != prev_set
             log_fallback(q, f"L{level}", "", cur, len(candidate))
             if not _needs_fallback(candidate, threshold, min_cand):
-                logger.info("降级达标 L%d: %.40s (real_hits=%d)", level, q, cur)
+                logger.info("降级达标 L%d: q=%s real_hits=%d", level, safe_ref(q), cur)
                 return candidate
             # 熔断：仅当"结果集实际变化但仍无改善"连续 2 级才停——空操作级
             # （无短语/无窗口年份数据）不计数，保证能推进到 L3 无年份/L4 纯 dense
@@ -588,7 +772,7 @@ async def _search_plan(
                 stall = stall + 1 if (cur <= prev and changed) else 0
                 if stall >= 2:
                     log_fallback(q, "stop", "stall", cur, len(candidate))
-                    logger.info("降级熔断 L%d: %.40s (real_hits=%d)", level, q, cur)
+                    logger.info("降级熔断 L%d: q=%s real_hits=%d", level, safe_ref(q), cur)
                     return candidate
             prev, prev_set = cur, cur_set
         return best
@@ -609,18 +793,71 @@ async def _search_plan(
                 if ent:
                     injected = _inject_dependency_entity(q, ent)
                     if injected != q:
-                        logger.info("子查询依赖注入 #%d: %.40s → %.40s", i, q, injected)
+                        logger.info(
+                            "子查询依赖注入 #%d: before=%s after=%s",
+                            i,
+                            safe_ref(q),
+                            safe_ref(injected),
+                        )
                         q = injected
             hits = await _search_one(q)
             per_group[i] = hits
             # 有依赖方需要产出中间实体：从自身命中块/查询提取（供下游注入）
             if deps.get(i):
                 entities[i] = _extract_answer_entity(hits, q, companies)
-        # 分组保活：每子查询独立 Top-N 再拼接（对比/多跳题证据均衡）
-        return _merge_grouped(per_group, _topo_order(deps, len(plan.sub_queries)), top_k)
+        # 轻量证据图只在多跳题启用，并与文本候选做列表级合并；图无法替代原文召回。
+        if plan.intent == "multi_hop" and settings.evidence_graph_enabled:
+            try:
+                from app.retrieval.evidence_graph import graph_evidence_hits
 
-    # 单查询路径：改写查询优先，兜底原问题
-    q = plan.rewritten_query or question
+                graph_hits = await asyncio.to_thread(
+                    graph_evidence_hits,
+                    question,
+                    org_id,
+                    user_visibility,
+                    limit=top_k,
+                )
+                if graph_hits:
+                    per_group[-1] = graph_hits
+            except Exception as exc:
+                logger.warning("evidence graph recall skipped: type=%s", type(exc).__name__)
+        # 分组保活：每子查询独立 Top-N 再拼接（对比/多跳题证据均衡）
+        order = ([-1] if -1 in per_group else []) + _topo_order(
+            deps, len(plan.sub_queries)
+        )
+        return _merge_grouped(per_group, order, top_k)
+
+    # 精确字段式改写保护仅用于简单问题。复杂题保留原有语义扩展，
+    # 不把多方面分析强制退回原句；租户/可见级别/年份过滤仍由检索入口执行。
+    base_query = plan.rewritten_query or question
+    if plan.complexity == "simple":
+        base_query = _constraint_preserving_query(
+            question, base_query, org_id, user_visibility,
+        )
+
+    # 非指标题方面覆盖：每方面独立召回，并在列表级先保活一个候选。
+    # 某方面没有候选时仅补检索一次，禁止循环扩大成本。
+    if settings.aspect_retrieval_enabled and plan.evidence_aspects:
+        per_aspect: dict[int, list[dict]] = {}
+        for index, aspect in enumerate(plan.evidence_aspects[:top_k]):
+            # 完整问题保留主体、财年和否定/对比等强约束；方面用于聚焦其中一个子任务。
+            # 仅检索方面的消融会丢失这些约束并显著降低候选覆盖率。
+            aspect_query = f"{base_query}；重点证据方面：{aspect}"
+            aspect_hits = await _search_one(aspect_query)
+            if not aspect_hits:
+                aspect_hits = await _search_one(f"{base_query}；查找与{aspect}直接相关的财报原文")
+            per_aspect[index] = [
+                {**hit, "evidence_aspect": aspect} for hit in aspect_hits
+            ]
+        covered = _merge_coverage_groups(
+            per_aspect,
+            list(range(len(per_aspect))),
+            top_k,
+        )
+        if covered:
+            return covered
+
+    q = base_query
     hits = await _search_one(q)
     merged = _merge_blocks(hits, top_k)
     # 对比题实体均衡保活（八）：检测到 ≥2 核心实体时按实体分组各取 Top-M，
@@ -631,8 +868,11 @@ async def _search_plan(
             entities = _detect_comparison_entities(q, companies)
             if len(entities) >= 2:
                 merged = _rebalance_comparison(merged, entities, top_k)
-                logger.info("对比实体均衡保活 %s → %s", entities,
-                            [h["chunk_id"][:8] for h in merged])
+                logger.info(
+                    "对比实体均衡保活: entities=%d selected=%d",
+                    len(entities),
+                    len(merged),
+                )
         except Exception:  # noqa: BLE001  registry 未初始化等场景跳过均衡
             pass
     return merged
@@ -657,6 +897,9 @@ async def stream_answer(
     user_visibility: str,
     top_k: int | None = None,
     session_id: str = "",
+    response_mode: str = "text",
+    use_tools: bool = False,
+    actor_id: str = "anonymous",
 ) -> AsyncIterator[dict[str, Any]]:
     """按 SSE 事件协议产出：meta / citation / (warning) / token / grounding / done。
 
@@ -669,7 +912,10 @@ async def stream_answer(
     # 0. 语义答案缓存查询（仅无 session_id 的单轮问答；Redis 不可用自动未命中）
     cache_entry: dict | None = None
     q_vec: list[float] | None = None
-    if settings.semantic_cache_enabled and not session_id:
+    # Legacy answer-cache entries are not versioned by context strategy. Do not
+    # replay old chunk-only answers while the complete-page path is enabled.
+    if (settings.semantic_cache_enabled and not settings.complete_page_context_enabled
+            and not settings.context_whole_block_packing_enabled and not session_id):
         try:
             embedder = get_embedder()
             q_list, _ = await asyncio.to_thread(
@@ -677,11 +923,13 @@ async def stream_answer(
             )
             q_vec = q_list[0]
             cache_entry = answer_lookup(org_id, user_visibility, q_vec, q_text=question)
-        except Exception as e:
-            logger.warning("答案缓存查询失败，走完整流程: %s", e)
+        except Exception as exc:
+            logger.warning("答案缓存查询失败，走完整流程: type=%s", type(exc).__name__)
             cache_entry = None
     if cache_entry is not None:
-        logger.info("语义答案缓存命中: org=%s q=%.40s", org_id, question)
+        logger.info(
+            "语义答案缓存命中: org=%s q=%s", safe_ref(org_id), safe_ref(question)
+        )
         for ev in cache_entry.get("events", []):
             yield ev
         return
@@ -698,7 +946,7 @@ async def stream_answer(
 
         inj = check_prompt_injection(question)
         if inj.flagged:
-            logger.warning("检测到 prompt 注入: %s", question[:60])
+            logger.warning("检测到 prompt 注入: q=%s", safe_ref(question))
             yield _emit({
                 "event": "meta",
                 "data": {"org_id": org_id, "top_k": 0, "intent": "guard", "complexity": "simple",
@@ -729,21 +977,63 @@ async def stream_answer(
             blocks = await _search_plan(plan, question, org_id, user_visibility, k, fiscal_year=None)
             year_fell_back = True
     logger.info(
-        "retrieval done: q=%.40s top_k=%d year=%s fell_back=%s %.0fms",
-        question, len(blocks), year, year_fell_back, (time.perf_counter() - t_retrieval) * 1000,
+        "retrieval done: q=%s top_k=%d year=%s fell_back=%s %.0fms",
+        safe_ref(question), len(blocks), year, year_fell_back,
+        (time.perf_counter() - t_retrieval) * 1000,
     )
+    # Page expansion has no new reranker score. Retain the original retrieval
+    # confidence instead of silently dropping its warning after materialization.
+    retrieval_best_score = _best_score(blocks)
+    page_context = {"used": False, "reason": "NOT_APPLICABLE"}
+    if (settings.complete_page_context_enabled and blocks
+            and not any(block.get("is_relay") for block in blocks)):
+        from app.retrieval.page_context_runtime import complete_page_evidence
+
+        try:
+            blocks, page_context = await complete_page_evidence(
+                question, blocks, org_id=org_id, visibility=user_visibility,
+                llm=get_llm(), max_chars=settings.complete_page_context_max_chars,
+            )
+        except PermissionError:
+            yield _emit({"event": "error", "data": {
+                "code": "evidence_access_denied", "message": "无法访问所需来源。",
+                "request_id": get_trace_id(),
+            }})
+            yield _emit({"event": "done", "data": {"usage": {}}})
+            return
+    whole_pack = (settings.context_whole_block_packing_enabled
+                  and plan.query_type != "metric" and not page_context["used"]
+                  and not any(b.get("is_relay") for b in blocks))
+    if settings.context_compression_enabled and blocks and not page_context["used"] and not whole_pack:
+        from app.retrieval.compression import compress_context
+
+        blocks = compress_context(
+            question,
+            blocks,
+            block_max_chars=settings.context_block_max_chars,
+            total_max_chars=settings.context_total_max_chars,
+        )
 
     # 2.5 字段抽取检索：metric 类问题 → 查独立字段索引，命中则作为强证据前置并发出 field 事件
     field_evidence: list[dict] = []
     if settings.fields_enabled and plan.query_type == "metric":
         try:
             field_evidence = _lookup_field_evidence(question, org_id, user_visibility, year)
-        except Exception as e:
-            logger.warning("字段抽取检索失败（忽略）: %s", e)
+        except Exception as exc:
+            logger.warning("字段抽取检索失败（忽略）: type=%s", type(exc).__name__)
             field_evidence = []
     if field_evidence:
         yield _emit({"event": "field", "data": {"fields": field_evidence}})
-        blocks = [_field_block(ev) for ev in field_evidence] + blocks
+        # Whole-page selection already preserves primary source evidence. Keep
+        # field events but do not append unbudgeted duplicate field text to it.
+        if not page_context["used"]:
+            blocks = [_field_block(ev) for ev in field_evidence] + blocks
+
+    if whole_pack:
+        from app.retrieval.context_packing import pack_context, pack_context_deduplicated
+
+        packer = pack_context_deduplicated if settings.context_source_dedup_enabled else pack_context
+        blocks = packer(blocks, settings.context_total_max_chars)
 
     yield _emit({
         "event": "meta",
@@ -753,16 +1043,28 @@ async def stream_answer(
             "intent": plan.intent,
             "complexity": plan.complexity,
             "needs_hyde": plan.needs_hyde,
+            "evidence_aspects": plan.evidence_aspects,
+            "context_compressed": settings.context_compression_enabled and not page_context["used"] and not whole_pack,
+            "context_whole_packed": whole_pack,
+            "context_source_dedup": whole_pack and settings.context_source_dedup_enabled,
+            "page_context": page_context,
+            "response_mode": response_mode,
+            "tools_enabled": use_tools,
             "year": year,
             "year_fell_back": year_fell_back,
         },
     })
 
     for b in blocks:
+        for ref in b.get('contained_citations', []):
+            yield _emit({"event": "citation", "data": {
+                **ref, "carrier_chunk_id": b.get('chunk_id'), "score": 0.0,
+            }})
         yield _emit({
             "event": "citation",
             "data": {
                 "doc_id": b.get("doc_id"),
+                "chunk_id": b.get("chunk_id"),
                 "doc_name": b.get("doc_name"),
                 "section_path": b.get("section_path"),
                 "page": b.get("page"),
@@ -777,7 +1079,7 @@ async def stream_answer(
         return
 
     # 3. 置信度门控（仅 rerank 模式）：top 命中分低于阈值 → 低置信提示
-    best = _best_score(blocks)
+    best = retrieval_best_score if page_context["used"] else _best_score(blocks)
     low_conf = (
         best is not None
         and get_reranker().name != "none"
@@ -804,19 +1106,97 @@ async def stream_answer(
         "model": getattr(llm, "_model", ""), "complexity": plan.complexity,
     }) as gen_span:
         try:
-            async for delta in llm.stream_chat(messages):
-                answer_text += delta
-                yield _emit({"event": "token", "data": {"delta": delta}})
-        except Exception as e:
+            if use_tools:
+                from app.generation.tools import ToolContext, run_tool_agent
+
+                async def _authorized_search(query: str, limit: int) -> list[dict[str, Any]]:
+                    tool_plan = await route_query(query)
+                    hits = await _search_plan(
+                        tool_plan,
+                        query,
+                        org_id,
+                        user_visibility,
+                        limit,
+                        fiscal_year=_extract_year(query),
+                    )
+                    return [
+                        {
+                            "doc_id": hit.get("doc_id"),
+                            "doc_name": hit.get("doc_name"),
+                            "section_path": hit.get("section_path"),
+                            "page": hit.get("page"),
+                            "content": str(hit.get("content") or "")[:1200],
+                        }
+                        for hit in hits
+                    ]
+
+                answer_text = (
+                    await run_tool_agent(
+                        llm,
+                        messages,
+                        ToolContext(
+                            subject=actor_id,
+                            org_id=org_id,
+                            visibility=user_visibility,
+                            search=_authorized_search,
+                        ),
+                    )
+                    or ""
+                )
+                if answer_text:
+                    yield _emit({"event": "token", "data": {"delta": answer_text}})
+            if response_mode == "structured" and not answer_text:
+                from app.generation.structured import (
+                    generate_structured_answer,
+                    render_structured_answer,
+                    structured_payload,
+                )
+
+                structured = await generate_structured_answer(
+                    llm,
+                    question,
+                    blocks,
+                    history=history,
+                )
+                if structured is not None:
+                    answer_text = render_structured_answer(structured)
+                    yield _emit(
+                        {
+                            "event": "structured",
+                            "data": structured_payload(structured, blocks),
+                        }
+                    )
+                    # Keep legacy SSE consumers usable while exposing validated JSON.
+                    yield _emit({"event": "token", "data": {"delta": answer_text}})
+                else:
+                    yield _emit(
+                        {
+                            "event": "warning",
+                            "data": {"message": "结构化输出校验失败，已降级为普通文本。"},
+                        }
+                    )
+            if not answer_text:
+                async for delta in llm.stream_chat(messages):
+                    answer_text += delta
+                    yield _emit({"event": "token", "data": {"delta": delta}})
+        except Exception as exc:
             had_error = True
-            logger.exception("llm stream failed")
-            yield _emit({"event": "error", "data": {"message": f"生成失败: {e}"}})
+            logger.error("llm stream failed: type=%s", type(exc).__name__)
+            yield _emit({
+                "event": "error",
+                "data": {
+                    "code": "generation_failed",
+                    "message": "生成服务暂时不可用，请稍后重试。",
+                    "request_id": get_trace_id(),
+                },
+            })
         if gen_span is not None:
             gen_span.set_attribute("chars", len(answer_text))
             gen_span.set_attribute("had_error", had_error)
     logger.info(
-        "generation done: q=%.40s chars=%d had_error=%s %.0fms",
-        question, len(answer_text), had_error, (time.perf_counter() - t_gen) * 1000,
+        "generation done: q=%s chars=%d had_error=%s %.0fms",
+        safe_ref(question), len(answer_text), had_error,
+        (time.perf_counter() - t_gen) * 1000,
     )
 
     # 5. 接地校验（数字/引用回查知识块）+ 会话记忆
@@ -833,8 +1213,8 @@ async def stream_answer(
                 question, answer_text, session_id, org_id, user_visibility,
                 [b.get("doc_id") for b in blocks], plan.intent, usage,
             )
-        except Exception as e:
-            logger.warning("问答记录落库失败（忽略）: %s", e)
+        except Exception as exc:
+            logger.warning("问答记录落库失败（忽略）: type=%s", type(exc).__name__)
 
     # 6. 写入语义答案缓存（仅无会话 + 有完整回答 + 问题向量可用）
     if settings.semantic_cache_enabled and not session_id and q_vec and answer_text and not had_error:

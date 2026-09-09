@@ -11,8 +11,20 @@ from typing import Any
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.metrics import record_api_call
+from app.core.secrets import resolve_secret
 
 logger = get_logger(__name__)
+
+
+def _thinking_extra_body(base_url: str, enabled: bool) -> dict[str, Any]:
+    """Return the provider-specific OpenAI-compatible thinking toggle."""
+
+    host = base_url.casefold()
+    if "deepseek.com" in host:
+        return {"thinking": {"type": "enabled" if enabled else "disabled"}}
+    if "aliyuncs.com" in host:
+        return {"enable_thinking": enabled}
+    return {}
 
 
 class FairSemaphore:
@@ -73,9 +85,22 @@ class LLMClient(ABC):
         messages: list[dict[str, str]],
         model: str | None = None,
         response_format: dict | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking: bool | None = None,
     ) -> str:
         """一次性返回完整文本。response_format 支持 {"type": "json_object"} 等。"""
         ...
+
+    async def tool_chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        """Return normalized content/tool calls; providers may opt out."""
+
+        raise NotImplementedError("This LLM backend does not support tool calling")
 
 
 class OpenAICompatClient(LLMClient):
@@ -85,6 +110,7 @@ class OpenAICompatClient(LLMClient):
         from openai import AsyncOpenAI
 
         self._client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        self._base_url = base_url
         self._default_model = model
         # 外部 API 缓解：并发限流（FIFO 公平排队，防 429 与信号量饥饿）+ 429/5xx 指数退避重试
         self._sem = FairSemaphore(get_settings().max_llm_concurrency)
@@ -122,10 +148,21 @@ class OpenAICompatClient(LLMClient):
         messages: list[dict[str, str]],
         model: str | None = None,
         response_format: dict | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking: bool | None = None,
     ) -> str:
         kwargs = {}
         if response_format:
             kwargs["response_format"] = response_format
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if thinking is not None:
+            extra_body = _thinking_extra_body(self._base_url, thinking)
+            if extra_body:
+                kwargs["extra_body"] = extra_body
         resp = await self._create_with_retry(
             model=model or self._default_model,
             messages=messages,
@@ -133,6 +170,110 @@ class OpenAICompatClient(LLMClient):
             **kwargs,
         )
         return resp.choices[0].message.content or ""
+
+    async def tool_chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        extra_body = _thinking_extra_body(self._base_url, False)
+        resp = await self._create_with_retry(
+            model=model or self._default_model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            stream=False,
+            **({"extra_body": extra_body} if extra_body else {}),
+        )
+        message = resp.choices[0].message
+        calls = [
+            {
+                "id": call.id,
+                "type": "function",
+                "function": {
+                    "name": call.function.name,
+                    "arguments": call.function.arguments,
+                },
+            }
+            for call in (message.tool_calls or [])
+        ]
+        return {"content": message.content or "", "tool_calls": calls}
+
+
+def _status_code(exc: Exception) -> int | None:
+    value = getattr(exc, "status_code", None)
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+class ForbiddenFallbackClient(LLMClient):
+    """Use the secondary Token Plan model only when the primary is forbidden.
+
+    A 403 typically means the selected package does not grant access to the
+    requested model. Other errors retain the normal retry/failure semantics so
+    quota, timeout, and server faults are not silently hidden by model routing.
+    """
+
+    name = "openai-forbidden-fallback"
+
+    def __init__(self, primary: LLMClient, fallback: LLMClient):
+        self._primary = primary
+        self._fallback = fallback
+
+    async def stream_chat(
+        self, messages: list[dict[str, str]], model: str | None = None
+    ) -> AsyncIterator[str]:
+        emitted = False
+        try:
+            async for chunk in self._primary.stream_chat(messages, model=model):
+                emitted = True
+                yield chunk
+        except Exception as exc:
+            if emitted or _status_code(exc) != 403:
+                raise
+            logger.warning("primary LLM returned 403; switching to configured fallback model")
+            async for chunk in self._fallback.stream_chat(messages):
+                yield chunk
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        response_format: dict | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking: bool | None = None,
+    ) -> str:
+        kwargs = {
+            "response_format": response_format,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "thinking": thinking,
+        }
+        try:
+            return await self._primary.chat(messages, model=model, **kwargs)
+        except Exception as exc:
+            if _status_code(exc) != 403:
+                raise
+            logger.warning("primary LLM returned 403; switching to configured fallback model")
+            return await self._fallback.chat(messages, **kwargs)
+
+    async def tool_chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            return await self._primary.tool_chat(messages, tools, model=model)
+        except Exception as exc:
+            if _status_code(exc) != 403:
+                raise
+            logger.warning("primary LLM returned 403; switching to configured fallback model")
+            return await self._fallback.tool_chat(messages, tools)
 
 
 class MockLLMClient(LLMClient):
@@ -150,8 +291,19 @@ class MockLLMClient(LLMClient):
         messages: list[dict[str, str]],
         model: str | None = None,
         response_format: dict | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking: bool | None = None,
     ) -> str:
         return self._compose(messages)
+
+    async def tool_chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        return {"content": self._compose(messages), "tool_calls": []}
 
     def _compose(self, messages: list[dict[str, str]]) -> str:
         # 取最后一条 user 消息中的知识块做简单模板回答
@@ -178,9 +330,33 @@ def get_llm() -> LLMClient:
     if _instance is not None:
         return _instance
     settings = get_settings()
-    if settings.llm_provider.lower() == "openai" and settings.llm_api_key:
-        _instance = OpenAICompatClient(settings.llm_base_url, settings.llm_api_key, settings.llm_timeout, settings.llm_model)
-        logger.info("LLM client: openai (%s)", settings.llm_model)
+    api_key = resolve_secret(settings.llm_api_secret_name, settings.llm_api_key)
+    if settings.llm_provider.lower() == "openai" and api_key:
+        primary = OpenAICompatClient(
+            settings.llm_base_url,
+            api_key,
+            settings.llm_timeout,
+            settings.llm_model,
+        )
+        fallback_key = resolve_secret(
+            settings.llm_light_api_secret_name, settings.llm_light_api_key
+        )
+        if fallback_key and settings.llm_light_model:
+            fallback = OpenAICompatClient(
+                settings.llm_light_base_url,
+                fallback_key,
+                settings.llm_timeout,
+                settings.llm_light_model,
+            )
+            _instance = ForbiddenFallbackClient(primary, fallback)
+            logger.info(
+                "LLM client: openai (%s; 403 fallback=%s)",
+                settings.llm_model,
+                settings.llm_light_model,
+            )
+        else:
+            _instance = primary
+            logger.info("LLM client: openai (%s)", settings.llm_model)
     else:
         logger.warning("LLM_API_KEY 未配置，使用 MockLLMClient（仅开发验证）")
         _instance = MockLLMClient()
@@ -193,10 +369,16 @@ def get_llm_light() -> LLMClient | None:
     if _light_instance is not None:
         return _light_instance
     settings = get_settings()
-    if not settings.llm_light_api_key:
+    api_key = resolve_secret(
+        settings.llm_light_api_secret_name, settings.llm_light_api_key
+    )
+    if not api_key:
         return None
     _light_instance = OpenAICompatClient(
-        settings.llm_light_base_url, settings.llm_light_api_key, settings.llm_timeout, settings.llm_light_model
+        settings.llm_light_base_url,
+        api_key,
+        settings.llm_timeout,
+        settings.llm_light_model,
     )
     logger.info("LLM light client: openai (%s)", settings.llm_light_model)
     return _light_instance

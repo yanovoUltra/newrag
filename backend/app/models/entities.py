@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -158,3 +158,63 @@ class RetrievalFallbackLog(Base):
     candidate_count: Mapped[int] = mapped_column(Integer, default=0)
     params_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class EvidenceNode(Base):
+    """租户隔离的轻量证据图节点；关系始终带原文来源。"""
+
+    __tablename__ = "evidence_nodes"
+    __table_args__ = (
+        UniqueConstraint(
+            "org_id",
+            "visibility",
+            "node_type",
+            "canonical_key",
+            name="uq_evidence_node_key",
+        ),
+        Index("ix_evidence_nodes_lookup", "org_id", "visibility", "node_type", "fiscal_year"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), index=True)
+    visibility: Mapped[str] = mapped_column(String(16), default="public")
+    node_type: Mapped[str] = mapped_column(String(32))
+    canonical_key: Mapped[str] = mapped_column(String(255))
+    label: Mapped[str] = mapped_column(String(255))
+    attributes_json: Mapped[str] = mapped_column(Text, default="{}")
+    source_doc_id: Mapped[str] = mapped_column(String(32), index=True)
+    source_chunk_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class EvidenceEdge(Base):
+    """可回溯、带时态与置信度的轻量证据图边。"""
+
+    __tablename__ = "evidence_edges"
+    __table_args__ = (
+        UniqueConstraint(
+            "org_id",
+            "edge_type",
+            "source_node_id",
+            "target_node_id",
+            "source_chunk_id",
+            "fiscal_year",
+            name="uq_evidence_edge_source",
+        ),
+        Index("ix_evidence_edges_lookup", "org_id", "visibility", "edge_type", "fiscal_year"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    org_id: Mapped[str] = mapped_column(String(64), index=True)
+    visibility: Mapped[str] = mapped_column(String(16), default="public")
+    edge_type: Mapped[str] = mapped_column(String(32))
+    source_node_id: Mapped[str] = mapped_column(String(32), index=True)
+    target_node_id: Mapped[str] = mapped_column(String(32), index=True)
+    source_doc_id: Mapped[str] = mapped_column(String(32), index=True)
+    source_chunk_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+    fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    citation_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -16,6 +16,7 @@ htmlcov/
 # 工具生成物 / 本机配置
 .codegraph/
 .serena/
+.workbuddy/
 # 不上传仓库的文档（用户要求）
 /DESIGN.md
 /INSTALL_RECORD.md
@@ -28,4 +29,32 @@ htmlcov/
 # 临时调试脚本（不入库）
 backend/_dbg_*.py
 backend/_metrics_*
-infra/secrets/
+backend/scripts/_tmp_*.py
+backend/.pytest-tmp/
+backend/.pytest-tmp-*/
+backend/.pytest-runtime-*/
+backend/.tmp-test/
+/.tmp/
+/.tmp-test/
+.coverage
+.coverage.*
+backend/app/**/*.bak_*
+/.env.bak_*
+output/pytest-of-admin/
+output/test-tmp-*/
+output/newrag_test_*/
+output/tmp*/
+frontend/test-results/
+infra/secrets/*
+!infra/secrets/*.example
+
+# Local evidence and presentation artifacts are not release source.
+/output/
+/project_tutorial*.html
+/scripts/
+/backend/tests/
+/backend/output/
+/backend/uv.lock
+/backend/app/xbrl/
+/backend/scripts/p4*/
+/backend/scripts/golden/

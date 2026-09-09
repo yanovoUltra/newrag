@@ -20,6 +20,7 @@ import numpy as np
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.metrics import record_api_call
+from app.core.secrets import resolve_secret
 
 logger = get_logger(__name__)
 
@@ -276,7 +277,7 @@ def get_embedder() -> EmbeddingBackend:
         elif backend == "api":
             _instance = ApiEmbedBackend(
                 settings.embedding_api_base,
-                settings.embedding_api_key,
+                resolve_secret("EMBEDDING_API_KEY", settings.embedding_api_key),
                 settings.embedding_model,
                 settings.embedding_batch_size,
             )

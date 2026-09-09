@@ -1,5 +1,6 @@
 // ---- HTTP 客户端：统一错误处理与 JSON 解析 ----
 import { ElMessage } from 'element-plus'
+import { authorizationHeaders } from '@/auth'
 
 export class ApiError extends Error {
   status: number
@@ -10,9 +11,10 @@ export class ApiError extends Error {
 }
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const authHeaders = await authorizationHeaders()
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: { 'Content-Type': 'application/json', ...authHeaders, ...init.headers },
   })
   if (!res.ok) {
     throw new ApiError(res.status, await extractDetail(res))

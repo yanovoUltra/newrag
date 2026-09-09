@@ -50,7 +50,31 @@ def clean_layout(layout: LayoutResult, settings=None) -> LayoutResult:
     if getattr(settings, "clean_page_numbers", True):
         _strip_page_numbers(layout.pages, settings)
 
+    _sync_document_elements(layout)
     return layout
+
+
+def _sync_document_elements(layout: LayoutResult) -> None:
+    """Keep the parser-neutral projection consistent with cleaned legacy fields."""
+
+    for page in layout.pages:
+        text_elements = [
+            element
+            for element in page.elements
+            if element.element_type in {"text", "heading"}
+        ]
+        if len(text_elements) == 1:
+            text_elements[0].text = page.text
+        else:
+            for element in text_elements:
+                element.text = normalize_text(element.text)
+
+        table_elements = [
+            element for element in page.elements if element.element_type == "table"
+        ]
+        for element, table in zip(table_elements, page.tables):
+            element.table_cells = ([table.headers] if table.headers else []) + table.rows
+            element.text = table.to_text()
 
 
 def _strip_page_numbers(pages, settings) -> None:

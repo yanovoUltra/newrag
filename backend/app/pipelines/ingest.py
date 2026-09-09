@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 import uuid
 from pathlib import Path
@@ -10,9 +12,15 @@ from app.core.config import get_settings
 from app.core.logging import get_logger, set_trace_id
 from app.core.otel import enabled, get_tracer
 from app.embed.embedder import get_embedder
-from app.parsers.base import LayoutResult, parse_layout
+from app.parsers.base import (
+    DocumentElement,
+    LayoutResult,
+    layout_payload_is_current,
+    parse_layout,
+)
 from app.parsers.ocr import ocr_page_images
 from app.parsers.structure import Section, build_section_tree
+from app.parsers.text_quality import has_decoding_damage
 from app.splitter.chunker import Chunk, build_leaves, build_parent_blocks, embedding_text_for
 from app.splitter.semantic import refine_leaves_semantically
 from app.store import qdrant as qdrant_store
@@ -32,6 +40,69 @@ VECTOR_BATCH_SIZE = 128
 
 class PipelineError(Exception):
     pass
+
+
+def _layout_sha256(layout: LayoutResult) -> str:
+    payload = json.dumps(
+        layout.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _layout_state_matches(state: dict | None, layout: LayoutResult, clean_enabled: bool) -> bool:
+    return bool(
+        state
+        and state.get("layout_sha256") == _layout_sha256(layout)
+        and state.get("clean_enabled") is clean_enabled
+    )
+
+
+def _recover_pdf_text(layout: LayoutResult, file_path: Path, ocr_enabled: bool) -> bool:
+    """Repair only flagged pages; reject undecoded text before embedding it."""
+    damaged_text = {p.page_no for p in layout.pages if has_decoding_damage(p.text)}
+    damaged_tables = {
+        p.page_no: {i for i, table in enumerate(p.tables) if has_decoding_damage(table.to_text())}
+        for p in layout.pages
+    }
+    damaged_tables = {page_no: indexes for page_no, indexes in damaged_tables.items() if indexes}
+    damaged = damaged_text | set(damaged_tables)
+    requested = damaged | {p.page_no for p in layout.pages if p.scanned}
+    if damaged and not ocr_enabled:
+        raise PipelineError("PDF_TEXT_DECODING_INVALID_OCR_REQUIRED")
+    if not requested or not ocr_enabled:
+        return False
+    recovered = ocr_page_images(file_path, sorted(requested))
+    # Validate the whole requested response before changing any page.
+    if any(not recovered.get(n, "").strip() or has_decoding_damage(recovered[n])
+           for n in requested):
+        raise PipelineError("PDF_OCR_TEXT_RECOVERY_INCOMPLETE")
+    for page in layout.pages:
+        if page.page_no not in requested:
+            continue
+        page.text = recovered[page.page_no]
+        page.scanned = False
+        bad_indexes = damaged_tables.get(page.page_no, set())
+        page.tables = [table for i, table in enumerate(page.tables) if i not in bad_indexes]
+        table_elements = [e for e in page.elements if e.element_type == "table"]
+        page.elements = [
+            element
+            for element in table_elements
+            if not any(
+                has_decoding_damage(text)
+                for text in [
+                    element.text,
+                    *(cell for row in element.table_cells for cell in row),
+                ]
+            )
+        ]
+        page.elements.insert(0, DocumentElement(
+            page_no=page.page_no, element_type="text", text=page.text,
+            parser="paddleocr", source_ref=f"page:{page.page_no}:ocr",
+        ))
+        for order, element in enumerate(page.elements):
+            element.reading_order = order
+    layout.text_extraction_rate = sum(not p.scanned for p in layout.pages) / max(1, len(layout.pages))
+    return True
 
 
 def _log_stage(doc_id: str, stage: str, t0: float, span=None) -> None:
@@ -78,31 +149,40 @@ def run_ingest(
         if task_id:
             _update_task_progress(task_id, "parse", 15, "正在解析文档")
         update_document(doc_id, status="parsing")
-        if not stage_done(doc_id, "layout"):
+        cached_layout = load_stage(doc_id, "layout")
+        layout_rebuilt = not layout_payload_is_current(cached_layout)
+        if layout_rebuilt:
             layout = parse_layout(file_path)
             save_stage(doc_id, "layout", layout.to_dict())
         else:
-            layout = load_layout(doc_id)  # 已反序列化为 LayoutResult
+            layout = LayoutResult.from_dict(cached_layout)
         _check_deadline(deadline, doc_id)
 
-        # ---- 阶段 1.5：OCR 按需触发（提取率 < 80% 且启用）----
-        if layout.text_extraction_rate < 0.8 and settings.ocr_enabled and file_path.suffix.lower() == ".pdf":
-            update_document(doc_id, status="parsing")
-            ocr_text = ocr_page_images(file_path, [p.page_no for p in layout.pages if p.scanned])
-            if ocr_text:
-                for page in layout.pages:
-                    if page.scanned and page.page_no in ocr_text:
-                        page.text = ocr_text[page.page_no]
-                        page.scanned = False
-                save_stage(doc_id, "layout", layout.to_dict())
-            _check_deadline(deadline, doc_id)
+        layout_state = load_stage(doc_id, "layout_state")
+        if layout_rebuilt or not _layout_state_matches(
+            layout_state, layout, settings.clean_enable
+        ):
+            # ---- 阶段 1.5：逐页检查，字符多不等于可读；不让全篇比例掩盖坏页 ----
+            if file_path.suffix.lower() == ".pdf":
+                _recover_pdf_text(layout, file_path, settings.ocr_enabled)
+                _check_deadline(deadline, doc_id)
 
-        # ---- 阶段 1.6：数据清洗（页眉页脚去重 + NFKC 归一化，幂等）----
-        if settings.clean_enable:
-            from app.parsers.clean import clean_layout
+            # ---- 阶段 1.6：数据清洗（每个 layout revision 仅执行一次）----
+            if settings.clean_enable:
+                from app.parsers.clean import clean_layout
 
-            clean_layout(layout)
+                clean_layout(layout)
             save_stage(doc_id, "layout", layout.to_dict())
+            # Persist invalidation before rebuilding any dependent stage. An
+            # interrupted run therefore cannot accept old downstream caches.
+            save_stage(doc_id, "layout_state", {
+                "layout_sha256": _layout_sha256(layout),
+                "clean_enabled": settings.clean_enable,
+                "downstream_ready": False,
+            })
+            layout_rebuilt = True
+        elif layout_state.get("downstream_ready") is not True:
+            layout_rebuilt = True
         _check_deadline(deadline, doc_id)
         _log_stage(doc_id, "parse", t0, span)
 
@@ -111,7 +191,7 @@ def run_ingest(
         if task_id:
             _update_task_progress(task_id, "chunk", 40, "正在构建章节树")
         update_document(doc_id, status="chunking")
-        if not stage_done(doc_id, "sections"):
+        if layout_rebuilt or not stage_done(doc_id, "sections"):
             sections = build_section_tree(layout)
             save_stage(doc_id, "sections", {"sections": [s.to_dict() for s in sections]})
         else:
@@ -130,7 +210,7 @@ def run_ingest(
 
         # ---- 阶段 3：切分（Small-to-Big + 语义精切）----
         t0 = time.monotonic()
-        if not stage_done(doc_id, "chunks"):
+        if layout_rebuilt or not stage_done(doc_id, "chunks"):
             # 3a) 结构叶子（章节/表格边界 + 目标 token 聚合）
             leaves = build_leaves(doc_id, layout, sections, doc_title=file_path.stem)
             # 3b) 语义精切：仅超长散文叶子按嵌入相似度断点细分（配置开启且非 mock 时生效）
@@ -156,8 +236,21 @@ def run_ingest(
                 n_fill = backfill_doc_fields(doc_id, chunks)
                 if n_fill:
                     logger.info("doc %s fields backfilled: %d", doc_id, n_fill)
-            except Exception as e:  # 回填失败不阻断主流程（检索有 rerank 兜底）
-                logger.warning("doc %s fields backfill 失败（跳过）: %s", doc_id, e)
+            except Exception as exc:  # 回填失败不阻断主流程（检索有 rerank 兜底）
+                logger.warning(
+                    "doc %s fields backfill skipped: type=%s", doc_id, type(exc).__name__
+                )
+            if settings.evidence_graph_enabled:
+                try:
+                    from app.retrieval.evidence_graph import rebuild_document_graph
+
+                    rebuild_document_graph(doc_id)
+                except Exception as exc:  # 图是受控增强，不阻断基础文本入库
+                    logger.warning(
+                        "doc %s evidence graph skipped: type=%s",
+                        doc_id,
+                        type(exc).__name__,
+                    )
         _check_deadline(deadline, doc_id)
 
         # ---- 阶段 3.6：LLM 提炼（章节父块摘要 + 文档综述，只做检索锚点）----
@@ -166,7 +259,7 @@ def run_ingest(
         if settings.summary_enabled and _summary_applies(doc_id):
             t0 = time.monotonic()
             summaries, doc_summary = _build_doc_summaries(
-                doc_id, chunks, file_path.stem, task_id,
+                doc_id, chunks, file_path.stem, task_id, force_rebuild=layout_rebuilt,
             )
             if summaries or doc_summary:
                 chunks = _append_summary_chunks(doc_id, chunks, summaries, doc_summary)
@@ -182,7 +275,7 @@ def run_ingest(
         if task_id:
             _update_task_progress(task_id, "embed", 65, f"正在向量化 {len(chunks)} 个分块")
         update_document(doc_id, status="embedding")
-        if not stage_done(doc_id, "vectors"):
+        if layout_rebuilt or not stage_done(doc_id, "vectors"):
             embedder = get_embedder()
             vector_stage = _embed_chunks_batched(
                 doc_id,
@@ -224,6 +317,11 @@ def run_ingest(
             )
             _check_deadline(deadline, doc_id)
         update_document(doc_id, status="indexed", chunk_count=n, error=None)
+        save_stage(doc_id, "layout_state", {
+            "layout_sha256": _layout_sha256(LayoutResult.from_dict(load_stage(doc_id, "layout"))),
+            "clean_enabled": settings.clean_enable,
+            "downstream_ready": True,
+        })
         if task_id:
             _update_task_progress(task_id, "index", 100, "入库完成")
             update_task(task_id, status="success", progress=100, message=f"解析完成，共 {n} 个分块")
@@ -234,24 +332,32 @@ def run_ingest(
             span.end()
         return {"doc_id": doc_id, "chunks": n}
 
-    except Exception as e:
-        logger.exception("ingest failed for doc %s", doc_id)
+    except Exception as exc:
+        request_id = uuid.uuid4().hex[:12]
+        logger.error(
+            "ingest failed: doc=%s type=%s request_id=%s",
+            doc_id,
+            type(exc).__name__,
+            request_id,
+        )
         if span is not None:
             from opentelemetry.trace import Status, StatusCode
 
-            span.record_exception(e)
-            span.set_status(Status(StatusCode.ERROR, str(e)[:200]))
+            span.set_status(Status(StatusCode.ERROR, "ingest_failed"))
+            span.set_attribute("error.type", type(exc).__name__)
+            span.set_attribute("error.request_id", request_id)
             span.end()
         # 三写补偿：Qdrant 写入失败/半写时，回滚该文档已写入的向量点，
         # 避免"向量库有孤儿点、registry 却标记 failed"的不一致（文件/阶段产物保留供断点续跑）。
         try:
             qdrant_store.delete_doc(doc_id)
-        except Exception as ce:
-            logger.warning("向量回滚失败（可手工清理）: %s", ce)
-        update_document(doc_id, status="failed", error=str(e))
+        except Exception as rollback_exc:
+            logger.warning("vector rollback failed: type=%s", type(rollback_exc).__name__)
+        public_error = f"ingest_failed:{request_id}"
+        update_document(doc_id, status="failed", error=public_error)
         if task_id:
-            update_task(task_id, status="failed", message=str(e))
-        raise
+            update_task(task_id, status="failed", message=public_error)
+        raise PipelineError(public_error) from None
 
 
 def load_layout(doc_id: str) -> LayoutResult:
@@ -320,11 +426,13 @@ def _build_doc_summaries(
     chunks: list[Chunk],
     doc_title: str,
     task_id: str | None = None,
+    *,
+    force_rebuild: bool = False,
 ) -> tuple[list[tuple[str, str]], str]:
     """生成/复用章节摘要 + 文档综述（幂等 stage summaries，断点续跑不重复调 LLM）。"""
     from app.generation.summarize import summarize_doc_sections
 
-    if not stage_done(doc_id, "summaries"):
+    if force_rebuild or not stage_done(doc_id, "summaries"):
         parents = [c for c in chunks if c.chunk_type == "section"]
         sections = [(c.id, c.content) for c in parents]
         chapters = "\n".join(f"- {c.section_path}" for c in parents[:80])

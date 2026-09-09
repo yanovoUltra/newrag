@@ -220,3 +220,60 @@ export interface BenchmarkRunSummary {
   confidence: string
   created_at: string
 }
+
+// ---- 模型与 RAG 评估审计 ----
+export type EvaluationMetricTree = {
+  [key: string]: number | boolean | null | EvaluationMetricTree
+}
+
+export interface EvaluationRun {
+  id: string
+  label: string
+  kind: string
+  environment?: string
+  evidence_level?: string
+  question_group?: string
+  sample_count?: number
+  corpus_chunks?: number
+  status?: string
+  metrics: EvaluationMetricTree
+  scope?: Record<string, string | number | boolean>
+  source?: {
+    report: string
+    report_sha256: string
+    snapshot_sha256?: string
+  }
+  caveat?: string
+  created_at?: string
+}
+
+export interface EvaluationOverview {
+  schema_version: number
+  published_at: string
+  evaluation_contract: {
+    scope: string
+    targets: Record<string, number>
+    indicator_regression_tolerance: number
+  }
+  sealed_blind_test: {
+    status: string
+    opened: boolean
+    companies: number
+    questions: number
+    note: string
+  }
+  published_runs: EvaluationRun[]
+  pending_comparisons: Array<{ label: string; status: string; note: string }>
+  runtime: {
+    mode: 'demo' | 'real'
+    features: Record<string, boolean>
+    note: string
+  }
+  official_ragas: {
+    package: string
+    version: string | null
+    integration: string
+    legacy_custom_results_labeled_separately: boolean
+  }
+  recent_stored_runs: EvaluationRun[]
+}

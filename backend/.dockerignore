@@ -6,3 +6,7 @@ data
 *.log
 _*.json
 _*.log
+# Offline experiments, Gold and historical runners are not production assets.
+scripts
+# XBRL is a research-only path; ordinary API/worker have no dependency on it.
+app/xbrl

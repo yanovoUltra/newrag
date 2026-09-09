@@ -11,6 +11,7 @@ import {
 } from '@element-plus/icons-vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import { streamChat } from '@/api/chat'
+import { getIdentityContext } from '@/auth'
 import type { CitationData, MessageTurn } from '@/types'
 
 /* ---------------- 会话状态 ---------------- */
@@ -23,10 +24,18 @@ interface PersistedChat {
   messages: MessageTurn[]
 }
 
-const orgId = ref(localStorage.getItem(SETTINGS_KEY + ':org') ?? 'default')
-const visibility = ref(localStorage.getItem(SETTINGS_KEY + ':vis') ?? 'public')
-watch(orgId, (v) => localStorage.setItem(SETTINGS_KEY + ':org', v))
-watch(visibility, (v) => localStorage.setItem(SETTINGS_KEY + ':vis', v))
+const identity = getIdentityContext()
+const identityLocked = identity !== null
+const orgId = ref(identity?.orgId ?? localStorage.getItem(SETTINGS_KEY + ':org') ?? 'default')
+const visibility = ref(
+  identity?.visibility ?? localStorage.getItem(SETTINGS_KEY + ':vis') ?? 'public',
+)
+watch(orgId, (v) => {
+  if (!identityLocked) localStorage.setItem(SETTINGS_KEY + ':org', v)
+})
+watch(visibility, (v) => {
+  if (!identityLocked) localStorage.setItem(SETTINGS_KEY + ':vis', v)
+})
 
 const sessionId = ref('')
 const messages = ref<MessageTurn[]>([])
@@ -325,6 +334,7 @@ onUnmounted(() => {
           autocomplete="off"
           size="small"
           placeholder="例如 default…"
+          :disabled="identityLocked"
           style="width: 180px"
         />
       </div>
@@ -336,6 +346,7 @@ onUnmounted(() => {
           name="visibility"
           size="small"
           style="width: 140px"
+          :disabled="identityLocked"
         >
           <el-option label="公开 public" value="public" />
           <el-option label="内部 internal" value="internal" />

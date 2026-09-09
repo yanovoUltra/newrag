@@ -19,6 +19,7 @@ import {
   listBenchmarkRuns,
 } from '@/api/benchmark'
 import { notifyError } from '@/api/client'
+import { getIdentityContext } from '@/auth'
 import type {
   BenchmarkAnalysis,
   BenchmarkCatalog,
@@ -30,8 +31,10 @@ import type {
 
 const route = useRoute()
 const router = useRouter()
-const orgId = ref(localStorage.getItem('newrag:chat:settings:org') ?? 'default')
-const visibility = ref<'public' | 'internal' | 'restricted'>('public')
+const identity = getIdentityContext()
+const identityLocked = identity !== null
+const orgId = ref(identity?.orgId ?? localStorage.getItem('newrag:chat:settings:org') ?? 'default')
+const visibility = ref<'public' | 'internal' | 'restricted'>(identity?.visibility ?? 'public')
 const catalog = ref<BenchmarkCatalog>({ companies: [], years: [], metrics: [] })
 const selectedCompanies = ref<string[]>([])
 const selectedYears = ref<number[]>([])
@@ -222,8 +225,18 @@ onMounted(async () => {
 
         <label class="field-label" for="benchmark-org">机构 ID</label>
         <div class="scope-row">
-          <el-input id="benchmark-org" v-model="orgId" aria-label="机构 ID" />
-          <el-select v-model="visibility" aria-label="可见性" @change="loadCatalog(true)">
+          <el-input
+            id="benchmark-org"
+            v-model="orgId"
+            aria-label="机构 ID"
+            :disabled="identityLocked"
+          />
+          <el-select
+            v-model="visibility"
+            aria-label="可见性"
+            :disabled="identityLocked"
+            @change="loadCatalog(true)"
+          >
             <el-option label="公开" value="public" />
             <el-option label="内部" value="internal" />
             <el-option label="受限" value="restricted" />

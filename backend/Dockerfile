@@ -6,13 +6,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN --mount=type=cache,target=/var/lib/apt/lists \
+    sed -i 's|http://deb.debian.org|https://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 install -y --no-install-recommends --only-upgrade \
+      bsdutils libblkid1 liblastlog2-2 libmount1 libsmartcols1 libuuid1 login mount util-linux
+
 RUN groupadd --system newrag && useradd --system --gid newrag --home /app newrag
 
-COPY requirements.txt ./requirements.txt
+COPY requirements-runtime.txt ./requirements.txt
 RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+# Runtime does not install packages. Removing pip also removes its vendored SBOM,
+# which otherwise reports stale msgpack/setuptools components not imported by the app.
+RUN python -m pip uninstall -y pip
 
 COPY app ./app
-COPY scripts ./scripts
+# Offline research/evaluation scripts stay in the checkout, not the API image.
+# Operational API and Celery entrypoints import only the application package.
 RUN mkdir -p /app/data/uploads /app/data/pipeline && chown -R newrag:newrag /app
 
 USER newrag

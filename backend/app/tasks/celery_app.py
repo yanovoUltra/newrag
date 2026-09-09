@@ -15,9 +15,11 @@ from celery.signals import worker_process_init
 
 from app.core.config import get_settings
 from app.core.otel import setup_otel
+from app.core.runtime import validate_model_runtime
 from app.store.registry import init_db
 
 _settings = get_settings()
+validate_model_runtime(_settings)
 
 # worker 进程初始化 registry：模块级调用兜底 solo 单进程；worker_process_init 信号
 # 覆盖 prefork 多进程场景（fork 后子进程需要独立会话工厂）。init_db 幂等，API 进程同样安全。

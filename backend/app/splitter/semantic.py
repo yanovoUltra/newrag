@@ -81,8 +81,8 @@ def refine_leaves_semantically(leaves: list[Chunk], settings=None) -> list[Chunk
         from app.embed.embedder import get_embedder
 
         embedder = get_embedder()
-    except Exception as e:  # 嵌入不可用（如未配置密钥）时跳过精切
-        logger.warning("semantic refine skipped（嵌入不可用）: %s", e)
+    except Exception as exc:  # 嵌入不可用（如未配置密钥）时跳过精切
+        logger.warning("semantic refine skipped（嵌入不可用）: type=%s", type(exc).__name__)
         return leaves
     if embedder.name == "mock":
         return leaves  # mock 无真实语义，避免随机切分
@@ -98,8 +98,11 @@ def refine_leaves_semantically(leaves: list[Chunk], settings=None) -> list[Chunk
             continue
         try:
             sims = _adjacent_sims(embedder, sentences)
-        except Exception as e:
-            logger.warning("semantic refine embed 失败，保留原叶子: %s", e)
+        except Exception as exc:
+            logger.warning(
+                "semantic refine embed 失败，保留原叶子: type=%s",
+                type(exc).__name__,
+            )
             out.append(leaf)
             continue
         parts = _split_at_valleys(sentences, sims, settings)

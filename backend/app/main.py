@@ -14,9 +14,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import benchmark, chat, config_public, documents, metrics, tasks
+from app.api.v1 import benchmark, chat, config_public, documents, evaluations, metrics, tasks
 from app.core.config import get_settings
-from app.core.logging import get_logger, set_trace_id, setup_logging
+from app.core.logging import get_logger, get_trace_id, set_trace_id, setup_logging
 from app.core.otel import setup_otel
 from app.core.security import AuthMiddleware
 from app.store import qdrant as qdrant_store
@@ -54,7 +54,8 @@ def _dependency_health() -> dict[str, str]:
         except TimeoutError:
             checks[name] = "down(timeout)"
         except Exception as exc:  # noqa: BLE001
-            checks[name] = f"down({exc})"
+            checks[name] = "down(error)"
+            logger.warning("dependency health failed: %s type=%s", name, type(exc).__name__)
     return checks
 
 
@@ -73,6 +74,9 @@ def _cached_dependency_health() -> dict[str, str]:
 async def lifespan(app: FastAPI):
     setup_logging()
     settings = get_settings()
+    from app.core.runtime import validate_model_runtime
+
+    validate_model_runtime(settings)
     settings.resolved_upload_dir.mkdir(parents=True, exist_ok=True)
     settings.resolved_pipeline_dir.mkdir(parents=True, exist_ok=True)
     init_db()
@@ -83,12 +87,15 @@ async def lifespan(app: FastAPI):
 
             FastAPIInstrumentor.instrument_app(app)
             logger.info("OTel enabled: FastAPI instrumentation installed")
-        except Exception as e:  # noqa: BLE001
-            logger.warning("OTel instrumentation 失败（继续启动）: %s", e)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "OTel instrumentation 失败（继续启动）: type=%s",
+                type(exc).__name__,
+            )
     try:
         qdrant_store.ensure_collection()
     except Exception as e:
-        logger.warning("Qdrant 初始化失败（稍后可通过重试/上传触发重建）: %s", e)
+        logger.warning("Qdrant 初始化失败，未修改现有集合: type=%s", type(e).__name__)
     logger.info("app startup done, env=%s", settings.app_env)
     yield
 
@@ -106,9 +113,8 @@ class RequestIdMiddleware:
         tid = uuid.uuid4().hex[:12]
         set_trace_id(tid)
         method = scope.get("method", "")
-        path = scope.get("path", "")
         start = time.perf_counter()
-        logger.info("request start: %s %s", method, path)
+        logger.info("request start: method=%s", method)
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
@@ -121,7 +127,7 @@ class RequestIdMiddleware:
             await self.app(scope, receive, send_wrapper)
         finally:
             dur_ms = (time.perf_counter() - start) * 1000
-            logger.info("request done: %s %s %.0fms", method, path, dur_ms)
+            logger.info("request done: method=%s duration_ms=%.0f", method, dur_ms)
             set_trace_id("")
 
 
@@ -144,13 +150,44 @@ def create_app() -> FastAPI:
     # 入参校验失败统一 422（格式与 FastAPI 默认一致，前端无需改动）
     @app.exception_handler(RequestValidationError)
     async def validation_exc_handler(request: Request, exc: RequestValidationError):
-        logger.warning("validation error: %s %s %s", request.method, request.url.path, exc.errors())
-        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
+        errors = [
+            {
+                "type": item.get("type", "validation_error"),
+                "loc": item.get("loc", ()),
+                "msg": item.get("msg", "输入无效"),
+            }
+            for item in exc.errors()
+        ]
+        logger.warning(
+            "validation error: method=%s count=%d",
+            request.method,
+            len(errors),
+        )
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": jsonable_encoder(errors),
+                "code": "invalid_request",
+                "request_id": get_trace_id(),
+            },
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_exc_handler(request: Request, exc: Exception):
-        logger.exception("unhandled error: %s %s", request.method, request.url.path)
-        return JSONResponse(status_code=500, content={"detail": "服务器内部错误，请稍后重试"})
+        logger.error(
+            "unhandled error: method=%s type=%s request_id=%s",
+            request.method,
+            type(exc).__name__,
+            get_trace_id(),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "服务器内部错误，请稍后重试",
+                "code": "internal_error",
+                "request_id": get_trace_id(),
+            },
+        )
 
     app.include_router(documents.router, prefix="/api/v1")
     app.include_router(tasks.router, prefix="/api/v1")
@@ -158,6 +195,7 @@ def create_app() -> FastAPI:
     app.include_router(config_public.router, prefix="/api/v1")
     app.include_router(metrics.router, prefix="/api/v1")
     app.include_router(benchmark.router, prefix="/api/v1")
+    app.include_router(evaluations.router, prefix="/api/v1")
 
     @app.get("/livez")
     def livez():

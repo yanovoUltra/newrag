@@ -17,6 +17,12 @@ const router = createRouter({
       meta: { title: '竞品对标' },
     },
     {
+      path: '/evaluations',
+      name: 'evaluations',
+      component: () => import('@/views/EvaluationsView.vue'),
+      meta: { title: '模型评估' },
+    },
+    {
       path: '/documents',
       name: 'documents',
       component: () => import('@/views/DocumentsView.vue'),

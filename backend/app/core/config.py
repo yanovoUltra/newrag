@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     # 服务
     app_env: str = "development"
     cors_origins: str = "http://localhost:5173"
+    # auto=按实际可用模型推断；demo/real 用于 Compose 的显式运行合同。
+    model_runtime_mode: str = "auto"
+    # 显式部署档案。留空仅用于兼容旧环境；运行应选择以下两种档案之一：
+    # local-real | local-parser-benchmark。
+    runtime_profile: str = ""
+    # 真实档案可在启动时做非计费端点探测。外部模型只检查 TCP/TLS 可达性；
+    # 配置了健康路径的本地服务还会验证应用级 health endpoint。
+    runtime_endpoint_probe: bool = False
+    runtime_probe_timeout: float = 1.0
 
     # API 认证（HMAC 签名 + 时间戳窗口 + nonce 防重放；默认关闭，开启后 /api/v1/* 需携带签名头）
     auth_enabled: bool = False
@@ -28,9 +37,28 @@ class Settings(BaseSettings):
     auth_timestamp_window: int = 300  # 时间戳允许偏差（秒），超出视为过期/重放
     auth_nonce_ttl: int = 300  # nonce 去重保留时长（秒）
 
+    # OIDC / Keycloak（auth_mode=oidc 时启用；HMAC 仅保留给内部服务）
+    auth_mode: str = "disabled"  # disabled | hmac | oidc
+    oidc_issuer: str = ""
+    oidc_audience: str = "newrag-api"
+    oidc_jwks_url: str = ""
+    oidc_org_claim: str = "org_id"
+    oidc_roles_claim: str = "realm_access.roles"
+    oidc_visibility_claim: str = "visibility"
+    oidc_jwks_cache_seconds: int = 300
+    oidc_http_timeout: float = 3.0
+    oidc_frontend_client_id: str = "newrag-web"
+
     # 存储
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "chunks"
+    # 31,421 个真实财报块、71 道非指标题固定网格实测：m16/efc100 下 ef256
+    # 相对精确搜索的每题 Recall@20=1.0，且是满足门槛的最低 P95 配置。
+    qdrant_hnsw_ef: int = 256
+    index_schema_version: str = "2"
+    parser_version: str = "layout-v1"
+    chunker_version: str = "small-to-big-v1"
+    sparse_scheme: str = "native-no-idf"
     redis_url: str = "redis://localhost:6379"
     redis_cache_url: str = ""  # 缓存/会话 Redis；空值回退 redis_url 保持兼容
 
@@ -55,14 +83,19 @@ class Settings(BaseSettings):
 
     # LLM
     llm_provider: str = "openai"  # openai | mock
-    llm_base_url: str = "https://api.deepseek.com"
+    llm_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     llm_api_key: str = ""
-    llm_model: str = "deepseek-chat"
+    llm_api_secret_name: str = "LLM_API_KEY"
+    llm_model: str = "qwen3.7-plus"
     llm_timeout: int = 60
+    ragas_judge_max_tokens: int = 4096
+    ragas_judge_timeout: int = 180
     # 多模型路由：简单问题走轻量模型（如阿里云套餐 qwen3.7-plus），未配置则全部走主模型
     llm_light_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     llm_light_api_key: str = ""
+    llm_light_api_secret_name: str = "LLM_LIGHT_API_KEY"
     llm_light_model: str = "qwen3.7-plus"
+    llm_router_fallback_model: str = "qwen3.7-plus"
     # 会话/任务级超时（超时后发送 error 事件 / 标记任务失败）
     chat_timeout: int = 180  # SSE 问答整条流总超时（秒）
     ingest_timeout: int = 1800  # 单文档解析入库总超时（秒）
@@ -90,7 +123,15 @@ class Settings(BaseSettings):
     rerank_backend: str = "none"
     rerank_api_base: str = "https://dashscope.aliyuncs.com"
     rerank_api_key: str = ""
+    # 外部 rerank API 通常要求 Bearer Key；本机兼容服务可显式关闭认证要求。
+    rerank_api_auth_required: bool = True
+    # 本机服务可填 /healthz；外部供应商没有无计费健康接口时保持空值。
+    rerank_health_path: str = ""
     rerank_model: str = "qwen3-rerank"
+    # Optional local-service profiles. Empty values preserve the external API's
+    # single-model behaviour and therefore remain backward compatible.
+    rerank_indicator_model: str = ""
+    rerank_non_indicator_model: str = ""
     rerank_api_path: str = "/api/v1/services/rerank/text-rerank/text-rerank"
     rerank_candidates: int = 8  # RRF 融合后送入 rerank 的候选数（2026-08-11 消融：候选越少质量越高，8 最优，见 ablation §13）
     # 字段回填保底：relay 块（字段索引精确指路的答案块）rerank 分数加成，
@@ -113,6 +154,21 @@ class Settings(BaseSettings):
     # 父块在第 7-8 槽直接进 top-8，no-rerank top8 相关块 0.35→0.96；10+8 仅池上限
     # 微优 0.396 vs 0.385，且依赖完美排序假设）
     parent_route_top_k: int = 12
+    # 方面拆解检索在 71 题非指标题开发集上降低了 P@1/MRR/All-Hit，默认关闭。
+    # 仅允许在显式消融实验中开启，避免失败实验污染生产基线。
+    aspect_retrieval_enabled: bool = False
+    adjacent_page_enabled: bool = False
+    adjacent_page_seed_k: int = 20
+    adjacent_page_radius: int = 1
+    adjacent_page_max_candidates: int = 120
+    adjacent_page_preserve_k: int = 20
+    document_section_coverage_enabled: bool = False
+    document_section_coverage_limit: int = 90
+    document_section_dense_limit: int = 60
+    document_section_child_limit: int = 60
+    document_section_query_limit: int = 10
+    document_section_preserve_k: int = 20
+    document_section_head_ratio: float = 0.8
     # 综述题池重构（§18）：叶子 RRF 候选 8→6，槽位让给父块（父块12+叶子6=18 槽）。
     # 探针实证：叶 8→6 仅损失 1 题相关叶入池，换来父块结构性进 top-8 的降级鲁棒性
     summary_leaf_candidates: int = 6
@@ -131,6 +187,16 @@ class Settings(BaseSettings):
     section_weighting_enabled: bool = True
     # 对比题实体均衡保活（八）：检测到 ≥2 核心实体时按实体分组各取 Top-M
     comparison_balance_enabled: bool = True
+    # 抽取式上下文压缩：只保留支持问题的原文句/表格行，并记录原块字符偏移。
+    context_compression_enabled: bool = True
+    context_whole_block_packing_enabled: bool = False
+    context_source_dedup_enabled: bool = False
+    context_block_max_chars: int = 1600
+    context_total_max_chars: int = 12000
+    # Real answer integration of the previously evaluated text-first page path.
+    # Separate, explicit page budget; complete pages are never sentence-truncated.
+    complete_page_context_enabled: bool = True
+    complete_page_context_max_chars: int = 24000
 
     # 召回不足分级降级兜底（十一）：top_k 内真实命中 < 阈值或候选池 < 下限时，
     # 按 L1短语硬插→L2年份±1→L2无年份→L3实体→L4纯dense 逐级放宽，达标即停。
@@ -159,6 +225,14 @@ class Settings(BaseSettings):
     # 上传 / 陈旧文档防护
     max_upload_mb: int = 50
     upload_replace_same_filename: bool = True  # 同名文件上传 → 替换旧版（先删旧点再入库）
+    max_pdf_pages: int = 2000
+    max_image_pixels: int = 80_000_000
+    max_archive_entries: int = 10_000
+    max_archive_uncompressed_mb: int = 512
+    max_archive_ratio: int = 200
+    clamav_scan_enabled: bool = False
+    clamav_command: str = "clamdscan"
+    clamav_timeout: int = 30
     # 数据清洗（解析/OCR 之后、章节树之前）
     clean_enable: bool = True
     clean_nfkc: bool = True  # NFKC 归一化（全角→半角，统一数字/百分号/逗号）
@@ -170,6 +244,11 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/uploads"
     pipeline_dir: str = "./data/pipeline"
     registry_db: str = "./data/registry.db"
+    # 留空时保留 SQLite；生产可使用 PostgreSQL URL（密码从 REGISTRY_DB_PASSWORD_FILE/密钥库注入）。
+    registry_database_url: str = ""
+    registry_db_password: str = ""
+    # 轻量证据图尚未达到既定的多跳盲测收益门槛，保持实验性、默认关闭。
+    evidence_graph_enabled: bool = False
 
     # 会话（阶段二启用）
     session_window: int = 10

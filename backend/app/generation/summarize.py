@@ -78,12 +78,12 @@ async def _summarize_all(
             *[summarize_section(t, c) for t, c in sections]
         )
         results = [(sections[i][0], outs[i]) for i in range(len(sections))]
-    except Exception as e:  # noqa: BLE001 摘要失败不阻断入库（检索有原文兜底）
-        logger.warning("章节摘要批量生成失败（跳过）: %s", e)
+    except Exception as exc:  # noqa: BLE001 摘要失败不阻断入库（检索有原文兜底）
+        logger.warning("章节摘要批量生成失败（跳过）: type=%s", type(exc).__name__)
     try:
         doc_summary = await summarize_document(doc_name, doc_chapters)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("文档综述生成失败（跳过）: %s", e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("文档综述生成失败（跳过）: type=%s", type(exc).__name__)
     return results, doc_summary
 
 

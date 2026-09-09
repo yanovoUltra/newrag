@@ -1,17 +1,29 @@
+# Local authenticated stack. Filename retained for existing Compose project/volume identity.
 name: newrag
 
 x-backend-environment: &backend-environment
   APP_ENV: production
+  # Preserve the existing model-free local stack; local-real override opts in.
+  RUNTIME_PROFILE: ""
+  MODEL_RUNTIME_MODE: demo
+  EMBEDDING_BACKEND: mock
+  LLM_PROVIDER: mock
+  RERANK_BACKEND: none
+  OCR_ENABLED: "false"
   QDRANT_URL: http://qdrant:6333
   REDIS_URL: redis://redis-broker:6379/0
   REDIS_CACHE_URL: redis://redis-cache:6379/0
   TASK_BACKEND: celery
-  EMBEDDING_BACKEND: mock
-  LLM_PROVIDER: mock
-  RERANK_BACKEND: none
+  AUTH_MODE: oidc
+  OIDC_ISSUER: http://localhost:8080/auth/realms/newrag
+  OIDC_AUDIENCE: ${OIDC_AUDIENCE:-newrag-api}
+  OIDC_JWKS_URL: http://keycloak:8080/auth/realms/newrag/protocol/openid-connect/certs
+  OIDC_FRONTEND_CLIENT_ID: ${OIDC_FRONTEND_CLIENT_ID:-newrag-web}
   UPLOAD_DIR: /app/data/uploads
   PIPELINE_DIR: /app/data/pipeline
   REGISTRY_DB: /app/data/registry.db
+  REGISTRY_DATABASE_URL: postgresql+psycopg://newrag@app-db:5432/newrag
+  REGISTRY_DB_PASSWORD_FILE: /run/secrets/app_db_password
   EMBEDDING_CACHE_DIR: /app/data/models
 
 x-logging: &default-logging
@@ -21,6 +33,83 @@ x-logging: &default-logging
     max-file: "5"
 
 services:
+  app-db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: newrag
+      POSTGRES_USER: newrag
+      POSTGRES_PASSWORD_FILE: /run/secrets/app_db_password
+    secrets:
+      - app_db_password
+    volumes:
+      - app_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newrag -d newrag"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    logging: *default-logging
+
+  keycloak-db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD_FILE: /run/secrets/keycloak_db_password
+    secrets:
+      - keycloak_db_password
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+    logging: *default-logging
+
+  keycloak:
+    build:
+      context: ./keycloak
+      dockerfile: Containerfile
+    environment:
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: http://localhost:8080/auth
+      KC_HOSTNAME_STRICT: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:-bootstrap-admin}
+    entrypoint: ["/bin/bash", "/opt/keycloak/bin/start-newrag.sh"]
+    secrets:
+      - keycloak_db_password
+      - keycloak_admin_password
+    volumes:
+      - ./keycloak/newrag-realm.json:/opt/keycloak/data/import/newrag-realm.json:ro
+      - ./keycloak/start-keycloak.sh:/opt/keycloak/bin/start-newrag.sh:ro
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    logging: *default-logging
+
   qdrant:
     image: qdrant/qdrant:v1.13.4
     restart: unless-stopped
@@ -61,6 +150,7 @@ services:
     logging: *default-logging
 
   api:
+    image: newrag-api:local-final-20260907
     build:
       context: ../backend
       dockerfile: Dockerfile
@@ -69,12 +159,18 @@ services:
     restart: unless-stopped
     volumes:
       - app_data:/app/data
+    secrets:
+      - app_db_password
     depends_on:
+      app-db:
+        condition: service_healthy
       qdrant:
         condition: service_healthy
       redis-cache:
         condition: service_healthy
       redis-broker:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/livez', timeout=2)"]
@@ -87,6 +183,7 @@ services:
     logging: *default-logging
 
   worker:
+    image: newrag-api:local-final-20260907
     build:
       context: ../backend
       dockerfile: Dockerfile
@@ -96,6 +193,8 @@ services:
     restart: unless-stopped
     volumes:
       - app_data:/app/data
+    secrets:
+      - app_db_password
     depends_on:
       api:
         condition: service_healthy
@@ -110,12 +209,14 @@ services:
     logging: *default-logging
 
   frontend:
+    image: newrag-frontend:local-final-20260907
     build:
       context: ../frontend
       dockerfile: Dockerfile
     volumes:
       - ./nginx.production.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./secrets/newrag.htpasswd:/etc/nginx/.htpasswd:ro
+    ports:
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
     depends_on:
       api:
@@ -130,45 +231,18 @@ services:
     cpus: 0.5
     logging: *default-logging
 
-  gateway:
-    image: caddy:2.10.2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - certbot_certs:/etc/letsencrypt:ro
-      - certbot_webroot:/var/www/certbot:ro
-    depends_on:
-      frontend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:2019/config/"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    mem_limit: 128m
-    cpus: 0.25
-    logging: *default-logging
-
-  certbot:
-    image: certbot/certbot:v5.4.0
-    profiles: ["maintenance"]
-    volumes:
-      - certbot_certs:/etc/letsencrypt
-      - certbot_webroot:/var/www/certbot
-    logging: *default-logging
-
 volumes:
+  app_db_data:
+  keycloak_db_data:
   qdrant_data:
   redis_cache_data:
   redis_broker_data:
   app_data:
-  caddy_data:
-  caddy_config:
-  certbot_certs:
-  certbot_webroot:
+
+secrets:
+  app_db_password:
+    environment: NEWRAG_APP_DB_PASSWORD
+  keycloak_db_password:
+    environment: NEWRAG_KEYCLOAK_DB_PASSWORD
+  keycloak_admin_password:
+    environment: NEWRAG_KEYCLOAK_ADMIN_PASSWORD

@@ -7,9 +7,9 @@ import re
 from dataclasses import dataclass, field
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.generation.llm import get_llm
-from app.generation.prompts import HYDE_PROMPT, ROUTER_PROMPT
+from app.core.logging import get_logger, safe_ref
+from app.generation.llm import get_llm, get_llm_light
+from app.generation.prompts import ASPECT_ROUTER_PROMPT, HYDE_PROMPT, ROUTER_PROMPT
 
 logger = get_logger(__name__)
 
@@ -58,6 +58,7 @@ class RoutePlan:
     rewritten_query: str | None = None
     sub_queries: list[str] = field(default_factory=list)
     sub_query_deps: dict[int, list[int]] = field(default_factory=dict)
+    evidence_aspects: list[str] = field(default_factory=list)
     needs_hyde: bool = False
 
     @property
@@ -130,6 +131,20 @@ def _parse_sub_queries(raw) -> tuple[list[str], dict[int, list[int]]]:
     return subs, deps
 
 
+def _parse_evidence_aspects(raw) -> list[str]:
+    """Keep two to five concise, distinct evidence facets from the router."""
+
+    aspects: list[str] = []
+    for item in raw or []:
+        text = str(item or "").strip()
+        if not text or text in aspects:
+            continue
+        aspects.append(text[:80])
+        if len(aspects) >= 5:
+            break
+    return aspects if len(aspects) >= 2 else []
+
+
 def _parse_plan(raw: str) -> RoutePlan:
     """容错解析 LLM JSON 输出（去代码围栏、补全缺省字段）。"""
     text = raw.strip()
@@ -140,12 +155,12 @@ def _parse_plan(raw: str) -> RoutePlan:
         # 兜底：截取首个 { ... } 再解析
         m = re.search(r"\{.*\}", text, re.S)
         if not m:
-            logger.warning("router json 解析失败，使用默认计划: %s", raw[:120])
+            logger.warning("router json 解析失败，使用默认计划: raw=%s", safe_ref(raw))
             return RoutePlan()
         try:
             data = json.loads(m.group(0))
         except json.JSONDecodeError:
-            logger.warning("router json 解析失败，使用默认计划: %s", raw[:120])
+            logger.warning("router json 解析失败，使用默认计划: raw=%s", safe_ref(raw))
             return RoutePlan()
 
     intent = data.get("intent", "factual")
@@ -165,8 +180,9 @@ def _parse_plan(raw: str) -> RoutePlan:
         rewritten_query=str(data.get("rewritten_query") or "").strip() or None,
         sub_queries=subs,
         sub_query_deps=sub_deps,
+        evidence_aspects=_parse_evidence_aspects(data.get("evidence_aspects")),
         needs_hyde=bool(data.get("needs_hyde", False)),
-    )
+        )
 
 
 async def route_query(question: str) -> RoutePlan:
@@ -177,21 +193,56 @@ async def route_query(question: str) -> RoutePlan:
     summary_trigger = _is_summary_query(question)
     if not settings.intent_routing_enabled:
         return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
-    llm = get_llm()
+    # 路由需要稳定 JSON；优先用支持结构化输出的轻量模型。阿里云
+    # DeepSeek V4 主模型不支持 response_format，不能承担这条热路径。
+    light_llm = get_llm_light()
+    llm = light_llm or get_llm()
     if llm.name == "mock":
         return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
     try:
+        router_prompt = (
+            ASPECT_ROUTER_PROMPT
+            if settings.aspect_retrieval_enabled
+            else ROUTER_PROMPT
+        )
         raw = await llm.chat(
             [
-                {"role": "system", "content": ROUTER_PROMPT},
+                {"role": "system", "content": router_prompt},
                 {"role": "user", "content": f"问题：{question}"},
             ],
             response_format={"type": "json_object"},
+            temperature=0,
+            thinking=False,
         )
-    except Exception as e:
-        logger.warning("意图路由调用失败，使用默认计划: %s", e)
-        return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
+    except Exception as exc:
+        if light_llm is None:
+            logger.warning("意图路由调用失败，使用默认计划: type=%s", type(exc).__name__)
+            return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
+        logger.warning(
+            "轻量意图路由失败，切换套餐备用模型: type=%s",
+            type(exc).__name__,
+        )
+        try:
+            raw = await get_llm().chat(
+                [
+                    {"role": "system", "content": router_prompt},
+                    {"role": "user", "content": f"问题：{question}"},
+                ],
+                model=settings.llm_router_fallback_model,
+                response_format={"type": "json_object"},
+                temperature=0,
+                thinking=False,
+            )
+        except Exception as fallback_exc:
+            logger.warning(
+                "套餐备用意图路由失败，使用关键词计划: type=%s",
+                type(fallback_exc).__name__,
+            )
+            return RoutePlan(query_type=keyword_type, needs_hyde=summary_trigger)
     plan = _parse_plan(raw)
+    if not settings.aspect_retrieval_enabled:
+        # 防御模型在基础 schema 外自行返回 evidence_aspects。
+        plan.evidence_aspects = []
     # 双重合并：关键词信号优先，LLM 结果兜底
     plan.query_type = _merge_query_type(plan.query_type, keyword_type)
     plan.needs_hyde = plan.needs_hyde or summary_trigger
@@ -210,8 +261,10 @@ async def generate_hypothetical_document(question: str) -> str | None:
         return await llm.chat(
             [
                 {"role": "system", "content": HYDE_PROMPT.format(question=question)},
-            ]
+            ],
+            temperature=0,
+            thinking=False,
         )
-    except Exception as e:
-        logger.warning("HyDE 生成失败，跳过: %s", e)
+    except Exception as exc:
+        logger.warning("HyDE 生成失败，跳过: type=%s", type(exc).__name__)
         return None

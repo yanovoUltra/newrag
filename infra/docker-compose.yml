@@ -3,8 +3,8 @@ services:
     image: qdrant/qdrant:v1.13.4
     container_name: newrag-qdrant
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
@@ -19,7 +19,7 @@ services:
     container_name: newrag-redis-cache
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "384mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_cache_data:/data
     healthcheck:
@@ -59,7 +59,7 @@ services:
       REGISTRY_DB: /app/data/registry.db
       EMBEDDING_CACHE_DIR: /app/data/models
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - app_data:/app/data
     depends_on:
@@ -111,7 +111,7 @@ services:
       dockerfile: Dockerfile
     container_name: newrag-frontend
     ports:
-      - "5173:8080"
+      - "127.0.0.1:5173:8080"
     depends_on:
       api:
         condition: service_healthy
@@ -124,7 +124,7 @@ services:
     container_name: newrag-phoenix
     profiles: ["observability"]
     ports:
-      - "6006:6006"
+      - "127.0.0.1:6006:6006"
     volumes:
       - phoenix_data:/data
 

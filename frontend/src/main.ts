@@ -36,27 +36,36 @@ import 'element-plus/es/components/tooltip/style/css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import '@/styles/theme.css'
 import App from './App.vue'
+import { initializeAuth } from './auth'
 import router from './router'
 
-const app = createApp(App)
-for (const component of [
-  ElAlert,
-  ElButton,
-  ElDrawer,
-  ElIcon,
-  ElInput,
-  ElInputNumber,
-  ElOption,
-  ElPagination,
-  ElProgress,
-  ElSelect,
-  ElTable,
-  ElTableColumn,
-  ElTag,
-  ElTooltip,
-]) {
-  app.component(component.name!, component)
+async function bootstrap() {
+  await initializeAuth()
+  const app = createApp(App)
+  for (const component of [
+    ElAlert,
+    ElButton,
+    ElDrawer,
+    ElIcon,
+    ElInput,
+    ElInputNumber,
+    ElOption,
+    ElPagination,
+    ElProgress,
+    ElSelect,
+    ElTable,
+    ElTableColumn,
+    ElTag,
+    ElTooltip,
+  ]) {
+    app.component(component.name!, component)
+  }
+  app.use(router)
+  app.use(ElLoading)
+  app.mount('#app')
 }
-app.use(router)
-app.use(ElLoading)
-app.mount('#app')
+
+bootstrap().catch((error: unknown) => {
+  const root = document.getElementById('app')
+  if (root) root.textContent = error instanceof Error ? error.message : '应用初始化失败'
+})

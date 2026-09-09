@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import time
@@ -14,6 +15,7 @@ import httpx
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.secrets import resolve_secret
 
 logger = get_logger(__name__)
 
@@ -24,7 +26,10 @@ _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 def _clean_md(text: str) -> str:
     """清理 OCR markdown：去 HTML 标签（含 <img>）、markdown 图片占位，压缩连续空行。"""
-    text = _HTML_TAG_RE.sub("", text)
+    # Preserve cell and row boundaries when flattening provider HTML tables.
+    text = re.sub(r"</t[dh]\s*>", " | ", text, flags=re.IGNORECASE)
+    text = re.sub(r"</tr\s*>|<br\s*/?>", "\n", text, flags=re.IGNORECASE)
+    text = html.unescape(_HTML_TAG_RE.sub("", text))
     text = _MD_IMAGE_RE.sub("", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
@@ -34,16 +39,17 @@ class PaddleOcr:
 
     def __init__(self, settings):
         self._settings = settings
-        self._headers = {"Authorization": f"bearer {settings.ppocr_token}"}
+        self._token = resolve_secret("PPOCR_TOKEN", settings.ppocr_token)
+        self._headers = {"Authorization": f"bearer {self._token}"}
 
     def document_pages(self, file_path: Path) -> list[str]:
         """提交整文件（PDF/图片）并轮询，返回按文档顺序的每页文本。"""
         settings = self._settings
-        if not settings.ppocr_token:
+        if not self._token:
             raise RuntimeError("未配置 PPOCR_TOKEN，无法调用 PaddleOCR 在线 API")
         with httpx.Client(timeout=settings.ppocr_timeout) as client:
             job_id = self._submit(client, file_path)
-            logger.info("ppocr job submitted: %s (%s)", job_id, file_path.name)
+            logger.info("ppocr job submitted: id=%s", job_id)
             jsonl_url = self._wait_done(client, job_id)
             resp = client.get(jsonl_url)
             resp.raise_for_status()
@@ -66,7 +72,7 @@ class PaddleOcr:
                 settings.ppocr_job_url, headers=self._headers, data=data, files={"file": f}
             )
         if resp.status_code != 200:
-            raise RuntimeError(f"ppocr 任务提交失败: {resp.status_code} {resp.text[:300]}")
+            raise RuntimeError(f"ppocr 任务提交失败: HTTP {resp.status_code}")
         return resp.json()["data"]["jobId"]
 
     def _wait_done(self, client: httpx.Client, job_id: str) -> str:

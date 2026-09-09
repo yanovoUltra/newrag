@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -45,3 +47,5 @@ class ChatRequest(BaseModel):
     session_id: str = ""
     org_id: str = Field(min_length=1)
     user_visibility: str = "public"
+    response_mode: Literal["text", "structured"] = "text"
+    use_tools: bool = False

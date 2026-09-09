@@ -10,9 +10,30 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 
 from app.core.config import get_settings
+from app.core.identity import (
+    may_read_visibility,
+    request_principal,
+    require_roles,
+    resolve_org,
+    write_visibility,
+)
+from app.core.upload_security import (
+    MalwareScannerUnavailable,
+    UploadSecurityError,
+    validate_uploaded_file,
+)
 from app.parsers.base import SUPPORTED_EXTENSIONS
 from app.pipelines.ingest import run_ingest
 from app.schemas import DocumentOut, DocumentPage
@@ -96,6 +117,7 @@ def _find_replace_target(settings, org_id: str, sha256: str, filename: str):
 @router.post("", response_model=dict, status_code=201)
 async def upload_document(
     background: BackgroundTasks,
+    request: Request,
     file: UploadFile = File(...),
     org_id: str = Form(...),
     visibility: str = Form("public"),
@@ -103,6 +125,10 @@ async def upload_document(
     fiscal_quarter: int | None = Form(None),
 ):
     settings = get_settings()
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst")
+    org_id = resolve_org(principal, org_id)
+    visibility = write_visibility(principal, visibility)
     ext = Path(file.filename or "").suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(400, f"不支持的文件类型: {ext or '(无扩展名)'}，支持 {sorted(SUPPORTED_EXTENSIONS)}")
@@ -133,6 +159,12 @@ async def upload_document(
                 temp.write(chunk)
         if size_bytes == 0:
             raise HTTPException(400, "上传内容为空")
+        try:
+            validate_uploaded_file(temp_path, ext, settings)
+        except UploadSecurityError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except MalwareScannerUnavailable as exc:
+            raise HTTPException(503, str(exc)) from exc
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise
@@ -185,11 +217,15 @@ async def upload_document(
 
 @router.get("", response_model=list[DocumentOut])
 def list_docs(
+    request: Request,
     org_id: str | None = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     include_archived: bool = False,
 ):
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst", "viewer")
+    org_id = resolve_org(principal, org_id)
     docs, _ = query_documents_page(
         org_id=org_id,
         limit=limit,
@@ -201,6 +237,7 @@ def list_docs(
 
 @router.get("/page", response_model=DocumentPage)
 def list_docs_page(
+    request: Request,
     org_id: str | None = None,
     filename: str | None = None,
     status: str | None = None,
@@ -208,6 +245,9 @@ def list_docs_page(
     offset: int = Query(0, ge=0),
     include_archived: bool = False,
 ):
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst", "viewer")
+    org_id = resolve_org(principal, org_id)
     docs, total = query_documents_page(
         org_id=org_id,
         filename=filename,
@@ -225,17 +265,25 @@ def list_docs_page(
 
 
 @router.get("/{doc_id}", response_model=DocumentOut)
-def get_doc(doc_id: str):
+def get_doc(doc_id: str, request: Request):
     d = get_document(doc_id)
-    if not d:
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst", "viewer")
+    if (
+        not d
+        or (principal is not None and d.org_id != principal.org_id)
+        or not may_read_visibility(principal, d.visibility)
+    ):
         raise HTTPException(404, "文档不存在")
     return doc_dict(d)
 
 
 @router.delete("/{doc_id}", status_code=200)
-def delete_doc(doc_id: str):
+def delete_doc(doc_id: str, request: Request):
     d = get_document(doc_id)
-    if not d:
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin")
+    if not d or (principal is not None and d.org_id != principal.org_id):
         raise HTTPException(404, "文档不存在")
     _purge_document(doc_id)
     return {"doc_id": doc_id, "deleted": True}

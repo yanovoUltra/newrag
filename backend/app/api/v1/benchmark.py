@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.benchmark.schemas import (
     BenchmarkAnalysis,
@@ -14,6 +14,7 @@ from app.benchmark.schemas import (
     BenchmarkRunSummary,
 )
 from app.benchmark.service import BenchmarkInputError, analyze, build_catalog
+from app.core.identity import read_visibility, request_principal, require_roles, resolve_org
 from app.store.registry import get_benchmark_run, list_benchmark_runs, save_benchmark_run
 
 router = APIRouter(prefix="/benchmark", tags=["benchmark"])
@@ -21,25 +22,38 @@ router = APIRouter(prefix="/benchmark", tags=["benchmark"])
 
 @router.get("/catalog", response_model=BenchmarkCatalog)
 def catalog(
+    request: Request,
     org_id: str = Query(default="default", min_length=1, max_length=64),
     user_visibility: Literal["public", "internal", "restricted"] = "public",
 ):
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst", "viewer")
+    org_id = resolve_org(principal, org_id)
+    user_visibility = read_visibility(principal, user_visibility)
     return build_catalog(org_id, user_visibility)
 
 
 @router.post("/analyze", response_model=BenchmarkAnalysis)
-def run_analysis(req: BenchmarkRequest):
+def run_analysis(req: BenchmarkRequest, request: Request):
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst")
+    effective = req.model_copy(
+        update={
+            "org_id": resolve_org(principal, req.org_id),
+            "user_visibility": read_visibility(principal, req.user_visibility),
+        }
+    )
     try:
-        result = analyze(req)
+        result = analyze(effective)
     except BenchmarkInputError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     payload = result.model_dump(mode="json")
     save_benchmark_run(
         run_id=result.id,
-        org_id=req.org_id,
-        visibility=req.user_visibility,
+        org_id=effective.org_id,
+        visibility=effective.user_visibility,
         name=result.name,
-        request_data=req.model_dump(mode="json"),
+        request_data=effective.model_dump(mode="json"),
         result_data=payload,
     )
     return result
@@ -47,10 +61,15 @@ def run_analysis(req: BenchmarkRequest):
 
 @router.get("/runs", response_model=list[BenchmarkRunSummary])
 def runs(
+    request: Request,
     org_id: str = Query(default="default", min_length=1, max_length=64),
     user_visibility: Literal["public", "internal", "restricted"] = "public",
     limit: int = Query(default=20, ge=1, le=50),
 ):
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst", "viewer")
+    org_id = resolve_org(principal, org_id)
+    user_visibility = read_visibility(principal, user_visibility)
     output = []
     for run in list_benchmark_runs(org_id, user_visibility, limit):
         try:
@@ -73,9 +92,14 @@ def runs(
 @router.get("/runs/{run_id}", response_model=BenchmarkAnalysis)
 def run_detail(
     run_id: str,
+    request: Request,
     org_id: str = Query(default="default", min_length=1, max_length=64),
     user_visibility: Literal["public", "internal", "restricted"] = "public",
 ):
+    principal = request_principal(request)
+    require_roles(principal, "tenant_admin", "analyst", "viewer")
+    org_id = resolve_org(principal, org_id)
+    user_visibility = read_visibility(principal, user_visibility)
     run = get_benchmark_run(run_id, org_id, user_visibility)
     if run is None:
         raise HTTPException(status_code=404, detail="对标分析不存在或无权访问")

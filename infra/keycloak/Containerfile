@@ -1,0 +1,105 @@
+FROM python:3.13-slim AS security-patches
+
+WORKDIR /patches
+RUN python - <<'PY'
+from pathlib import Path
+from time import sleep
+from urllib.request import urlopen
+
+repository = "https://maven.aliyun.com/repository/central"
+artifacts = [
+    ("com.fasterxml.jackson.core", "jackson-core", "2.21.4"),
+    ("com.fasterxml.jackson.core", "jackson-databind", "2.21.4"),
+    ("io.micrometer", "micrometer-core", "1.16.6"),
+    ("io.micrometer", "micrometer-commons", "1.16.6"),
+    ("io.micrometer", "micrometer-observation", "1.16.6"),
+    ("io.netty", "netty-buffer", "4.1.136.Final"),
+    ("io.netty", "netty-codec", "4.1.136.Final"),
+    ("io.netty", "netty-codec-dns", "4.1.136.Final"),
+    ("io.netty", "netty-codec-haproxy", "4.1.136.Final"),
+    ("io.netty", "netty-codec-http", "4.1.136.Final"),
+    ("io.netty", "netty-codec-http2", "4.1.136.Final"),
+    ("io.netty", "netty-codec-socks", "4.1.136.Final"),
+    ("io.netty", "netty-common", "4.1.136.Final"),
+    ("io.netty", "netty-handler", "4.1.136.Final"),
+    ("io.netty", "netty-handler-proxy", "4.1.136.Final"),
+    ("io.netty", "netty-resolver", "4.1.136.Final"),
+    ("io.netty", "netty-resolver-dns", "4.1.136.Final"),
+    ("io.netty", "netty-transport", "4.1.136.Final"),
+    ("io.netty", "netty-transport-classes-epoll", "4.1.136.Final"),
+    ("io.netty", "netty-transport-native-unix-common", "4.1.136.Final"),
+    ("org.postgresql", "postgresql", "42.7.12"),
+]
+target = Path("/patches/jars")
+target.mkdir(parents=True, exist_ok=True)
+for group, artifact, version in artifacts:
+    filename = f"{artifact}-{version}.jar"
+    url = f"{repository}/{group.replace('.', '/')}/{artifact}/{version}/{filename}"
+    for attempt in range(3):
+        try:
+            with urlopen(url, timeout=60) as response:
+                data = response.read()
+            if len(data) < 1_024:
+                raise RuntimeError(f"unexpectedly small artifact: {filename}")
+            (target / filename).write_bytes(data)
+            break
+        except Exception:
+            if attempt == 2:
+                raise
+            sleep(2 * (attempt + 1))
+PY
+
+FROM quay.io/keycloak/keycloak:26.7.1 AS builder
+
+ENV KC_DB=postgres \
+    KC_HEALTH_ENABLED=true \
+    KC_METRICS_ENABLED=true \
+    KC_HTTP_RELATIVE_PATH=/auth
+
+WORKDIR /opt/keycloak
+
+# Keycloak 26.7.1 is the latest stable release, but its dependency BOM predates
+# these patch-level security fixes. Preserve the original filenames because the
+# prebuilt Quarkus bootstrap classpath references them; the JAR metadata still
+# records the actual patched version for runtime diagnostics and scanners.
+COPY --from=security-patches /patches/jars/jackson-core-2.21.4.jar /opt/keycloak/lib/lib/main/com.fasterxml.jackson.core.jackson-core-2.21.2.jar
+COPY --from=security-patches /patches/jars/jackson-databind-2.21.4.jar /opt/keycloak/lib/lib/main/com.fasterxml.jackson.core.jackson-databind-2.21.2.jar
+COPY --from=security-patches /patches/jars/micrometer-core-1.16.6.jar /opt/keycloak/lib/lib/main/io.micrometer.micrometer-core-1.16.3.jar
+COPY --from=security-patches /patches/jars/micrometer-commons-1.16.6.jar /opt/keycloak/lib/lib/main/io.micrometer.micrometer-commons-1.16.3.jar
+COPY --from=security-patches /patches/jars/micrometer-observation-1.16.6.jar /opt/keycloak/lib/lib/main/io.micrometer.micrometer-observation-1.16.3.jar
+COPY --from=security-patches /patches/jars/netty-buffer-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-buffer-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-codec-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-codec-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-codec-dns-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-codec-dns-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-codec-haproxy-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-codec-haproxy-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-codec-http-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-codec-http-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-codec-http2-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-codec-http2-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-codec-socks-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-codec-socks-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-common-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-common-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-handler-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-handler-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-handler-proxy-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-handler-proxy-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-resolver-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-resolver-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-resolver-dns-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-resolver-dns-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-transport-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-transport-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-transport-classes-epoll-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-transport-classes-epoll-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/netty-transport-native-unix-common-4.1.136.Final.jar /opt/keycloak/lib/lib/main/io.netty.netty-transport-native-unix-common-4.1.135.Final.jar
+COPY --from=security-patches /patches/jars/postgresql-42.7.12.jar /opt/keycloak/lib/lib/main/org.postgresql.postgresql-42.7.11.jar
+
+RUN /opt/keycloak/bin/kc.sh build --verbose
+
+# Production uses PostgreSQL only. Remove the optional SQL Server driver after
+# augmentation so its absence cannot affect the build-time classpath.
+RUN rm -f /opt/keycloak/lib/lib/main/com.microsoft.sqlserver.mssql-jdbc-13.2.1.jre11.jar
+
+FROM quay.io/keycloak/keycloak:26.7.1
+COPY --from=builder /opt/keycloak/ /opt/keycloak/
+
+# The server runtime does not invoke the bundled administration CLI or the
+# SQL Server JDBC driver. Excluding both removes their independent dependency
+# trees and leaves administration to the external, authenticated OIDC path.
+RUN rm -f /opt/keycloak/bin/client/keycloak-admin-cli-26.7.1.jar
+RUN rm -f /opt/keycloak/lib/lib/main/com.microsoft.sqlserver.mssql-jdbc-13.2.1.jre11.jar
+
+ENV KC_DB=postgres \
+    KC_HEALTH_ENABLED=true \
+    KC_METRICS_ENABLED=true \
+    KC_HTTP_RELATIVE_PATH=/auth

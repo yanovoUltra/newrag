@@ -10,9 +10,10 @@
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.logging import get_logger, safe_ref
 from app.fields.numeric import numeric_match_score, parse_numeric_constraints
 from app.fields.phrases import extract_number_phrases, norm_number_phrase
 from app.retrieval.reranker import get_reranker
@@ -143,10 +144,14 @@ def _apply_negation(
         from app.embed.embedder import get_embedder
 
         dense, sparse = get_embedder().embed_texts_with_sparse([clean], text_type="query")
-        logger.info("否定词感知改写: %.40s → %.40s", query_text, clean)
+        logger.info(
+            "否定词感知改写: before=%s after=%s",
+            safe_ref(query_text),
+            safe_ref(clean),
+        )
         return clean, dense[0], (sparse[0] if sparse else None)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("否定词查询改写失败（忽略）: %s", e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("否定词查询改写失败（忽略）: type=%s", type(exc).__name__)
         return query_text, query_vector, query_sparse
 
 
@@ -180,7 +185,8 @@ def _resolve_subject_doc_ids(query_text: str, org_id: str, user_visibility: str)
 
 
 def _field_relay_candidates(
-    query_text: str, org_id: str, user_visibility: str, fiscal_year: int | None
+    query_text: str, org_id: str, user_visibility: str, fiscal_year: int | None,
+    *, exact_year: bool = False,
 ) -> list[dict] | None:
     """字段索引回填召回：metric 问题命中字段后，把来源 chunk 作为强候选返回。
 
@@ -198,7 +204,10 @@ def _field_relay_candidates(
         return None
     target_year = q_year or fiscal_year
     rows = query_fields([key], org_id, user_visibility, year=target_year, company=company, limit=10)
-    if not rows and target_year is not None:
+    if exact_year and (target_year is None or len(rows) != 1
+                       or rows[0].year != target_year or not rows[0].source_chunk_id):
+        return None
+    if not rows and target_year is not None and not exact_year:
         rows = query_fields([key], org_id, user_visibility, year=None, company=company, limit=10)
     # 按 doc 分组取来源 chunk payload
     by_doc: dict[str, list[str]] = {}
@@ -208,8 +217,7 @@ def _field_relay_candidates(
             continue
         by_doc.setdefault(r.doc_id, []).append(r.source_chunk_id)
         meta.setdefault(r.source_chunk_id, {
-            "doc_id": r.doc_id, "doc_name": r.company, "page": r.page,
-            "section_path": r.section_path, "score": 1.0, "fused_score": 1.0,
+            "doc_id": r.doc_id, "score": 1.0, "fused_score": 1.0,
         })
     if not by_doc:
         return None
@@ -221,20 +229,30 @@ def _field_relay_candidates(
         pay = payloads.get(cid)
         if not pay:
             continue
+        if (
+            pay.get("doc_id") != meta[cid]["doc_id"]
+            or pay.get("org_id") != org_id
+            or pay.get("visibility") not in qdrant_store.visible_levels(user_visibility)
+        ):
+            # Field metadata alone must not authorize a mismatched vector source.
+            continue
         out.append({
             "chunk_id": cid,
             "doc_id": meta[cid]["doc_id"],
-            "doc_name": meta[cid]["doc_name"],
-            "page": meta[cid]["page"],
-            "section_path": meta[cid]["section_path"],
+            # A field's subject is a lookup key, not the source document's title.
+            # Never relabel a group report as its subsidiary or invent a page
+            # from stale field metadata when the actual source has none.
+            "doc_name": pay.get("doc_name") or meta[cid]["doc_id"],
+            "page": pay.get("page"),
+            "section_path": pay.get("section_path") or "",
             "chunk_type": pay.get("chunk_type", "table"),
             "content": pay.get("content", ""),
             "parent_id": pay.get("parent_id"),
             "score": meta[cid]["score"],
             "rerank_score": None,
             "fused_score": meta[cid]["fused_score"],
-            "org_id": org_id,
-            "visibility": user_visibility,
+            "org_id": pay["org_id"],
+            "visibility": pay["visibility"],
             "is_structural": False,
             "is_relay": True,  # 字段索引回填强候选标记：年份回退判断依赖它
         })
@@ -266,8 +284,8 @@ def _phrase_sparse_route(
         from app.embed.embedder import get_embedder
 
         _, sparses = get_embedder().embed_texts_with_sparse(phrases, text_type="query")
-    except Exception as e:  # noqa: BLE001
-        logger.warning("短语稀疏检索失败（忽略）: %s", e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("短语稀疏检索失败（忽略）: type=%s", type(exc).__name__)
         return None, None
     soft: dict[str, dict] = {}
     quote_hard: dict[str, dict] = {}
@@ -322,8 +340,8 @@ def _number_phrase_exact_hits(
             doc_ids=doc_ids,
             limit=get_settings().number_phrase_max_insert * 3,
         )
-    except Exception as e:  # noqa: BLE001  索引未构建/registry 未初始化时降级跳过
-        logger.warning("数字短语精确检索失败（忽略）: %s", e)
+    except Exception as exc:  # noqa: BLE001  索引未构建/registry 未初始化时降级跳过
+        logger.warning("数字短语精确检索失败（忽略）: type=%s", type(exc).__name__)
         return None
     if not rows:
         return None
@@ -358,6 +376,270 @@ def _number_phrase_exact_hits(
     return out[: get_settings().number_phrase_max_insert] or None
 
 
+def _expand_adjacent_candidates(
+    candidates: list[dict],
+    org_id: str,
+    user_visibility: str,
+    *,
+    seed_k: int,
+    radius: int,
+    limit: int,
+    preserve_k: int = 20,
+) -> list[dict]:
+    """Insert tenant-verified neighbours after a protected RRF head.
+
+    Appending them after the entire base pool makes them the first entries discarded
+    by later section coverage. Protecting the head preserves no-rerank Top-K while
+    keeping adjacent evidence alive for downstream reranking.
+    """
+    seeds = [
+        (
+            str(hit.get("doc_id") or ""),
+            int(hit.get("page") or 0),
+            int(hit.get("seq") or 0),
+        )
+        for hit in candidates[:seed_k]
+        if hit.get("doc_id") and hit.get("page")
+    ]
+    if not seeds or limit <= 0:
+        return candidates
+    payloads = qdrant_store.fetch_page_window(
+        seeds,
+        org_id,
+        user_visibility,
+        radius=radius,
+        limit=limit,
+    )
+    seen = {str(hit.get("chunk_id") or "") for hit in candidates}
+    adjacent: list[dict] = []
+    for payload in payloads:
+        chunk_id = str(payload.get("chunk_id") or "")
+        if not chunk_id or chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        adjacent.append(
+            {
+                "chunk_id": chunk_id,
+                "doc_id": payload.get("doc_id"),
+                "doc_name": payload.get("doc_name"),
+                "page": payload.get("page"),
+                "seq": payload.get("seq"),
+                "section_path": payload.get("section_path", ""),
+                "chunk_type": payload.get("chunk_type", "text"),
+                "content": payload.get("content", ""),
+                "parent_id": payload.get("parent_id"),
+                "score": 0.0,
+                "fused_score": 0.0,
+                "rerank_score": None,
+                "org_id": payload.get("org_id"),
+                "visibility": payload.get("visibility"),
+                "is_structural": bool(payload.get("is_structural")),
+                "is_adjacent": True,
+            }
+        )
+    head = candidates[:preserve_k]
+    tail = candidates[preserve_k:]
+    return head + adjacent + tail
+
+
+def _character_ngrams(text: str, minimum: int = 2, maximum: int = 5) -> set[str]:
+    normalized = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", text or "").lower()
+    return {
+        normalized[index : index + size]
+        for size in range(minimum, maximum + 1)
+        for index in range(max(0, len(normalized) - size + 1))
+    }
+
+
+def _section_query_score(query_ngrams: set[str], payload: dict) -> float:
+    if not query_ngrams:
+        return 0.0
+    path = _character_ngrams(str(payload.get("section_path") or ""))
+    content = _character_ngrams(str(payload.get("content") or "")[:600])
+    return 3.0 * sum(len(token) ** 2 for token in query_ngrams & path) + sum(
+        len(token) ** 2 for token in query_ngrams & content
+    )
+
+
+def _select_section_coverage(
+    payloads: list[dict],
+    query_text: str,
+    *,
+    limit: int,
+    query_limit: int,
+    head_ratio: float,
+) -> list[dict]:
+    """Select query-matched plus head/uniform section parents without golden labels."""
+    if not payloads or limit <= 0:
+        return []
+    query_ngrams = _character_ngrams(query_text)
+    selected: list[dict] = []
+    seen: set[str] = set()
+    ranked = sorted(
+        payloads,
+        key=lambda payload: (
+            -_section_query_score(query_ngrams, payload),
+            int(payload.get("page") or 0),
+            str(payload.get("chunk_id") or ""),
+        ),
+    )
+    for payload in ranked[:query_limit]:
+        if _section_query_score(query_ngrams, payload) <= 0:
+            break
+        chunk_id = str(payload.get("chunk_id") or "")
+        if chunk_id and chunk_id not in seen:
+            selected.append(payload)
+            seen.add(chunk_id)
+    # Allocate the remaining quota per document. A global page order lets the
+    # first document consume almost the entire budget on comparison/multi-hop
+    # questions and silently removes the other company's evidence.
+    by_doc: dict[str, list[dict]] = {}
+    for payload in payloads:
+        chunk_id = str(payload.get("chunk_id") or "")
+        if chunk_id not in seen:
+            by_doc.setdefault(str(payload.get("doc_id") or ""), []).append(payload)
+    pools = [pool for pool in by_doc.values() if pool]
+    ratio = max(0.0, min(head_ratio, 1.0))
+    while pools and len(selected) < limit:
+        remaining_quota = limit - len(selected)
+        per_doc = max(1, remaining_quota // len(pools))
+        next_pools: list[list[dict]] = []
+        for pool in pools:
+            take = min(per_doc, len(pool), limit - len(selected))
+            if take <= 0:
+                break
+            head_take = min(take, int(round(take * ratio)))
+            indices = set(range(head_take))
+            uniform_take = take - len(indices)
+            tail_size = max(0, len(pool) - head_take)
+            if uniform_take and tail_size:
+                indices.update(
+                    min(
+                        len(pool) - 1,
+                        head_take + int((index + 0.5) * tail_size / uniform_take),
+                    )
+                    for index in range(uniform_take)
+                )
+            chosen = [pool[index] for index in sorted(indices)]
+            chosen_ids = {str(payload.get("chunk_id") or "") for payload in chosen}
+            selected.extend(chosen)
+            remainder = [
+                payload
+                for payload in pool
+                if str(payload.get("chunk_id") or "") not in chosen_ids
+            ]
+            if remainder:
+                next_pools.append(remainder)
+        pools = next_pools
+    return selected[:limit]
+
+
+def _expand_document_section_candidates(
+    candidates: list[dict],
+    doc_ids: list[str],
+    query_vector: list[float],
+    query_text: str,
+    org_id: str,
+    user_visibility: str,
+    *,
+    limit: int,
+    dense_limit: int,
+    child_limit: int,
+    query_limit: int,
+    preserve_k: int,
+    head_ratio: float,
+    candidate_cap: int,
+) -> list[dict]:
+    payloads = qdrant_store.fetch_document_sections(doc_ids, org_id, user_visibility)
+    semantic = qdrant_store.search_dense(
+        query_vector=query_vector,
+        org_id=org_id,
+        user_visibility=user_visibility,
+        top_k=min(dense_limit, limit),
+        chunk_type="section",
+        doc_ids=doc_ids,
+    )
+    semantic_ids = {str(hit.get("chunk_id") or "") for hit in semantic}
+    remainder = [
+        payload
+        for payload in payloads
+        if str(payload.get("chunk_id") or "") not in semantic_ids
+    ]
+    selected = semantic + _select_section_coverage(
+        remainder,
+        query_text,
+        limit=max(0, limit - len(semantic)),
+        query_limit=query_limit,
+        head_ratio=head_ratio,
+    )
+    if not selected:
+        return candidates[:candidate_cap]
+    selected_ids = {str(payload.get("chunk_id") or "") for payload in selected}
+    child_payloads = qdrant_store.fetch_section_children(
+        [
+            (str(payload.get("doc_id") or ""), str(payload.get("chunk_id") or ""))
+            for payload in selected
+        ],
+        org_id,
+        user_visibility,
+        limit=child_limit,
+    )
+    coverage = [
+        {
+            "chunk_id": payload.get("chunk_id"),
+            "doc_id": payload.get("doc_id"),
+            "doc_name": payload.get("doc_name"),
+            "page": payload.get("page"),
+            "seq": payload.get("seq"),
+            "section_path": payload.get("section_path", ""),
+            "chunk_type": "section",
+            "content": payload.get("content", ""),
+            "parent_id": payload.get("parent_id"),
+            "score": 0.0,
+            "fused_score": 0.0,
+            "rerank_score": None,
+            "org_id": payload.get("org_id"),
+            "visibility": payload.get("visibility"),
+            "is_structural": bool(payload.get("is_structural")),
+            "is_section_coverage": True,
+        }
+        for payload in selected
+    ]
+    head = candidates[:preserve_k]
+    head_ids = {str(candidate.get("chunk_id") or "") for candidate in head}
+    children = [
+        {
+            "chunk_id": payload.get("chunk_id"),
+            "doc_id": payload.get("doc_id"),
+            "doc_name": payload.get("doc_name"),
+            "page": payload.get("page"),
+            "seq": payload.get("seq"),
+            "section_path": payload.get("section_path", ""),
+            "chunk_type": payload.get("chunk_type", "text"),
+            "content": payload.get("content", ""),
+            "parent_id": payload.get("parent_id"),
+            "score": 0.0,
+            "fused_score": 0.0,
+            "rerank_score": None,
+            "org_id": payload.get("org_id"),
+            "visibility": payload.get("visibility"),
+            "is_structural": bool(payload.get("is_structural")),
+            "is_section_child": True,
+        }
+        for payload in child_payloads
+        if str(payload.get("chunk_id") or "") not in head_ids
+        and str(payload.get("chunk_id") or "") not in selected_ids
+    ]
+    child_ids = {str(candidate.get("chunk_id") or "") for candidate in children}
+    tail = [
+        candidate
+        for candidate in candidates[preserve_k:]
+        if str(candidate.get("chunk_id") or "") not in selected_ids
+        and str(candidate.get("chunk_id") or "") not in child_ids
+    ]
+    return (head + children + coverage + tail)[:candidate_cap]
+
+
 def hybrid_search(
     query_vector: list[float],
     org_id: str,
@@ -374,9 +656,14 @@ def hybrid_search(
     use_phrase_route: bool = False,
     use_phrase_hard_insert: bool = True,
     use_parent_route: bool = False,
+    use_adjacent_route: bool = False,
+    use_document_section_coverage: bool = False,
     use_subject_filter: bool = True,
     dense_only: bool = False,
     rerank_candidates: int | None = None,
+    route_trace: dict | None = None,
+    fusion_fn=None,
+    field_relay_exact_year: bool = False,
 ) -> list[dict]:
     """混合检索主入口。
 
@@ -514,16 +801,26 @@ def hybrid_search(
     # （§13.2"候选越少质量越高"规律对非指标题同样成立）。生产恒用 rerank_candidates=8；
     # rerank_candidates 参数保留为评测对照扩展点（eval_ablation 显式传值）。
     base_cand = settings.rerank_candidates if rerank_candidates is None else rerank_candidates
-    # 综述题池重构（§18）：parent_route_top_k=12 + 叶子候选 summary_leaf_candidates=6（18 槽）。
-    # 探针实证：叶 8→6 仅损失 1 题相关叶入池，换来父块结构性进 top-8 的降级鲁棒性
-    # （rerank 降级 RRF 直出时父块在第 7-8 槽，no-rerank top8 相关块 0.35→0.96）
+    # 章节路线是补充入口，不应把原融合候选预算缩小；父块随后独立追加。
+    # 保留显式评测覆盖值，避免开启章节路线时原有尾部候选进不了重排。
     if use_parent_route and rerank_candidates is None:
-        base_cand = settings.summary_leaf_candidates
-    fused = rrf_fuse(
-        routes,
-        k=settings.rrf_k,
-        top_n=int(base_cand * depth),
-    )
+        base_cand = max(base_cand, settings.summary_leaf_candidates)
+    if fusion_fn is not None:
+        fused = fusion_fn(routes, k=settings.rrf_k, top_n=int(base_cand * depth))
+    else:
+        fused = rrf_fuse(
+            routes,
+            k=settings.rrf_k,
+            top_n=int(base_cand * depth),
+        )
+    # 只读 route trace：把生产实际使用的中间 route hits 旁路记录(不改执行结果)。
+    # 用于 PR-5B.1e R3 attribution: route_raw(单路可及) vs fused_pre_injection → final(hits)。
+    if route_trace is not None:
+        # Later injection/reranking mutates these lists and payloads in place.
+        # Preserve the actual fusion boundary, not references to final hits.
+        route_trace["routes"] = deepcopy(routes)
+        route_trace["fused_pre_injection"] = deepcopy(fused)
+        route_trace["route_names"] = [str(r.get("chunk_type") if r else None) for r in (routes[0] if routes else [])]
     # 精确锚点硬插：数字+单位精确索引命中 + 引号/书名号短语稀疏 top-3（§18 升级）——
     # embedding 对精确数字/符号边界不敏感，精确匹配是确定性强信号，直接前置进候选池。
     # 插入位置在 RRF 之上、relay 之下（relay 是指标字段索引的更强确定性信号，保持 top 位）。
@@ -553,7 +850,10 @@ def hybrid_search(
     relay_ids: set[str] = set()
     if query_text and settings.fields_enabled and use_field_relay:
         try:
-            relay = _field_relay_candidates(query_text, org_id, user_visibility, fiscal_year)
+            relay = _field_relay_candidates(
+                query_text, org_id, user_visibility, fiscal_year,
+                exact_year=field_relay_exact_year,
+            )
         except Exception:  # noqa: BLE001
             relay = None
         if relay:
@@ -616,6 +916,59 @@ def hybrid_search(
                     h for h in fused
                     if not (h.get("chunk_type") == "summary" and h.get("parent_id"))
                 ]
+
+    # Narrative evidence frequently continues on the same or next page.  These
+    # chunks are appended with zero RRF score so no-rerank production keeps its
+    # existing top order, while a reranker can promote genuinely supporting text.
+    if use_adjacent_route and fused:
+        # ``k`` is the final requested pool size during candidate freezing.  Keep
+        # enough headroom to grow a smaller RRF base (for example 120 -> 200),
+        # while ordinary top-8 answering retains the bounded 64-candidate cap.
+        candidate_cap = max(
+            64,
+            k,
+            int(base_cand * depth) + settings.adjacent_page_max_candidates,
+        )
+        free_slots = min(
+            settings.adjacent_page_max_candidates,
+            max(0, candidate_cap - len(fused)),
+        )
+        if free_slots:
+            fused = _expand_adjacent_candidates(
+                fused,
+                org_id,
+                user_visibility,
+                seed_k=settings.adjacent_page_seed_k,
+                radius=settings.adjacent_page_radius,
+                limit=free_slots,
+                preserve_k=settings.adjacent_page_preserve_k,
+            )
+
+    if use_document_section_coverage and query_text and fused:
+        section_doc_ids = doc_ids or list(
+            dict.fromkeys(str(hit.get("doc_id") or "") for hit in fused if hit.get("doc_id"))
+        )
+        if section_doc_ids:
+            candidate_cap = max(
+                k,
+                int(base_cand * depth),
+                settings.document_section_preserve_k + settings.document_section_coverage_limit,
+            )
+            fused = _expand_document_section_candidates(
+                fused,
+                section_doc_ids,
+                query_vector,
+                query_text,
+                org_id,
+                user_visibility,
+                limit=settings.document_section_coverage_limit,
+                dense_limit=settings.document_section_dense_limit,
+                child_limit=settings.document_section_child_limit,
+                query_limit=settings.document_section_query_limit,
+                preserve_k=settings.document_section_preserve_k,
+                head_ratio=settings.document_section_head_ratio,
+                candidate_cap=candidate_cap,
+            )
 
     # 分析型问题候选池 MMR 去重（§16 已删）：消融证明负优化（非指标 NDCG 0.3533→0.2852），
     # 相关集本身为同主题多块，去重反而删掉相关块。见 ablation_report §16.4。

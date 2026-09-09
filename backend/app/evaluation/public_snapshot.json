@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "published_at": "2026-08-22T15:56:00+08:00",
+  "evaluation_contract": {
+    "scope": "non_indicator_outer_holdout",
+    "targets": {
+      "precision_at_1": 0.9,
+      "mrr_at_10": 0.9,
+      "ndcg_at_10": 0.9,
+      "recall_at_20": 0.9,
+      "all_hit_at_20": 0.9
+    },
+    "indicator_regression_tolerance": 0.005
+  },
+  "sealed_blind_test": {
+    "status": "sealed",
+    "opened": false,
+    "companies": 6,
+    "questions": 240,
+    "note": "候选门槛、LOCO 选参与配置冻结前不得开启。"
+  },
+  "published_runs": [
+    {
+      "id": "production_rrf_baseline_20260820",
+      "label": "生产候选基线",
+      "kind": "end_to_end_retrieval",
+      "environment": "local_real_models",
+      "evidence_level": "raw_artifact",
+      "question_group": "non_indicator",
+      "sample_count": 71,
+      "corpus_chunks": 28424,
+      "candidate_k": 200,
+      "rerank_backend": "none",
+      "metrics": {
+        "ndcg_at_10": 0.5100905155212013,
+        "precision_at_1": 0.5633802816901409,
+        "mrr": 0.6428012519561815,
+        "recall_at_20": 0.6768947015425889,
+        "all_hit_at_20": 0.49295774647887325,
+        "candidate_group_recall_at_200": 0.9007042253521127,
+        "oracle_all_hit_at_20": 0.7746478873239436,
+        "p95_latency_ms": 24867.518000000928
+      },
+      "source": {
+        "report": "output/evaluation/dev-production-rrf-20260820-rescored.json",
+        "report_sha256": "0723de4781b0aa7b24e26fc7051b01a9c7b439d1119d6d97cb50c6a14724f7f9",
+        "snapshot_sha256": "594f97f7daa056a6522c8345de838fb4862b08531ed9b65046ad2a74c9a01964"
+      },
+      "caveat": "开发集真实生产候选路径，不是六公司外层封存盲测。"
+    },
+    {
+      "id": "aspect_retrieval_v2b_20260820",
+      "label": "方面检索 v2b（已撤回）",
+      "kind": "end_to_end_retrieval",
+      "environment": "local_real_models",
+      "evidence_level": "raw_artifact",
+      "question_group": "non_indicator",
+      "sample_count": 71,
+      "corpus_chunks": 28424,
+      "candidate_k": 200,
+      "rerank_backend": "none",
+      "status": "rejected_negative_regression",
+      "metrics": {
+        "ndcg_at_10": 0.5140837617043258,
+        "precision_at_1": 0.49295774647887325,
+        "mrr": 0.6084842387659288,
+        "recall_at_20": 0.6651576123407109,
+        "all_hit_at_20": 0.4647887323943662,
+        "candidate_group_recall_at_200": 0.8978537894030851,
+        "oracle_all_hit_at_20": 0.7746478873239436,
+        "p95_latency_ms": 27415.091899998515
+      },
+      "source": {
+        "report": "output/evaluation/dev-production-aspect-v2b-20260820.json",
+        "report_sha256": "6c934b6f7038e80a9574a885913753c8c4573710a846d0815f1c5446bcf70831",
+        "snapshot_sha256": "644ba740e86c4cea92f271192299e43fa546de40d9c7aa563c8acdf78d991be7"
+      },
+      "caveat": "NDCG 略升但 P@1、MRR、Recall、All-Hit 与延迟均回归，因此不进入默认路径。"
+    },
+    {
+      "id": "rrf_frozen_dev_20260822",
+      "label": "RRF 冻结候选开发集",
+      "kind": "frozen_candidate_rerank",
+      "environment": "local_real_models",
+      "evidence_level": "raw_artifact",
+      "question_group": "non_indicator",
+      "sample_count": 71,
+      "candidate_k": 64,
+      "rerank_backend": "none",
+      "metrics": {
+        "ndcg_at_10": 0.48994059156527386,
+        "precision_at_1": 0.5211267605633803,
+        "mrr": 0.6144533869885982,
+        "recall_at_20": 0.6381623071763917,
+        "all_hit_at_20": 0.4225352112676056
+      },
+      "source": {
+        "report": "output/evaluation/rrf-full71-c64-20260822.json",
+        "report_sha256": "c1051ed3c78972e5acb32f12dcdd3e3843cb417ea67bd57c0b7ccfc45bdec2eb",
+        "snapshot_sha256": "1ea7c140c5ec2a3198242aac842add926afbf895f369b25adf39f13de4a21252"
+      },
+      "caveat": "71 题开发集、冻结生产候选池；不是六公司外层封存盲测。"
+    },
+    {
+      "id": "external_qwen3_rerank_dev_20260822",
+      "label": "外部 Qwen3-Rerank（200 候选）",
+      "kind": "frozen_candidate_rerank",
+      "environment": "local_external_api",
+      "evidence_level": "raw_artifact",
+      "question_group": "non_indicator",
+      "sample_count": 71,
+      "candidate_k": 200,
+      "rerank_backend": "api",
+      "metrics": {
+        "ndcg_at_10": 0.6260445465192598,
+        "precision_at_1": 0.6901408450704225,
+        "mrr": 0.7739436619718311,
+        "recall_at_20": 0.715157612340711,
+        "all_hit_at_20": 0.49295774647887325,
+        "p95_latency_ms": 572.0851000005496
+      },
+      "source": {
+        "report": "output/evaluation/external-api-full71-c200-20260822.json",
+        "report_sha256": "7805c6940e01006de0fb03d9ff5905a6e5af063971aafd881673b30fb6b3f045",
+        "snapshot_sha256": "1ea7c140c5ec2a3198242aac842add926afbf895f369b25adf39f13de4a21252"
+      },
+      "caveat": "真实百炼 API、71 题开发集；对头部排序有收益，但所有核心指标仍低于 0.9，不能替代封存盲测。"
+    },
+    {
+      "id": "qwen3_reranker_base_holdout_20260818",
+      "label": "Qwen3-Reranker-8B Base",
+      "kind": "frozen_candidate_rerank",
+      "environment": "local_gpu",
+      "evidence_level": "published_report",
+      "question_group": "non_indicator",
+      "sample_count": 34,
+      "metrics": {
+        "ndcg_at_8": 0.7546,
+        "precision_at_1": 0.6471,
+        "mrr": 0.7667,
+        "recall_at_8": 0.9804,
+        "all_hit_at_8": 0.9412
+      },
+      "source": {
+        "report": "简历_检索召回量化报告.md",
+        "report_sha256": "29193b9beee446222dc53a08e1fe08f94846426fd43b7a3253025b99c9574f6f"
+      },
+      "caveat": "单一未见公司、冻结候选池结果，不代表端到端生产检索。"
+    },
+    {
+      "id": "qwen3_reranker_adapter_v1_holdout_20260818",
+      "label": "Qwen3 财报 Adapter v1",
+      "kind": "frozen_candidate_rerank",
+      "environment": "local_gpu",
+      "evidence_level": "published_report",
+      "question_group": "non_indicator",
+      "sample_count": 34,
+      "status": "historical_not_production",
+      "metrics": {
+        "ndcg_at_8": 0.8384,
+        "precision_at_1": 0.7941,
+        "mrr": 0.8873,
+        "recall_at_8": 0.9902,
+        "all_hit_at_8": 0.9706,
+        "peak_vram_gib": 11.33
+      },
+      "source": {
+        "report": "简历_检索召回量化报告.md",
+        "report_sha256": "29193b9beee446222dc53a08e1fe08f94846426fd43b7a3253025b99c9574f6f"
+      },
+      "caveat": "只证明同一冻结候选池内排序收益；尚未通过完整生产路径与多公司 LOCO。"
+    }
+  ],
+  "pending_comparisons": [
+    {
+      "label": "外部 rerank API",
+      "status": "measured_on_dev_frozen_pool",
+      "note": "已完成 71 题冻结生产候选开发集测量；尚未与 local base/adapter 在新六公司外层盲测同口径比较。"
+    },
+    {
+      "label": "非指标题 Adapter v2",
+      "status": "gated",
+      "note": "Evidence-Group Recall@200 和 Oracle All-Hit@20 达标后才允许训练。"
+    }
+  ]
+}

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import sys
@@ -25,6 +26,12 @@ def set_trace_id(tid: str) -> None:
 
 def get_trace_id() -> str:
     return trace_id_var.get()
+
+
+def safe_ref(value: str) -> str:
+    """返回不可逆短指纹，供日志关联请求但不记录问题、租户等原文。"""
+    raw = (value or "").encode("utf-8", errors="replace")
+    return f"sha256:{hashlib.sha256(raw).hexdigest()[:12]}:len={len(value or '')}"
 
 
 class JsonFormatter(logging.Formatter):

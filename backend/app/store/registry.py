@@ -1,15 +1,17 @@
-"""SQLite 登记库：文档/任务 CRUD + 串行持久化阶段文件。"""
+"""关系型登记库：本地 SQLite，生产环境可切换 PostgreSQL。"""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from sqlalchemy import create_engine, delete, event, func, select, text
+from sqlalchemy import create_engine, delete, event, func, inspect, select, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.secrets import resolve_secret
 from app.fields.extract import FieldRecord
 from app.models.entities import (
     Base,
@@ -32,22 +34,31 @@ _session_factory = None
 def init_db() -> None:
     global _engine, _session_factory
     settings = get_settings()
-    db_path = settings.resolved_registry_db
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    _engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    if settings.registry_database_url:
+        db_url = make_url(settings.registry_database_url)
+        password = resolve_secret("REGISTRY_DB_PASSWORD", settings.registry_db_password)
+        if password:
+            db_url = db_url.set(password=password)
+        _engine = create_engine(db_url, pool_pre_ping=True)
+    else:
+        db_path = settings.resolved_registry_db
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        _engine = create_engine(
+            f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
+        )
 
-    @event.listens_for(_engine, "connect")
-    def _sqlite_pragmas(dbapi_connection, _connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA busy_timeout=5000")
-        cursor.close()
+        @event.listens_for(_engine, "connect")
+        def _sqlite_pragmas(dbapi_connection, _connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.close()
     _session_factory = sessionmaker(bind=_engine, expire_on_commit=False)
     Base.metadata.create_all(_engine)
     _migrate_fields_company()
     _ensure_indexes()
-    logger.info("SQLite registry ready: %s", db_path)
+    logger.info("registry ready: dialect=%s", _engine.dialect.name)
 
 
 def _migrate_fields_company() -> None:
@@ -56,15 +67,15 @@ def _migrate_fields_company() -> None:
 
     try:
         with _engine.begin() as conn:
-            cols = [row[1] for row in conn.execute(text("PRAGMA table_info(financial_fields)"))]
+            cols = [column["name"] for column in inspect(conn).get_columns("financial_fields")]
             if "company" not in cols:
                 conn.execute(text("ALTER TABLE financial_fields ADD COLUMN company VARCHAR(64) DEFAULT ''"))
                 logger.info("financial_fields: 已新增 company 列（待回填）")
             if "source_chunk_id" not in cols:
                 conn.execute(text("ALTER TABLE financial_fields ADD COLUMN source_chunk_id VARCHAR(32) DEFAULT ''"))
                 logger.info("financial_fields: 已新增 source_chunk_id 列（待回填）")
-    except Exception as e:  # noqa: BLE001
-        logger.warning("financial_fields 列迁移跳过: %s", e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("financial_fields 列迁移跳过: type=%s", type(exc).__name__)
 
 
 def _ensure_indexes() -> None:
@@ -554,6 +565,20 @@ def save_eval_result(eval_name: str, scope: str, metrics: dict, payload: dict | 
         return rec
 
 
+def list_eval_results(org_id: str, limit: int = 20) -> list[EvalResult]:
+    """List aggregate evaluation records for one tenant without exposing payloads."""
+
+    with get_session() as s:
+        return list(
+            s.scalars(
+                select(EvalResult)
+                .where(EvalResult.scope.contains(f"org={org_id}"))
+                .order_by(EvalResult.created_at.desc())
+                .limit(max(1, min(limit, 50)))
+            ).all()
+        )
+
+
 # ---------- RetrievalFallbackLog（分级降级日志） ----------
 
 def log_fallback(
@@ -580,8 +605,8 @@ def log_fallback(
                 )
             )
             s.commit()
-    except Exception as e:  # noqa: BLE001  日志失败不影响检索主流程
-        logger.warning("降级日志写入失败（忽略）: %s", e)
+    except Exception as exc:  # noqa: BLE001  日志失败不影响检索主流程
+        logger.warning("降级日志写入失败（忽略）: type=%s", type(exc).__name__)
 
 
 # ---------- 串行持久化（断点续跑） ----------

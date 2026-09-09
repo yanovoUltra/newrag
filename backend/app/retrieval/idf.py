@@ -39,8 +39,8 @@ def _load_raw() -> dict[int, float]:
     try:
         raw = json.loads(p.read_text(encoding="utf-8"))
         return {int(k): float(v) for k, v in raw.items() if k != _MODULE_IDF_KEY}
-    except Exception as e:
-        logger.warning("idf.json 读取失败，视为空: %s", e)
+    except Exception as exc:
+        logger.warning("idf.json 读取失败，视为空: type=%s", type(exc).__name__)
         return {}
 
 

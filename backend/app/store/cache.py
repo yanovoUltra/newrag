@@ -84,9 +84,9 @@ def embed_cache_get(
         data = json.loads(raw)
         _record_embed_stat("hits")
         return data["dense"], data.get("sparse")
-    except Exception as e:
+    except Exception as exc:
         _record_embed_stat("unavailable")
-        logger.warning("嵌入缓存读取失败: %s", e)
+        logger.warning("嵌入缓存读取失败: type=%s", type(exc).__name__)
         return None
 
 
@@ -126,7 +126,7 @@ def cache_metrics_snapshot() -> dict:
             ),
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Redis 缓存指标读取失败: %s", exc)
+        logger.warning("Redis 缓存指标读取失败: type=%s", type(exc).__name__)
     return result
 
 
@@ -147,8 +147,8 @@ def embed_cache_set(
     try:
         key = f"emb:{text_type}:{output_type}:{hashlib.sha256(_norm(text).encode('utf-8')).hexdigest()}"
         r.set(key, json.dumps({"dense": dense, "sparse": sparse}, ensure_ascii=False), ex=ttl)
-    except Exception as e:
-        logger.warning("嵌入缓存写入失败: %s", e)
+    except Exception as exc:
+        logger.warning("嵌入缓存写入失败: type=%s", type(exc).__name__)
 
 
 # ---------- 语义答案缓存 ----------
@@ -167,8 +167,8 @@ def _load_bucket(org_id: str, user_visibility: str) -> list[dict]:
             return []
         data = json.loads(raw)
         return data if isinstance(data, list) else []
-    except Exception as e:
-        logger.warning("答案缓存读取失败: %s", e)
+    except Exception as exc:
+        logger.warning("答案缓存读取失败: type=%s", type(exc).__name__)
         return []
 
 
@@ -222,5 +222,5 @@ def answer_store(org_id: str, user_visibility: str, entry: dict) -> None:
             json.dumps(bucket, ensure_ascii=False),
             ex=settings.answer_cache_ttl,
         )
-    except Exception as e:
-        logger.warning("答案缓存写入失败: %s", e)
+    except Exception as exc:
+        logger.warning("答案缓存写入失败: type=%s", type(exc).__name__)

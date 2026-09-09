@@ -5,14 +5,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Delete, Document, Search } from '@element-plus/icons-vue'
 import { deleteDocument, listDocumentPage } from '@/api/documents'
 import { notifyError } from '@/api/client'
+import { getIdentityContext } from '@/auth'
 import type { DocumentItem } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
+const identity = getIdentityContext()
+const identityLocked = identity !== null
 const docs = ref<DocumentItem[]>([])
 const loading = ref(false)
 const keyword = ref(String(route.query.filename ?? ''))
-const orgFilter = ref(String(route.query.org_id ?? ''))
+const orgFilter = ref(identity?.orgId ?? String(route.query.org_id ?? ''))
 const statusFilter = ref(String(route.query.status ?? ''))
 const total = ref(0)
 const page = ref(Math.max(1, Number(route.query.page) || 1))
@@ -148,6 +151,7 @@ onUnmounted(() => {
           aria-label="按机构 ID 筛选"
           clearable
           style="width: 130px"
+          :disabled="identityLocked"
         />
         <el-select
           v-model="statusFilter"

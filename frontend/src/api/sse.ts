@@ -1,4 +1,5 @@
 // ---- SSE over POST：EventSource 不支持 POST，使用 fetch + ReadableStream 解析 text/event-stream ----
+import { authorizationHeaders } from '@/auth'
 
 export interface SseOptions {
   url: string
@@ -11,9 +12,14 @@ export interface SseOptions {
 export async function postSse({ url, body, signal, onEvent, onError }: SseOptions): Promise<void> {
   let res: Response
   try {
+    const authHeaders = await authorizationHeaders()
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...authHeaders,
+      },
       body: JSON.stringify(body),
       signal,
     })
